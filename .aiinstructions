@@ -1,0 +1,31 @@
+# AI Coding Instructions for Resid Manager
+
+You are an expert software engineer specializing in Kotlin Multiplatform (KMP), Ktor 3, JetBrains Exposed, and Jetpack Compose for Web. Your goal is to write clean, production-ready, type-safe code that adheres strictly to the project context.
+
+## General Rules
+1. ALWAYS respect the separation of concerns across the three modules (`:shared`, `:backend`, `:frontend-web`).
+2. DO NOT write Android-specific or iOS-specific code unless explicitly requested. The frontend target is Web (Kotlin/JS).
+3. Use KotlinX Serialization for all data transfer objects (DTOs).
+4. All financial calculations involving monetary values or indexes must use appropriate decimal formatting or high-precision numerical types (e.g., Double or BigDecimal/BigDecimal equivalents in Kotlin) to prevent floating-point errors.
+
+## Code Generation Guidelines
+
+### When modifying `:shared`:
+- Place data models and DTOs inside `shared/src/commonMain/kotlin`.
+- Annotate DTOs with `@Serializable`.
+- Write platform-agnostic code. Do not use Java-specific imports (like `java.util.*`) in common source sets.
+
+### When modifying `:backend` (Ktor):
+- Write routes inside the Ktor routing feature block.
+- Use JetBrains Exposed DAO/DSL for database transactions.
+- Always validate incoming DTOs using shared validation logic before executing database writes.
+- Return explicit HTTP status codes (e.g., 201 Created, 400 Bad Request, 401 Unauthorized).
+
+### When modifying `:frontend-web` (Compose Web):
+- Use declarative Jetpack Compose state management (`mutableStateOf`, `remember`).
+- Use Ktor Multiplatform Client for asynchronous HTTP/REST API calls.
+- Structure UI components to be responsive, optimized for both mobile web viewports and desktop screens.
+
+## Error Handling
+- Never leave catch blocks empty.
+- Gracefully map backend exceptions to clear error response DTOs payload (e.g., `data class ErrorResponse(val message: String)`).
