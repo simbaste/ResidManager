@@ -538,6 +538,9 @@ fun ResidencesPage(viewModel: LoginViewModel) {
     val ownedResidences = uiState.residences.filter { it.userRoleInResidence == UserRole.ADMIN }
     val associatedResidences = uiState.residences.filter { it.userRoleInResidence != UserRole.ADMIN }
 
+    var editingResidence by remember { mutableStateOf<ResidenceContext?>(null) }
+    var deletingResidenceId by remember { mutableStateOf<String?>(null) }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
@@ -619,7 +622,9 @@ fun ResidencesPage(viewModel: LoginViewModel) {
                                     onClick = {
                                         viewModel.selectResidence(residence)
                                         viewModel.navigateToAppScreen(AppScreen.DASHBOARD)
-                                    }
+                                    },
+                                    onEditClick = { editingResidence = residence },
+                                    onDeleteClick = { deletingResidenceId = residence.residenceId }
                                 )
                             }
                         }
@@ -653,12 +658,55 @@ fun ResidencesPage(viewModel: LoginViewModel) {
             }
         }
     }
+
+    // Edit Residence Dialog
+    if (editingResidence != null) {
+        val target = editingResidence!!
+        EditResidenceDialog(
+            residence = target,
+            onDismiss = { editingResidence = null },
+            onSubmit = { name, address, kWhPrice ->
+                viewModel.updateResidence(target.residenceId, name, address, kWhPrice)
+                editingResidence = null
+            }
+        )
+    }
+
+    // Delete Residence Confirmation Dialog
+    if (deletingResidenceId != null) {
+        val targetId = deletingResidenceId!!
+        val resName = uiState.residences.firstOrNull { it.residenceId == targetId }?.residenceName ?: "Cette résidence"
+
+        AlertDialog(
+            onDismissRequest = { deletingResidenceId = null },
+            title = { Text("Supprimer la résidence") },
+            text = { Text("Êtes-vous sûr de vouloir supprimer définitivement la résidence '$resName' ainsi que tous ses logements, contrats et données financières ? Cette action est irréversible.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteResidence(targetId)
+                        deletingResidenceId = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Supprimer")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingResidenceId = null }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 fun OwnedPropertyCard(
     residence: ResidenceContext,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
@@ -669,17 +717,45 @@ fun OwnedPropertyCard(
             modifier = Modifier.padding(16.dp).fillMaxSize(),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = residence.residenceName,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = residence.residenceAddress,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = residence.residenceName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = residence.residenceAddress,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "✎",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .clickable { onEditClick() }
+                            .padding(4.dp)
+                    )
+                    Text(
+                        text = "✕",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier
+                            .clickable { onDeleteClick() }
+                            .padding(4.dp)
+                    )
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -775,6 +851,9 @@ fun LogementsPage(viewModel: LoginViewModel) {
     val activeResidence = uiState.selectedResidenceContext
     val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.RESIDENCE_MANAGER)
 
+    var showDeleteConfirmationId by remember { mutableStateOf<String?>(null) }
+    var editingLogement by remember { mutableStateOf<LogementDto?>(null) }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
@@ -838,16 +917,68 @@ fun LogementsPage(viewModel: LoginViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     uiState.logements.forEach { logement ->
-                        LogementCard(logement = logement)
+                        LogementCard(
+                            logement = logement,
+                            isAuthorized = isAuthorized,
+                            onDeleteClick = { showDeleteConfirmationId = logement.id },
+                            onEditClick = { editingLogement = logement }
+                        )
                     }
                 }
             }
         }
     }
+
+    // Delete Confirmation Dialog
+    if (showDeleteConfirmationId != null) {
+        val targetId = showDeleteConfirmationId!!
+        val logementName = uiState.logements.firstOrNull { it.id == targetId }?.name ?: "Ce logement"
+
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmationId = null },
+            title = { Text("Supprimer le logement") },
+            text = { Text("Êtes-vous sûr de vouloir supprimer définitivement le logement '$logementName' ? Cette action est irréversible.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteLogement(targetId)
+                        showDeleteConfirmationId = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Supprimer")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmationId = null }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
+    // Edit Logement Dialog
+    if (editingLogement != null) {
+        val target = editingLogement!!
+        EditLogementDialog(
+            viewModel = viewModel,
+            logement = target,
+            onDismiss = { editingLogement = null },
+            onSubmit = { name, floor, type, rent, charges, initialIndex ->
+                viewModel.updateLogement(target.id, name, floor, type, rent, charges, initialIndex)
+                editingLogement = null
+            }
+        )
+    }
 }
 
 @Composable
-fun LogementCard(logement: LogementDto) {
+fun LogementCard(
+    logement: LogementDto,
+    isAuthorized: Boolean,
+    onDeleteClick: () -> Unit,
+    onEditClick: () -> Unit
+) {
     val statusColor = if (logement.status == "AVAILABLE") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.tertiaryContainer
     val statusText = if (logement.status == "AVAILABLE") "AVAILABLE (Libre)" else logement.status
 
@@ -864,7 +995,44 @@ fun LogementCard(logement: LogementDto) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = logement.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = logement.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    
+                    // Show Edit & Delete Icons only if the user has MANAGEMENT permissions (OWNER, ADMIN, MANAGER)
+                    if (isAuthorized) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "✎",
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier
+                                    .clickable { onEditClick() }
+                                    .padding(4.dp)
+                            )
+                            Text(
+                                text = "✕",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier
+                                    .clickable { onDeleteClick() }
+                                    .padding(4.dp)
+                            )
+                        }
+                    }
+                }
+
                 Badge(containerColor = statusColor) {
                     Text(text = statusText, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(4.dp))
                 }
@@ -909,6 +1077,39 @@ fun CreateResidenceDialog(
         confirmButton = {
             Button(onClick = { onSubmit(name, address, kWhPrice.toDoubleOrNull() ?: 150.0) }) {
                 Text("Créer")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annuler")
+            }
+        }
+    )
+}
+
+@Composable
+fun EditResidenceDialog(
+    residence: ResidenceContext,
+    onDismiss: () -> Unit,
+    onSubmit: (String, String, Double) -> Unit
+) {
+    var name by remember { mutableStateOf(residence.residenceName) }
+    var address by remember { mutableStateOf(residence.residenceAddress) }
+    var kWhPrice by remember { mutableStateOf("150.0") } // default fallback
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Modifier la résidence") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom de la résidence *") })
+                OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Adresse *") })
+                OutlinedTextField(value = kWhPrice, onValueChange = { kWhPrice = it }, label = { Text("Prix du kWh (XOF) *") })
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onSubmit(name, address, kWhPrice.toDoubleOrNull() ?: 150.0) }) {
+                Text("Enregistrer les modifications")
             }
         },
         dismissButton = {
@@ -1098,6 +1299,89 @@ fun CreateLogementDialog(
                 }
             ) {
                 Text("Enregistrer")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Annuler")
+            }
+        }
+    )
+}
+
+@Composable
+fun EditLogementDialog(
+    viewModel: LoginViewModel,
+    logement: LogementDto,
+    onDismiss: () -> Unit,
+    onSubmit: (String, String, String, Double, Double, Double) -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    var name by remember { mutableStateOf(logement.name) }
+    var floor by remember { mutableStateOf(logement.floor) }
+    var type by remember { mutableStateOf(logement.type) }
+    var nominalRent by remember { mutableStateOf(logement.nominalRent.toString()) }
+    var serviceCharges by remember { mutableStateOf(logement.serviceCharges.toString()) }
+    var initialIndex by remember { mutableStateOf(logement.initialElectricityIndex.toString()) }
+
+    var localError by remember { mutableStateOf<String?>(null) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Modifier le logement") },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom / Numéro (ex: Appart A1) *") })
+                OutlinedTextField(value = floor, onValueChange = { floor = it }, label = { Text("Étage (RDC, 1st, 2nd, etc.) *") })
+                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Type (Chambre, Studio, T2, etc.) *") })
+
+                OutlinedTextField(
+                    value = nominalRent,
+                    onValueChange = { nominalRent = it },
+                    label = { Text("Loyer mensuel de base (XOF) *") }
+                )
+
+                OutlinedTextField(
+                    value = serviceCharges,
+                    onValueChange = { serviceCharges = it },
+                    label = { Text("Charges fixes d'entretien (XOF) *") }
+                )
+
+                OutlinedTextField(
+                    value = initialIndex,
+                    onValueChange = { initialIndex = it },
+                    label = { Text("Index initial élec. (kWh) *") }
+                )
+
+                val error = uiState.errorMessage ?: localError
+                if (error != null) {
+                    Text(text = error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val rentVal = nominalRent.toDoubleOrNull()
+                    val chargesVal = serviceCharges.toDoubleOrNull()
+                    val indexVal = initialIndex.toDoubleOrNull()
+
+                    if (name.isBlank() || floor.isBlank() || type.isBlank() || rentVal == null || chargesVal == null || indexVal == null) {
+                        localError = "Veuillez remplir tous les champs et saisir des valeurs numériques valides."
+                        return@Button
+                    }
+                    if (rentVal < 0.0 || chargesVal < 0.0 || indexVal < 0.0) {
+                        localError = "Les valeurs numériques doivent être supérieures ou égales à 0."
+                        return@Button
+                    }
+
+                    onSubmit(name, floor, type, rentVal, chargesVal, indexVal)
+                }
+            ) {
+                Text("Enregistrer les modifications")
             }
         },
         dismissButton = {

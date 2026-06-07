@@ -265,6 +265,97 @@ class LoginViewModel(
         }
     }
 
+    fun deleteLogement(logementId: String) {
+        val token = _uiState.value.jwtToken ?: return
+        val residenceId = _uiState.value.selectedResidenceContext?.residenceId ?: return
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                logementRepository.deleteLogement(token, residenceId, logementId)
+                    .onSuccess {
+                        fetchLogements() // Refresh dashboard / logements list
+                        _uiState.update { it.copy(isLoading = false, errorMessage = null) }
+                    }
+                    .onFailure { exception ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = exception.message
+                            )
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Erreur réseau : ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    fun updateLogement(
+        logementId: String,
+        name: String,
+        floor: String,
+        type: String,
+        nominalRent: Double,
+        serviceCharges: Double,
+        initialElectricityIndex: Double
+    ) {
+        val token = _uiState.value.jwtToken ?: return
+        val residenceId = _uiState.value.selectedResidenceContext?.residenceId ?: return
+
+        if (name.isBlank() || floor.isBlank() || type.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Veuillez remplir tous les champs obligatoires.") }
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                val request = com.resid.manager.dto.LogementCreateRequest(
+                    name = name,
+                    floor = floor,
+                    type = type,
+                    nominalRent = nominalRent,
+                    serviceCharges = serviceCharges,
+                    initialElectricityIndex = initialElectricityIndex
+                )
+
+                logementRepository.updateLogement(token, residenceId, logementId, request)
+                    .onSuccess {
+                        fetchLogements() // Refresh dashboard / logements list
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = null
+                            )
+                        }
+                    }
+                    .onFailure { exception ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = exception.message
+                            )
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Erreur réseau : ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
     fun onEmailChanged(email: String) {
         _uiState.update { it.copy(email = email, errorMessage = null) }
     }
@@ -397,6 +488,81 @@ class LoginViewModel(
                 }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
+            }
+        }
+    }
+
+    fun updateResidence(residenceId: String, name: String, address: String, kWhPrice: Double) {
+        val token = _uiState.value.jwtToken ?: return
+
+        if (name.isBlank() || address.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Veuillez remplir tous les champs obligatoires.") }
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                residenceRepository.updateResidence(token, residenceId, com.resid.manager.dto.ResidenceCreateRequest(name, address, "XOF", kWhPrice))
+                    .onSuccess {
+                        fetchResidences()
+                        _uiState.update { it.copy(isLoading = false, errorMessage = null) }
+                    }
+                    .onFailure { exception ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = exception.message
+                            )
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Erreur réseau : ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    fun deleteResidence(residenceId: String) {
+        val token = _uiState.value.jwtToken ?: return
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                residenceRepository.deleteResidence(token, residenceId)
+                    .onSuccess {
+                        _uiState.update { state ->
+                            val updatedResidences = state.residences.filter { it.residenceId != residenceId }
+                            state.copy(
+                                isLoading = false,
+                                residences = updatedResidences,
+                                selectedResidenceContext = updatedResidences.firstOrNull(),
+                                errorMessage = null
+                            )
+                        }
+                        fetchResidences()
+                    }
+                    .onFailure { exception ->
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                errorMessage = exception.message
+                            )
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Erreur réseau : ${e.message}"
+                    )
+                }
             }
         }
     }

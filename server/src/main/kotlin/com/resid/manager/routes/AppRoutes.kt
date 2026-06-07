@@ -359,6 +359,73 @@ fun Application.configureAppRoutes() {
                 }
             }
 
+            // PUT /api/residences/{id} : Update a residence
+            put("/api/residences/{id}") {
+                val principal = call.principal<JWTPrincipal>()
+                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
+                val residenceId = call.parameters["id"] ?: ""
+
+                try {
+                    // Check if sender is OWNER or ADMIN
+                    val userRole = transaction {
+                        ResidenceMembers
+                            .select(ResidenceMembers.role)
+                            .where { 
+                                (ResidenceMembers.userId eq UUID.fromString(userId)) and 
+                                (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
+                                (ResidenceMembers.status eq "ACCEPTED") 
+                            }
+                            .singleOrNull()?.get(ResidenceMembers.role)
+                    }
+
+                    if (userRole == null || (userRole != "OWNER" && userRole != "ADMIN")) {
+                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit: Seuls les propriétaires et administrateurs peuvent modifier cette résidence."))
+                        return@put
+                    }
+
+                    val request = call.receive<ResidenceCreateRequest>()
+
+                    // Validation
+                    if (request.name.isBlank() || request.address.isBlank()) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("Veuillez remplir tous les champs obligatoires."))
+                        return@put
+                    }
+                    if (request.kWhPrice < 0.0) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("Le prix du kWh doit être supérieur ou égal à 0."))
+                        return@put
+                    }
+
+                    val updatedSummary = transaction {
+                        val dbResidence = Residence.findById(UUID.fromString(residenceId)) ?: throw Exception("Résidence introuvable.")
+                        
+                        dbResidence.name = request.name
+                        dbResidence.address = request.address
+                        dbResidence.currencyPivot = request.defaultCurrency.ifBlank { "XOF" }
+                        dbResidence.kWhPrice = request.kWhPrice
+                        dbResidence.updatedAt = LocalDateTime.now()
+
+                        dbResidence.flush()
+
+                        val totalUnits = Logement.find { Logements.residenceId eq dbResidence.id.value }.count()
+
+                        ResidenceSummaryItem(
+                            id = dbResidence.id.value.toString(),
+                            name = dbResidence.name,
+                            address = dbResidence.address,
+                            photoUrl = dbResidence.photoUrl,
+                            totalUnits = totalUnits.toInt()
+                        )
+                    }
+
+                    call.respond(HttpStatusCode.OK, updatedSummary)
+                } catch (e: Exception) {
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse("Erreur lors de la modification de la résidence : ${e.message}")
+                    )
+                }
+            }
+
             // GET /api/residences/search?name=... : Search for a residence by name
             get("/api/residences/search") {
                 val searchName = call.request.queryParameters["name"] ?: ""
@@ -773,6 +840,117 @@ fun Application.configureAppRoutes() {
                     call.respond(
                         HttpStatusCode.InternalServerError,
                         ErrorResponse("Erreur lors de la création du logement : ${e.message}")
+                    )
+                }
+            }
+
+            // DELETE /api/residences/{id}/logements/{logementId} : Delete a housing unit (logement)
+            delete("/api/residences/{id}/logements/{logementId}") {
+                val principal = call.principal<JWTPrincipal>()
+                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
+                val residenceId = call.parameters["id"] ?: ""
+                val logementId = call.parameters["logementId"] ?: ""
+
+                try {
+                    // Check user roles: OWNER, ADMIN, RESIDENCE_MANAGER
+                    val userRole = transaction {
+                        ResidenceMembers
+                            .select(ResidenceMembers.role)
+                            .where { 
+                                (ResidenceMembers.userId eq UUID.fromString(userId)) and 
+                                (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
+                                (ResidenceMembers.status eq "ACCEPTED") 
+                            }
+                            .singleOrNull()?.get(ResidenceMembers.role)
+                    }
+
+                    if (userRole == null || (userRole != "OWNER" && userRole != "ADMIN" && userRole != "RESIDENCE_MANAGER")) {
+                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit : Seuls les administrateurs et gestionnaires peuvent supprimer des logements."))
+                        return@delete
+                    }
+
+                    // Perform deletion inside transaction using Exposed DSL
+                    transaction {
+                        Logements.deleteWhere { Logements.id eq UUID.fromString(logementId) }
+                    }
+
+                    call.respond(HttpStatusCode.OK, mapOf("message" to "Le logement a été supprimé de la base de données avec succès !"))
+                } catch (e: Exception) {
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse("Erreur lors de la suppression du logement : ${e.message}")
+                    )
+                }
+            }
+
+            // PUT /api/residences/{id}/logements/{logementId} : Update a housing unit (logement)
+            put("/api/residences/{id}/logements/{logementId}") {
+                val principal = call.principal<JWTPrincipal>()
+                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
+                val residenceId = call.parameters["id"] ?: ""
+                val logementId = call.parameters["logementId"] ?: ""
+
+                try {
+                    // Check user roles: OWNER, ADMIN, RESIDENCE_MANAGER
+                    val userRole = transaction {
+                        ResidenceMembers
+                            .select(ResidenceMembers.role)
+                            .where { 
+                                (ResidenceMembers.userId eq UUID.fromString(userId)) and 
+                                (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
+                                (ResidenceMembers.status eq "ACCEPTED") 
+                            }
+                            .singleOrNull()?.get(ResidenceMembers.role)
+                    }
+
+                    if (userRole == null || (userRole != "OWNER" && userRole != "ADMIN" && userRole != "RESIDENCE_MANAGER")) {
+                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit : Seuls les administrateurs et gestionnaires peuvent modifier des logements."))
+                        return@put
+                    }
+
+                    val request = call.receive<LogementCreateRequest>()
+
+                    // Validation
+                    if (request.name.isBlank() || request.floor.isBlank() || request.type.isBlank()) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("Veuillez remplir tous les champs obligatoires."))
+                        return@put
+                    }
+                    if (request.nominalRent < 0.0 || request.serviceCharges < 0.0 || request.initialElectricityIndex < 0.0) {
+                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("Les montants financiers et d'index d'électricité doivent être supérieurs ou égaux à 0."))
+                        return@put
+                    }
+
+                    val updatedDto = transaction {
+                        val dbLogement = Logement.findById(UUID.fromString(logementId)) ?: throw Exception("Logement introuvable.")
+                        
+                        dbLogement.name = request.name
+                        dbLogement.floor = request.floor
+                        dbLogement.type = request.type
+                        dbLogement.nominalRent = request.nominalRent
+                        dbLogement.serviceCharges = request.serviceCharges
+                        dbLogement.initialElectricityIndex = request.initialElectricityIndex
+                        dbLogement.updatedAt = LocalDateTime.now()
+
+                        dbLogement.flush()
+
+                        LogementDto(
+                            id = dbLogement.id.value.toString(),
+                            residenceId = dbLogement.residence.id.value.toString(),
+                            name = dbLogement.name,
+                            floor = dbLogement.floor,
+                            type = dbLogement.type,
+                            nominalRent = dbLogement.nominalRent,
+                            serviceCharges = dbLogement.serviceCharges,
+                            initialElectricityIndex = dbLogement.initialElectricityIndex,
+                            status = dbLogement.status
+                        )
+                    }
+
+                    call.respond(HttpStatusCode.OK, updatedDto)
+                } catch (e: Exception) {
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse("Erreur lors de la modification du logement : ${e.message}")
                     )
                 }
             }

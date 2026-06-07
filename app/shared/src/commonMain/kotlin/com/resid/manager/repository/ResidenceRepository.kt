@@ -14,6 +14,8 @@ interface ResidenceRepository {
     suspend fun fetchResidences(token: String): Result<ResidenceDirectoryDTO>
     suspend fun createResidence(token: String, request: ResidenceCreateRequest): Result<ResidenceSummaryItem>
     suspend fun searchResidences(token: String, name: String): Result<List<ResidenceSummaryItem>>
+    suspend fun updateResidence(token: String, residenceId: String, request: ResidenceCreateRequest): Result<ResidenceSummaryItem>
+    suspend fun deleteResidence(token: String, residenceId: String): Result<Unit>
 }
 
 class ResidenceRepositoryImpl(
@@ -70,6 +72,46 @@ class ResidenceRepositoryImpl(
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de recherche : ${e.message}"))
+        }
+    }
+
+    override suspend fun updateResidence(
+        token: String,
+        residenceId: String,
+        request: ResidenceCreateRequest
+    ): Result<ResidenceSummaryItem> {
+        return try {
+            val response = httpClient.put("${ApiClient.BASE_URL}/api/residences/$residenceId") {
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Authorization, "Bearer $token")
+                setBody(request)
+            }
+
+            if (response.status == HttpStatusCode.OK) {
+                Result.success(response.body<ResidenceSummaryItem>())
+            } else {
+                val errorBody = response.body<ErrorResponse>()
+                Result.failure(Exception(errorBody.message))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Erreur de modification : ${e.message}"))
+        }
+    }
+
+    override suspend fun deleteResidence(token: String, residenceId: String): Result<Unit> {
+        return try {
+            val response = httpClient.delete("${ApiClient.BASE_URL}/api/residences/$residenceId") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+            }
+
+            if (response.status == HttpStatusCode.OK) {
+                Result.success(Unit)
+            } else {
+                val errorBody = response.body<ErrorResponse>()
+                Result.failure(Exception(errorBody.message))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Erreur de suppression : ${e.message}"))
         }
     }
 }
