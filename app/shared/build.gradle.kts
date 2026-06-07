@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinxSerialization)
 }
 
 kotlin {
@@ -19,6 +20,8 @@ kotlin {
         }
     }
     
+    jvm()
+
     js {
         browser()
     }
@@ -58,6 +61,12 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.ktor.clientCore)
+            implementation(libs.ktor.clientContentNegotiation)
+            implementation(libs.ktor.clientSerializationKotlinxJson)
+            api(libs.koin.core)
+            api(libs.koin.compose)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

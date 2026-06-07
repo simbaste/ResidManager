@@ -1,47 +1,44 @@
 package com.resid.manager
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import org.jetbrains.compose.resources.painterResource
-
-import residmanager.app.shared.generated.resources.Res
-import residmanager.app.shared.generated.resources.compose_multiplatform
+import com.resid.manager.ui.AppShell
+import com.resid.manager.ui.LoginScreen
+import com.resid.manager.ui.RegisterScreen
+import com.resid.manager.viewmodel.AuthScreen
+import com.resid.manager.viewmodel.LoginViewModel
+import org.koin.compose.koinInject
+import org.koin.core.parameter.parametersOf
 
 @Composable
 @Preview
-fun App() {
+fun App(sessionStorage: SessionStorage? = null) {
     MaterialTheme {
-        var showContent by remember { mutableStateOf(false) }
-        Column(
+        // Resolve ViewModel via Koin DI with sessionStorage parameter
+        val viewModel: LoginViewModel = koinInject { parametersOf(sessionStorage) }
+        val uiState by viewModel.uiState.collectAsState()
+
+        Box(
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.primaryContainer)
+                .background(MaterialTheme.colorScheme.background)
                 .safeContentPadding()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .fillMaxSize()
         ) {
-            Button(onClick = { showContent = !showContent }) {
-                Text("Click me!")
-            }
-            AnimatedVisibility(showContent) {
-                val greeting = remember { Greeting().greet() }
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("Compose: $greeting")
+            when (uiState.currentScreen) {
+                AuthScreen.LOGIN -> {
+                    LoginScreen(viewModel = viewModel)
+                }
+                AuthScreen.REGISTER -> {
+                    RegisterScreen(viewModel = viewModel)
+                }
+                AuthScreen.MAIN -> {
+                    AppShell(viewModel = viewModel)
                 }
             }
         }

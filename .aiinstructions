@@ -20,6 +20,7 @@ You are an expert software engineer specializing in Kotlin Multiplatform (KMP), 
 - Use JetBrains Exposed DAO/DSL for database transactions.
 - Always validate incoming DTOs using shared validation logic before executing database writes.
 - Return explicit HTTP status codes (e.g., 201 Created, 400 Bad Request, 401 Unauthorized).
+- CRITICAL: Whenever you modify an Exposed Table object, you must explicitly generate the SQL migration script or provide an Exposed migration block to alter the database safely without data loss.
 
 ### When modifying `:frontend-web` (Compose Web):
 - Use declarative Jetpack Compose state management (`mutableStateOf`, `remember`).

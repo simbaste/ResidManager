@@ -21,8 +21,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.app.shared)
-
             implementation(libs.compose.ui)
+            implementation(libs.ktor.clientCore)
+            implementation(libs.ktor.clientContentNegotiation)
+            implementation(libs.ktor.clientSerializationKotlinxJson)
         }
     }
 }
