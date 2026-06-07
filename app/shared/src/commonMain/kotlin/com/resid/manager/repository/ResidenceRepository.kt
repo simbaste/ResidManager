@@ -13,6 +13,7 @@ import io.ktor.http.*
 interface ResidenceRepository {
     suspend fun fetchResidences(token: String): Result<ResidenceDirectoryDTO>
     suspend fun createResidence(token: String, request: ResidenceCreateRequest): Result<ResidenceSummaryItem>
+    suspend fun searchResidences(token: String, name: String): Result<List<ResidenceSummaryItem>>
 }
 
 class ResidenceRepositoryImpl(
@@ -51,6 +52,24 @@ class ResidenceRepositoryImpl(
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de création : ${e.message}"))
+        }
+    }
+
+    override suspend fun searchResidences(token: String, name: String): Result<List<ResidenceSummaryItem>> {
+        return try {
+            val response = httpClient.get("${ApiClient.BASE_URL}/api/residences/search") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+                parameter("name", name)
+            }
+
+            if (response.status == HttpStatusCode.OK) {
+                Result.success(response.body<List<ResidenceSummaryItem>>())
+            } else {
+                val errorBody = response.body<ErrorResponse>()
+                Result.failure(Exception(errorBody.message))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Erreur de recherche : ${e.message}"))
         }
     }
 }

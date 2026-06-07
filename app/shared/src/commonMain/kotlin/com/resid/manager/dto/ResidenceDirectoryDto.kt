@@ -17,7 +17,8 @@ data class AssociatedResidenceItem(
     val name: String,
     val address: String,
     val photoUrl: String?,
-    val role: String // ADMIN, MANAGER, STAFF, TENANT
+    val role: String, // ADMIN, MANAGER, STAFF, TENANT
+    val totalUnits: Int
 )
 
 @Serializable

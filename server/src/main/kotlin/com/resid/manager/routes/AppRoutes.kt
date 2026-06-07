@@ -243,12 +243,15 @@ fun Application.configureAppRoutes() {
                                 (ResidenceMembers.status eq "ACCEPTED") 
                             }
                             .map { row ->
+                                val resId = row[Residences.id].value
+                                val totalUnits = Logement.find { Logements.residenceId eq resId }.count()
                                 AssociatedResidenceItem(
-                                    id = row[Residences.id].value.toString(),
+                                    id = resId.toString(),
                                     name = row[Residences.name],
                                     address = row[Residences.address],
                                     photoUrl = row[Residences.photoUrl],
-                                    role = row[ResidenceMembers.role]
+                                    role = row[ResidenceMembers.role],
+                                    totalUnits = totalUnits.toInt()
                                 )
                             }
 

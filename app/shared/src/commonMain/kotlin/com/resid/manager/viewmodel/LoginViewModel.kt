@@ -5,12 +5,17 @@ import androidx.lifecycle.viewModelScope
 import com.resid.manager.SessionStorage
 import com.resid.manager.dto.LogementDto
 import com.resid.manager.dto.ResidenceContext
+import com.resid.manager.dto.ResidenceSummaryItem
 import com.resid.manager.dto.UserDto
 import com.resid.manager.dto.UserRole
 import com.resid.manager.repository.AuthRepository
 import com.resid.manager.repository.LogementRepository
 import com.resid.manager.repository.ResidenceRepository
+import com.resid.manager.usecase.SearchResidencesUseCase
 import com.resid.manager.validation.AuthValidator
+import com.resid.manager.network.ApiClient
+import io.ktor.client.request.*
+import io.ktor.client.call.body
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -57,18 +62,26 @@ data class LoginUiState(
     
     // Logements/Units state
     val logements: List<LogementDto> = emptyList(),
-    val showCreateLogementDialog: Boolean = false
+    val showCreateLogementDialog: Boolean = false,
+
+    // Real-time debounced search states for JoinResidence
+    val searchQuery: String = "",
+    val searchResults: List<ResidenceSummaryItem> = emptyList(),
+    val isSearching: Boolean = false
 )
 
 class LoginViewModel(
     private val authRepository: AuthRepository,
     private val residenceRepository: ResidenceRepository,
     private val logementRepository: LogementRepository,
+    private val searchResidencesUseCase: SearchResidencesUseCase,
     private val sessionStorage: SessionStorage? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+
+    private var searchJob: kotlinx.coroutines.Job? = null
 
     init {
         // Load session if available on startup
@@ -109,7 +122,9 @@ class LoginViewModel(
                             ResidenceContext(
                                 residenceId = it.id,
                                 residenceName = it.name,
-                                userRoleInResidence = UserRole.ADMIN // OWNER/ADMIN
+                                residenceAddress = it.address,
+                                userRoleInResidence = UserRole.ADMIN, // OWNER/ADMIN
+                                totalUnits = it.totalUnits
                             )
                         }
                         val associatedContexts = directory.associatedResidences.map {
@@ -121,7 +136,9 @@ class LoginViewModel(
                             ResidenceContext(
                                 residenceId = it.id,
                                 residenceName = it.name,
-                                userRoleInResidence = roleEnum
+                                residenceAddress = it.address,
+                                userRoleInResidence = roleEnum,
+                                totalUnits = it.totalUnits
                             )
                         }
                         
@@ -132,7 +149,6 @@ class LoginViewModel(
                                 selectedResidenceContext = it.selectedResidenceContext ?: allResidences.firstOrNull()
                             )
                         }
-                        // Automatically fetch units for the selected residence!
                         fetchLogements()
                     }
                     .onFailure { exception ->
@@ -159,6 +175,33 @@ class LoginViewModel(
                     }
             } catch (e: Exception) {
                 _uiState.update { it.copy(errorMessage = "Erreur réseau lors de la récupération des logements : ${e.message}") }
+            }
+        }
+    }
+
+    fun onSearchQueryChanged(query: String) {
+        _uiState.update { it.copy(searchQuery = query, isSearching = true, errorMessage = null) }
+
+        searchJob?.cancel()
+        if (query.length < 2) {
+            _uiState.update { it.copy(searchResults = emptyList(), isSearching = false) }
+            return
+        }
+
+        searchJob = viewModelScope.launch {
+            try {
+                kotlinx.coroutines.delay(500) // Debounce delay
+                val token = _uiState.value.jwtToken ?: return@launch
+                
+                searchResidencesUseCase(token, query)
+                    .onSuccess { results ->
+                        _uiState.update { it.copy(searchResults = results, isSearching = false) }
+                    }
+                    .onFailure { exception ->
+                        _uiState.update { it.copy(errorMessage = exception.message, isSearching = false) }
+                    }
+            } catch (e: Exception) {
+                // Ignore cancellation exceptions safely
             }
         }
     }
@@ -272,7 +315,15 @@ class LoginViewModel(
     }
 
     fun setShowJoinResidenceDialog(show: Boolean) {
-        _uiState.update { it.copy(showJoinResidenceDialog = show, errorMessage = null) }
+        _uiState.update { 
+            it.copy(
+                showJoinResidenceDialog = show, 
+                searchQuery = "", 
+                searchResults = emptyList(), 
+                isSearching = false, 
+                errorMessage = null
+            ) 
+        }
     }
 
     fun setShowCreateLogementDialog(show: Boolean) {
@@ -321,27 +372,32 @@ class LoginViewModel(
         }
     }
 
-    fun joinResidence(residenceName: String) {
-        if (residenceName.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Nom de la résidence requis.") }
-            return
-        }
+    fun joinResidence(residenceId: String) {
+        val token = _uiState.value.jwtToken ?: return
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-        val mockId = "res-" + (1000..9999).random()
-        val newContext = ResidenceContext(
-            residenceId = mockId,
-            residenceName = residenceName,
-            userRoleInResidence = UserRole.TENANT // joiner is TENANT by default
-        )
+        viewModelScope.launch {
+            try {
+                val response = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/residences/$residenceId/join") {
+                    header(io.ktor.http.HttpHeaders.Authorization, "Bearer $token")
+                }
 
-        _uiState.update {
-            val updatedList = it.residences + newContext
-            it.copy(
-                residences = updatedList,
-                selectedResidenceContext = newContext,
-                showJoinResidenceDialog = false,
-                errorMessage = null
-            )
+                if (response.status == io.ktor.http.HttpStatusCode.OK) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            showJoinResidenceDialog = false,
+                            errorMessage = null
+                        )
+                    }
+                    fetchResidences() // Reload directory list
+                } else {
+                    val errorBody = response.body<com.resid.manager.dto.ErrorResponse>()
+                    _uiState.update { it.copy(isLoading = false, errorMessage = errorBody.message) }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
+            }
         }
     }
 
@@ -468,6 +524,9 @@ class LoginViewModel(
                 residences = emptyList(),
                 selectedResidenceContext = null,
                 logements = emptyList(),
+                searchQuery = "",
+                searchResults = emptyList(),
+                isSearching = false,
                 currentScreen = AuthScreen.LOGIN,
                 currentAppScreen = AppScreen.DASHBOARD
             )

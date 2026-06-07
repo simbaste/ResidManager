@@ -6,5 +6,7 @@ import kotlinx.serialization.Serializable
 data class ResidenceContext(
     val residenceId: String,
     val residenceName: String,
-    val userRoleInResidence: UserRole
+    val residenceAddress: String,
+    val userRoleInResidence: UserRole,
+    val totalUnits: Int = 0
 )

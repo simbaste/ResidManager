@@ -120,10 +120,8 @@ fun AppShell(
 
     if (uiState.showJoinResidenceDialog) {
         JoinResidenceDialog(
-            onDismiss = { viewModel.setShowJoinResidenceDialog(false) },
-            onSubmit = { name ->
-                viewModel.joinResidence(name)
-            }
+            viewModel = viewModel,
+            onDismiss = { viewModel.setShowJoinResidenceDialog(false) }
         )
     }
 
@@ -678,7 +676,7 @@ fun OwnedPropertyCard(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Abidjan, Côte d'Ivoire",
+                    text = residence.residenceAddress,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -689,7 +687,7 @@ fun OwnedPropertyCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "0 logement", // summary count of total units
+                    text = "${residence.totalUnits} logement" + (if (residence.totalUnits > 1) "s" else ""),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -739,16 +737,21 @@ fun AssociatedPropertyCard(
                     color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = "Abidjan, Côte d'Ivoire",
+                    text = residence.residenceAddress,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                Text(
+                    text = "${residence.totalUnits} logement" + (if (residence.totalUnits > 1) "s" else ""),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 Badge(containerColor = badgeColor) {
                     Text(
                         text = role.name,
@@ -918,27 +921,102 @@ fun CreateResidenceDialog(
 
 @Composable
 fun JoinResidenceDialog(
-    onDismiss: () -> Unit,
-    onSubmit: (String) -> Unit
+    viewModel: LoginViewModel,
+    onDismiss: () -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
+    val uiState by viewModel.uiState.collectAsState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Rejoindre une résidence") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom de la résidence recherchée *") })
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.widthIn(max = 450.dp).heightIn(max = 400.dp)
+            ) {
+                Text(
+                    text = "Saisissez au moins 2 caractères pour rechercher une résidence existante et envoyer votre demande d'adhésion.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = { viewModel.onSearchQueryChanged(it) },
+                    label = { Text("Rechercher par nom de résidence...") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (uiState.isSearching) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                } else {
+                    if (uiState.searchResults.isEmpty() && uiState.searchQuery.length >= 2) {
+                        Text(
+                            text = "Aucune résidence trouvée correspondant à votre recherche.",
+                            color = MaterialTheme.colorScheme.secondary,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    } else if (uiState.searchResults.isNotEmpty()) {
+                        Text(
+                            text = "Résultats de recherche (${uiState.searchResults.size}) :",
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 200.dp)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            uiState.searchResults.forEach { residence ->
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(text = residence.name, style = MaterialTheme.typography.titleMedium)
+                                            Text(text = residence.address, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                        Button(
+                                            onClick = { viewModel.joinResidence(residence.id) },
+                                            enabled = !uiState.isLoading
+                                        ) {
+                                            if (uiState.isLoading) {
+                                                CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
+                                            } else {
+                                                Text("Rejoindre")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                val error = uiState.errorMessage
+                if (error != null) {
+                    Text(text = error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                }
             }
         },
-        confirmButton = {
-            Button(onClick = { onSubmit(name) }) {
-                Text("Rechercher & Rejoindre")
-            }
-        },
+        confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Annuler")
+                Text("Fermer")
             }
         }
     )

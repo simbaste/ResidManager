@@ -2,6 +2,7 @@ package com.resid.manager.di
 
 import com.resid.manager.SessionStorage
 import com.resid.manager.repository.*
+import com.resid.manager.usecase.SearchResidencesUseCase
 import com.resid.manager.viewmodel.LoginViewModel
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -31,14 +32,18 @@ val repositoryModule = module {
     single<LogementRepository> { LogementRepositoryImpl(get()) }
 }
 
+val useCaseModule = module {
+    single { SearchResidencesUseCase(get()) }
+}
+
 val viewModelModule = module {
     factory { (sessionStorage: SessionStorage?) -> 
-        LoginViewModel(get(), get(), get(), sessionStorage)
+        LoginViewModel(get(), get(), get(), get(), sessionStorage)
     }
 }
 
 val sharedAppModule = module {
-    includes(networkModule, repositoryModule, viewModelModule)
+    includes(networkModule, repositoryModule, useCaseModule, viewModelModule)
 }
 
 fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
