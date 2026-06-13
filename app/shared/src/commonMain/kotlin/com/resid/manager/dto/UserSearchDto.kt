@@ -7,4 +7,5 @@ data class UserSearchDto(
     val id: String,
     val name: String,
     val email: String,
+    val role: String? = null
 )

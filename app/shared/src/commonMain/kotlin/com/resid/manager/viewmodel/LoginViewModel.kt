@@ -1,24 +1,16 @@
 package com.resid.manager.viewmodel
 
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.resid.manager.SessionStorage
-import com.resid.manager.dto.LogementDto
-import com.resid.manager.dto.ResidenceContext
-import com.resid.manager.dto.ResidenceSummaryItem
-import com.resid.manager.dto.UserDto
-import com.resid.manager.dto.UserRole
-import com.resid.manager.repository.AuthRepository
-import com.resid.manager.repository.LogementRepository
-import com.resid.manager.repository.ResidenceRepository
+import com.resid.manager.base.MviViewModel
+import com.resid.manager.dto.*
+import com.resid.manager.repository.*
 import com.resid.manager.usecase.SearchResidencesUseCase
 import com.resid.manager.validation.AuthValidator
 import com.resid.manager.network.ApiClient
 import io.ktor.client.request.*
 import io.ktor.client.call.body
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import io.ktor.http.contentType
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -33,6 +25,7 @@ enum class AppScreen(val title: String) {
     RESIDENCES("Propriétés & Résidences"),
     LOGEMENTS("Unités / Logements"),
     BAUX("Contrats de bail"),
+    MEMBERS("Membres & Habilitations"),
     ELECTRICITY("Facturation Électricité"),
     TICKETS("Tickets d'Intervention"),
     FINANCES("Cashflow & Finances"),
@@ -67,19 +60,61 @@ data class LoginUiState(
     // Real-time debounced search states for JoinResidence
     val searchQuery: String = "",
     val searchResults: List<ResidenceSummaryItem> = emptyList(),
-    val isSearching: Boolean = false
+    val isSearching: Boolean = false,
+
+    // Leases state
+    val leases: List<LeaseDto> = emptyList(),
+
+    // Members list state
+    val members: List<ResidenceMemberSummary> = emptyList(),
+
+    // Dark/Light theme state
+    val darkMode: Boolean = false,
+
+    // Language state (e.g. "fr", "en")
+    val language: String = "fr"
 )
+
+sealed interface LoginIntent {
+    data class LoginAction(val email: String, val passwordPlain: String) : LoginIntent
+    data class RegisterAction(val firstName: String, val lastName: String, val birthDate: String?, val phone: String?, val email: String, val passwordPlain: String) : LoginIntent
+    data object LogoutAction : LoginIntent
+    
+    data class CreateResidence(val name: String, val address: String, val kWhPrice: Double) : LoginIntent
+    data class JoinResidence(val residenceId: String) : LoginIntent
+    data class UpdateResidence(val residenceId: String, val name: String, val address: String, val kWhPrice: Double) : LoginIntent
+    data class DeleteResidence(val residenceId: String) : LoginIntent
+    data class SelectResidence(val residence: ResidenceContext) : LoginIntent
+    
+    data class CreateLogement(val name: String, val floor: String, val type: String, val nominalRent: Double, val serviceCharges: Double, val initialIndex: Double) : LoginIntent
+    data class UpdateLogement(val id: String, val name: String, val floor: String, val type: String, val rent: Double, val charges: Double, val initialIndex: Double) : LoginIntent
+    data class DeleteLogement(val id: String) : LoginIntent
+    
+    data class CreateLease(val logementId: String, val request: LeaseCreateRequest, val onSuccess: () -> Unit) : LoginIntent
+    data class RecordLeasePayment(val leaseId: String, val amount: Double, val onResult: (Result<LeaseDto>) -> Unit) : LoginIntent
+    data class UpdateLeaseStatus(val leaseId: String, val status: LeaseStatus, val onResult: (Result<LeaseDto>) -> Unit) : LoginIntent
+    
+    data class SearchResidences(val query: String) : LoginIntent
+    data class NavigateToAppScreen(val screen: AppScreen) : LoginIntent
+    data class SetShowCreateResidenceDialog(val show: Boolean) : LoginIntent
+    data class SetShowJoinResidenceDialog(val show: Boolean) : LoginIntent
+    data class SetShowCreateLogementDialog(val show: Boolean) : LoginIntent
+    data object ToggleTheme : LoginIntent
+}
+
+sealed interface LoginEffect {
+    data class ShowToast(val message: String) : LoginEffect
+}
 
 class LoginViewModel(
     private val authRepository: AuthRepository,
     private val residenceRepository: ResidenceRepository,
     private val logementRepository: LogementRepository,
+    private val leaseRepository: LeaseRepository,
+    private val memberRepository: MemberRepository,
     private val searchResidencesUseCase: SearchResidencesUseCase,
     private val sessionStorage: SessionStorage? = null
-) : ViewModel() {
-
-    private val _uiState = MutableStateFlow(LoginUiState())
-    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+) : MviViewModel<LoginUiState, LoginIntent, LoginEffect>(LoginUiState()) {
 
     private var searchJob: kotlinx.coroutines.Job? = null
 
@@ -89,10 +124,10 @@ class LoginViewModel(
             val nameParts = userName.split(" ")
             val fName = nameParts.getOrNull(0) ?: "Utilisateur"
             val lName = nameParts.getOrNull(1) ?: "ResidManager"
-            _uiState.update { 
+            updateState { 
                 it.copy(
                     jwtToken = token,
-                    currentScreen = AuthScreen.MAIN, // go directly to main authenticated screen
+                    currentScreen = AuthScreen.MAIN,
                     currentAppScreen = AppScreen.DASHBOARD,
                     firstName = fName,
                     lastName = lName,
@@ -111,8 +146,89 @@ class LoginViewModel(
         }
     }
 
+    override fun onIntent(intent: LoginIntent) {
+        when (intent) {
+            is LoginIntent.LoginAction -> login(intent.email, intent.passwordPlain)
+            is LoginIntent.RegisterAction -> register(intent.firstName, intent.lastName, intent.birthDate, intent.phone, intent.email, intent.passwordPlain)
+            is LoginIntent.LogoutAction -> logout()
+            is LoginIntent.CreateResidence -> createResidence(intent.name, intent.address, intent.kWhPrice)
+            is LoginIntent.JoinResidence -> joinResidence(intent.residenceId)
+            is LoginIntent.UpdateResidence -> updateResidence(intent.residenceId, intent.name, intent.address, intent.kWhPrice)
+            is LoginIntent.DeleteResidence -> deleteResidence(intent.residenceId)
+            is LoginIntent.SelectResidence -> selectResidence(intent.residence)
+            is LoginIntent.CreateLogement -> createLogement(intent.name, intent.floor, intent.type, intent.nominalRent, intent.serviceCharges, intent.initialIndex)
+            is LoginIntent.UpdateLogement -> updateLogement(intent.id, intent.name, intent.floor, intent.type, intent.rent, intent.charges, intent.initialIndex)
+            is LoginIntent.DeleteLogement -> deleteLogement(intent.id)
+            is LoginIntent.CreateLease -> createLease(intent.logementId, intent.request, intent.onSuccess)
+            is LoginIntent.RecordLeasePayment -> recordLeasePayment(intent.leaseId, intent.amount, intent.onResult)
+            is LoginIntent.UpdateLeaseStatus -> updateLeaseStatus(intent.leaseId, intent.status, intent.onResult)
+            is LoginIntent.SearchResidences -> onSearchQueryChanged(intent.query)
+            is LoginIntent.NavigateToAppScreen -> navigateToAppScreen(intent.screen)
+            is LoginIntent.SetShowCreateResidenceDialog -> setShowCreateResidenceDialog(intent.show)
+            is LoginIntent.SetShowJoinResidenceDialog -> setShowJoinResidenceDialog(intent.show)
+            is LoginIntent.SetShowCreateLogementDialog -> setShowCreateLogementDialog(intent.show)
+            is LoginIntent.ToggleTheme -> toggleTheme()
+        }
+    }
+
+    fun toggleTheme() {
+        updateState { it.copy(darkMode = !it.darkMode) }
+    }
+
+    fun setLanguage(lang: String) {
+        updateState { it.copy(language = lang) }
+    }
+
+    // Public setters for text fields to fully preserve standard login/register ui bindings
+    fun onEmailChanged(email: String) {
+        updateState { it.copy(email = email, errorMessage = null) }
+    }
+    fun onPasswordChanged(password: String) {
+        updateState { it.copy(passwordPlain = password, errorMessage = null) }
+    }
+    fun onFirstNameChanged(firstName: String) {
+        updateState { it.copy(firstName = firstName, errorMessage = null) }
+    }
+    fun onLastNameChanged(lastName: String) {
+        updateState { it.copy(lastName = lastName, errorMessage = null) }
+    }
+    fun onBirthDateChanged(birthDate: String) {
+        updateState { it.copy(birthDate = birthDate, errorMessage = null) }
+    }
+    fun onPhoneChanged(phone: String) {
+        updateState { it.copy(phone = phone, errorMessage = null) }
+    }
+    fun togglePasswordVisibility() {
+        updateState { it.copy(passwordVisible = !it.passwordVisible) }
+    }
+    fun navigateToRegister() {
+        updateState { it.copy(currentScreen = AuthScreen.REGISTER, errorMessage = null) }
+    }
+    fun navigateToLogin() {
+        updateState { it.copy(currentScreen = AuthScreen.LOGIN, errorMessage = null) }
+    }
+    fun setShowCreateResidenceDialog(show: Boolean) {
+        updateState { it.copy(showCreateResidenceDialog = show, errorMessage = null) }
+    }
+    fun setShowJoinResidenceDialog(show: Boolean) {
+        updateState { 
+            it.copy(
+                showJoinResidenceDialog = show, 
+                searchQuery = "", 
+                searchResults = emptyList(), 
+                isSearching = false, 
+                errorMessage = null
+            ) 
+        }
+    }
+    fun setShowCreateLogementDialog(show: Boolean) {
+        updateState { it.copy(showCreateLogementDialog = show, errorMessage = null) }
+    }
+
+    // Public actions to preserve classic direct UI invocations and support stateless screens
+
     fun fetchResidences() {
-        val token = _uiState.value.jwtToken ?: return
+        val token = uiState.value.jwtToken ?: return
         
         viewModelScope.launch {
             try {
@@ -123,7 +239,7 @@ class LoginViewModel(
                                 residenceId = it.id,
                                 residenceName = it.name,
                                 residenceAddress = it.address,
-                                userRoleInResidence = UserRole.ADMIN, // OWNER/ADMIN
+                                userRoleInResidence = UserRole.ADMIN,
                                 totalUnits = it.totalUnits
                             )
                         }
@@ -143,65 +259,179 @@ class LoginViewModel(
                         }
                         
                         val allResidences = ownedContexts + associatedContexts
-                        _uiState.update {
+                        updateState {
                             it.copy(
                                 residences = allResidences,
                                 selectedResidenceContext = it.selectedResidenceContext ?: allResidences.firstOrNull()
                             )
                         }
                         fetchLogements()
+                        fetchLeases()
+                        fetchMembers()
                     }
                     .onFailure { exception ->
-                        _uiState.update { it.copy(errorMessage = "Impossible de récupérer vos résidences : ${exception.message}") }
+                        updateState { it.copy(errorMessage = "Impossible de récupérer vos résidences : ${exception.message}") }
                     }
             } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "Erreur réseau : ${e.message}") }
+                updateState { it.copy(errorMessage = "Erreur réseau : ${e.message}") }
             }
         }
     }
 
     fun fetchLogements() {
-        val token = _uiState.value.jwtToken ?: return
-        val residenceId = _uiState.value.selectedResidenceContext?.residenceId ?: return
+        val token = uiState.value.jwtToken ?: return
+        val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
 
         viewModelScope.launch {
             try {
                 logementRepository.fetchLogements(token, residenceId)
                     .onSuccess { list ->
-                        _uiState.update { it.copy(logements = list) }
+                        updateState { it.copy(logements = list) }
                     }
                     .onFailure { exception ->
-                        _uiState.update { it.copy(errorMessage = "Impossible de récupérer les logements : ${exception.message}") }
+                        updateState { it.copy(errorMessage = "Impossible de récupérer les logements : ${exception.message}") }
                     }
             } catch (e: Exception) {
-                _uiState.update { it.copy(errorMessage = "Erreur réseau lors de la récupération des logements : ${e.message}") }
+                updateState { it.copy(errorMessage = "Erreur réseau lors de la récupération des logements : ${e.message}") }
             }
         }
     }
 
-    fun onSearchQueryChanged(query: String) {
-        _uiState.update { it.copy(searchQuery = query, isSearching = true, errorMessage = null) }
+    fun fetchLeases() {
+        val token = uiState.value.jwtToken ?: return
+        val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
 
-        searchJob?.cancel()
-        if (query.length < 2) {
-            _uiState.update { it.copy(searchResults = emptyList(), isSearching = false) }
-            return
-        }
-
-        searchJob = viewModelScope.launch {
+        viewModelScope.launch {
             try {
-                kotlinx.coroutines.delay(500) // Debounce delay
-                val token = _uiState.value.jwtToken ?: return@launch
-                
-                searchResidencesUseCase(token, query)
-                    .onSuccess { results ->
-                        _uiState.update { it.copy(searchResults = results, isSearching = false) }
+                leaseRepository.fetchLeases(token, residenceId)
+                    .onSuccess { list ->
+                        updateState { it.copy(leases = list) }
                     }
                     .onFailure { exception ->
-                        _uiState.update { it.copy(errorMessage = exception.message, isSearching = false) }
+                        updateState { it.copy(errorMessage = exception.message) }
                     }
             } catch (e: Exception) {
-                // Ignore cancellation exceptions safely
+                updateState { it.copy(errorMessage = "Erreur réseau lors du chargement des baux : ${e.message}") }
+            }
+        }
+    }
+
+    fun fetchMembers() {
+        val token = uiState.value.jwtToken ?: return
+        val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
+
+        viewModelScope.launch {
+            try {
+                memberRepository.fetchMembers(token, residenceId)
+                    .onSuccess { list ->
+                        updateState { it.copy(members = list) }
+                    }
+                    .onFailure { exception ->
+                        updateState { it.copy(errorMessage = exception.message) }
+                    }
+            } catch (e: Exception) {
+                updateState { it.copy(errorMessage = "Erreur réseau lors du chargement des membres : ${e.message}") }
+            }
+        }
+    }
+
+    fun selectResidence(residence: ResidenceContext) {
+        updateState { it.copy(selectedResidenceContext = residence, logements = emptyList(), leases = emptyList(), members = emptyList()) }
+        fetchLogements()
+        fetchLeases()
+        fetchMembers()
+    }
+
+    fun navigateToAppScreen(screen: AppScreen) {
+        updateState { it.copy(currentAppScreen = screen, errorMessage = null) }
+    }
+
+    fun createResidence(name: String, address: String, kWhPrice: Double) {
+        val token = uiState.value.jwtToken ?: return
+        updateState { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                residenceRepository.createResidence(token, ResidenceCreateRequest(name, address, "XOF", kWhPrice))
+                    .onSuccess {
+                        fetchResidences()
+                        updateState { it.copy(isLoading = false, showCreateResidenceDialog = false, errorMessage = null) }
+                    }
+                    .onFailure { exception ->
+                        updateState { it.copy(isLoading = false, errorMessage = exception.message) }
+                    }
+            } catch (e: Exception) {
+                updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
+            }
+        }
+    }
+
+    fun joinResidence(residenceId: String) {
+        val token = uiState.value.jwtToken ?: return
+        updateState { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                val response = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/residences/$residenceId/join") {
+                    header(io.ktor.http.HttpHeaders.Authorization, "Bearer $token")
+                }
+                if (response.status == io.ktor.http.HttpStatusCode.OK) {
+                    updateState { it.copy(isLoading = false, showJoinResidenceDialog = false, errorMessage = null) }
+                    fetchResidences()
+                } else {
+                    val errorBody = response.body<ErrorResponse>()
+                    updateState { it.copy(isLoading = false, errorMessage = errorBody.message) }
+                }
+            } catch (e: Exception) {
+                updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
+            }
+        }
+    }
+
+    fun updateResidence(residenceId: String, name: String, address: String, kWhPrice: Double) {
+        val token = uiState.value.jwtToken ?: return
+        updateState { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                residenceRepository.updateResidence(token, residenceId, ResidenceCreateRequest(name, address, "XOF", kWhPrice))
+                    .onSuccess {
+                        fetchResidences()
+                        updateState { it.copy(isLoading = false, errorMessage = null) }
+                    }
+                    .onFailure { exception ->
+                        updateState { it.copy(isLoading = false, errorMessage = exception.message) }
+                    }
+            } catch (e: Exception) {
+                updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
+            }
+        }
+    }
+
+    fun deleteResidence(residenceId: String) {
+        val token = uiState.value.jwtToken ?: return
+        updateState { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                residenceRepository.deleteResidence(token, residenceId)
+                    .onSuccess {
+                        updateState { state ->
+                            val updatedResidences = state.residences.filter { it.residenceId != residenceId }
+                            state.copy(
+                                isLoading = false,
+                                residences = updatedResidences,
+                                selectedResidenceContext = updatedResidences.firstOrNull(),
+                                errorMessage = null
+                            )
+                        }
+                        fetchResidences()
+                    }
+                    .onFailure { exception ->
+                        updateState { it.copy(isLoading = false, errorMessage = exception.message) }
+                    }
+            } catch (e: Exception) {
+                updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
             }
         }
     }
@@ -214,85 +444,44 @@ class LoginViewModel(
         serviceCharges: Double,
         initialElectricityIndex: Double
     ) {
-        val token = _uiState.value.jwtToken ?: return
-        val residenceId = _uiState.value.selectedResidenceContext?.residenceId ?: return
-
-        if (name.isBlank() || floor.isBlank() || type.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Veuillez remplir tous les champs obligatoires.") }
-            return
-        }
-
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        val token = uiState.value.jwtToken ?: return
+        val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
+        updateState { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
-                val request = com.resid.manager.dto.LogementCreateRequest(
-                    name = name,
-                    floor = floor,
-                    type = type,
-                    nominalRent = nominalRent,
-                    serviceCharges = serviceCharges,
-                    initialElectricityIndex = initialElectricityIndex
-                )
-
+                val request = LogementCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex)
                 logementRepository.createLogement(token, residenceId, request)
                     .onSuccess {
-                        fetchLogements() // Refresh dashboard / logements list
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                showCreateLogementDialog = false,
-                                errorMessage = null
-                            )
-                        }
+                        fetchLogements()
+                        updateState { it.copy(isLoading = false, showCreateLogementDialog = false, errorMessage = null) }
                     }
                     .onFailure { exception ->
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = exception.message
-                            )
-                        }
+                        updateState { it.copy(isLoading = false, errorMessage = exception.message) }
                     }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Erreur réseau : ${e.message}"
-                    )
-                }
+                updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
             }
         }
     }
 
     fun deleteLogement(logementId: String) {
-        val token = _uiState.value.jwtToken ?: return
-        val residenceId = _uiState.value.selectedResidenceContext?.residenceId ?: return
-
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        val token = uiState.value.jwtToken ?: return
+        val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
+        updateState { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
                 logementRepository.deleteLogement(token, residenceId, logementId)
                     .onSuccess {
-                        fetchLogements() // Refresh dashboard / logements list
-                        _uiState.update { it.copy(isLoading = false, errorMessage = null) }
+                        fetchLogements()
+                        updateState { it.copy(isLoading = false, errorMessage = null) }
                     }
                     .onFailure { exception ->
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = exception.message
-                            )
-                        }
+                        updateState { it.copy(isLoading = false, errorMessage = exception.message) }
                     }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Erreur réseau : ${e.message}"
-                    )
-                }
+                updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
             }
         }
     }
@@ -306,292 +495,145 @@ class LoginViewModel(
         serviceCharges: Double,
         initialElectricityIndex: Double
     ) {
-        val token = _uiState.value.jwtToken ?: return
-        val residenceId = _uiState.value.selectedResidenceContext?.residenceId ?: return
-
-        if (name.isBlank() || floor.isBlank() || type.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Veuillez remplir tous les champs obligatoires.") }
-            return
-        }
-
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        val token = uiState.value.jwtToken ?: return
+        val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
+        updateState { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
-                val request = com.resid.manager.dto.LogementCreateRequest(
-                    name = name,
-                    floor = floor,
-                    type = type,
-                    nominalRent = nominalRent,
-                    serviceCharges = serviceCharges,
-                    initialElectricityIndex = initialElectricityIndex
-                )
-
+                val request = LogementCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex)
                 logementRepository.updateLogement(token, residenceId, logementId, request)
                     .onSuccess {
-                        fetchLogements() // Refresh dashboard / logements list
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = null
-                            )
-                        }
+                        fetchLogements()
+                        updateState { it.copy(isLoading = false, errorMessage = null) }
                     }
                     .onFailure { exception ->
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = exception.message
-                            )
-                        }
+                        updateState { it.copy(isLoading = false, errorMessage = exception.message) }
                     }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Erreur réseau : ${e.message}"
-                    )
-                }
+                updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
             }
         }
     }
 
-    fun onEmailChanged(email: String) {
-        _uiState.update { it.copy(email = email, errorMessage = null) }
-    }
+    fun createLease(logementId: String, request: LeaseCreateRequest, onSuccess: () -> Unit) {
+        val token = uiState.value.jwtToken ?: return
+        updateState { it.copy(isLoading = true, errorMessage = null) }
 
-    fun onPasswordChanged(password: String) {
-        _uiState.update { it.copy(passwordPlain = password, errorMessage = null) }
-    }
-
-    fun onFirstNameChanged(firstName: String) {
-        _uiState.update { it.copy(firstName = firstName, errorMessage = null) }
-    }
-
-    fun onLastNameChanged(lastName: String) {
-        _uiState.update { it.copy(lastName = lastName, errorMessage = null) }
-    }
-
-    fun onBirthDateChanged(birthDate: String) {
-        _uiState.update { it.copy(birthDate = birthDate, errorMessage = null) }
-    }
-
-    fun onPhoneChanged(phone: String) {
-        _uiState.update { it.copy(phone = phone, errorMessage = null) }
-    }
-
-    fun togglePasswordVisibility() {
-        _uiState.update { it.copy(passwordVisible = !it.passwordVisible) }
-    }
-
-    fun navigateToLogin() {
-        _uiState.update { it.copy(currentScreen = AuthScreen.LOGIN, errorMessage = null) }
-    }
-
-    fun navigateToRegister() {
-        _uiState.update { it.copy(currentScreen = AuthScreen.REGISTER, errorMessage = null) }
-    }
-
-    fun navigateToAppScreen(screen: AppScreen) {
-        _uiState.update { it.copy(currentAppScreen = screen, errorMessage = null) }
-    }
-
-    fun selectResidence(residence: ResidenceContext) {
-        _uiState.update { it.copy(selectedResidenceContext = residence, logements = emptyList()) }
-        fetchLogements()
-    }
-
-    fun setShowCreateResidenceDialog(show: Boolean) {
-        _uiState.update { it.copy(showCreateResidenceDialog = show, errorMessage = null) }
-    }
-
-    fun setShowJoinResidenceDialog(show: Boolean) {
-        _uiState.update { 
-            it.copy(
-                showJoinResidenceDialog = show, 
-                searchQuery = "", 
-                searchResults = emptyList(), 
-                isSearching = false, 
-                errorMessage = null
-            ) 
+        viewModelScope.launch {
+            try {
+                leaseRepository.createLease(token, logementId, request)
+                    .onSuccess {
+                        fetchLeases()
+                        fetchLogements()
+                        fetchMembers()
+                        updateState { it.copy(isLoading = false, errorMessage = null) }
+                        onSuccess()
+                    }
+                    .onFailure { exception ->
+                        updateState { it.copy(isLoading = false, errorMessage = exception.message) }
+                    }
+            } catch (e: Exception) {
+                updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
+            }
         }
     }
 
-    fun setShowCreateLogementDialog(show: Boolean) {
-        _uiState.update { it.copy(showCreateLogementDialog = show, errorMessage = null) }
+    fun recordLeasePayment(leaseId: String, amount: Double, onResult: (Result<LeaseDto>) -> Unit) {
+        val token = uiState.value.jwtToken ?: return
+        updateState { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                leaseRepository.recordLeasePayment(token, leaseId, amount)
+                    .onSuccess { updated ->
+                        fetchLeases()
+                        updateState { it.copy(isLoading = false, errorMessage = null) }
+                        onResult(Result.success(updated))
+                    }
+                    .onFailure { exception ->
+                        updateState { it.copy(isLoading = false, errorMessage = exception.message) }
+                        onResult(Result.failure(exception))
+                    }
+            } catch (e: Exception) {
+                updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
+                onResult(Result.failure(e))
+            }
+        }
     }
 
-    fun createResidence(name: String, address: String, kWhPrice: Double) {
-        val token = _uiState.value.jwtToken ?: return
-        
-        if (name.isBlank() || address.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Veuillez remplir tous les champs obligatoires.") }
+    fun updateLeaseStatus(leaseId: String, status: LeaseStatus, onResult: (Result<LeaseDto>) -> Unit) {
+        val token = uiState.value.jwtToken ?: return
+        updateState { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            try {
+                leaseRepository.updateLeaseStatus(token, leaseId, status)
+                    .onSuccess { updated ->
+                        fetchLeases()
+                        updateState { it.copy(isLoading = false, errorMessage = null) }
+                        onResult(Result.success(updated))
+                    }
+                    .onFailure { exception ->
+                        updateState { it.copy(isLoading = false, errorMessage = exception.message) }
+                        onResult(Result.failure(exception))
+                    }
+            } catch (e: Exception) {
+                updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
+                onResult(Result.failure(e))
+            }
+        }
+    }
+
+    fun onSearchQueryChanged(query: String) {
+        updateState { it.copy(searchQuery = query, isSearching = true, errorMessage = null) }
+
+        searchJob?.cancel()
+        if (query.length < 2) {
+            updateState { it.copy(searchResults = emptyList(), isSearching = false) }
             return
         }
 
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-
-        viewModelScope.launch {
+        searchJob = viewModelScope.launch {
             try {
-                residenceRepository.createResidence(token, com.resid.manager.dto.ResidenceCreateRequest(name, address, "XOF", kWhPrice))
-                    .onSuccess { summary ->
-                        fetchResidences()
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                showCreateResidenceDialog = false,
-                                errorMessage = null
-                            )
-                        }
+                kotlinx.coroutines.delay(500)
+                val token = uiState.value.jwtToken ?: return@launch
+                
+                searchResidencesUseCase(token, query)
+                    .onSuccess { results ->
+                        updateState { it.copy(searchResults = results, isSearching = false) }
                     }
                     .onFailure { exception ->
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = exception.message
-                            )
-                        }
+                        updateState { it.copy(errorMessage = exception.message, isSearching = false) }
                     }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Erreur réseau : ${e.message}"
-                    )
-                }
+                // Safely handle cancellation
             }
         }
-    }
-
-    fun joinResidence(residenceId: String) {
-        val token = _uiState.value.jwtToken ?: return
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-
-        viewModelScope.launch {
-            try {
-                val response = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/residences/$residenceId/join") {
-                    header(io.ktor.http.HttpHeaders.Authorization, "Bearer $token")
-                }
-
-                if (response.status == io.ktor.http.HttpStatusCode.OK) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            showJoinResidenceDialog = false,
-                            errorMessage = null
-                        )
-                    }
-                    fetchResidences() // Reload directory list
-                } else {
-                    val errorBody = response.body<com.resid.manager.dto.ErrorResponse>()
-                    _uiState.update { it.copy(isLoading = false, errorMessage = errorBody.message) }
-                }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
-            }
-        }
-    }
-
-    fun updateResidence(residenceId: String, name: String, address: String, kWhPrice: Double) {
-        val token = _uiState.value.jwtToken ?: return
-
-        if (name.isBlank() || address.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "Veuillez remplir tous les champs obligatoires.") }
-            return
-        }
-
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-
-        viewModelScope.launch {
-            try {
-                residenceRepository.updateResidence(token, residenceId, com.resid.manager.dto.ResidenceCreateRequest(name, address, "XOF", kWhPrice))
-                    .onSuccess {
-                        fetchResidences()
-                        _uiState.update { it.copy(isLoading = false, errorMessage = null) }
-                    }
-                    .onFailure { exception ->
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = exception.message
-                            )
-                        }
-                    }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Erreur réseau : ${e.message}"
-                    )
-                }
-            }
-        }
-    }
-
-    fun deleteResidence(residenceId: String) {
-        val token = _uiState.value.jwtToken ?: return
-
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-
-        viewModelScope.launch {
-            try {
-                residenceRepository.deleteResidence(token, residenceId)
-                    .onSuccess {
-                        _uiState.update { state ->
-                            val updatedResidences = state.residences.filter { it.residenceId != residenceId }
-                            state.copy(
-                                isLoading = false,
-                                residences = updatedResidences,
-                                selectedResidenceContext = updatedResidences.firstOrNull(),
-                                errorMessage = null
-                            )
-                        }
-                        fetchResidences()
-                    }
-                    .onFailure { exception ->
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = exception.message
-                            )
-                        }
-                    }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Erreur réseau : ${e.message}"
-                    )
-                }
-            }
-        }
-    }
-
-    fun clearError() {
-        _uiState.update { it.copy(errorMessage = null) }
     }
 
     fun login() {
-        val currentState = _uiState.value
-        val email = currentState.email
-        val password = currentState.passwordPlain
+        val currentState = uiState.value
+        login(currentState.email, currentState.passwordPlain)
+    }
 
-        val validation = AuthValidator.validateLogin(email, password)
+    private fun login(emailInput: String, passwordInput: String) {
+        val validation = AuthValidator.validateLogin(emailInput, passwordInput)
         if (validation.isFailure) {
-            _uiState.update { it.copy(errorMessage = validation.exceptionOrNull()?.message) }
+            updateState { it.copy(errorMessage = validation.exceptionOrNull()?.message) }
             return
         }
 
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        updateState { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
-                authRepository.login(email, password)
+                authRepository.login(emailInput, passwordInput)
                     .onSuccess { authResponse ->
                         val nameParts = authResponse.user.name.split(" ")
                         val fName = nameParts.getOrNull(0) ?: "Utilisateur"
                         val lName = nameParts.getOrNull(1) ?: ""
-                        _uiState.update {
+                        updateState {
                             it.copy(
                                 isLoading = false,
                                 jwtToken = authResponse.token,
@@ -606,46 +648,40 @@ class LoginViewModel(
                         fetchResidences()
                     }
                     .onFailure { exception ->
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = exception.message
-                            )
-                        }
+                        updateState { it.copy(isLoading = false, errorMessage = exception.message) }
                     }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Erreur réseau : ${e.message}"
-                    )
-                }
+                updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
             }
         }
     }
 
     fun register() {
-        val currentState = _uiState.value
-        val email = currentState.email
-        val password = currentState.passwordPlain
-        val firstName = currentState.firstName
-        val lastName = currentState.lastName
-        val birthDate = currentState.birthDate.ifBlank { null }
-        val phone = currentState.phone.ifBlank { null }
+        val currentState = uiState.value
+        register(
+            currentState.firstName, 
+            currentState.lastName, 
+            currentState.birthDate.ifBlank { null }, 
+            currentState.phone.ifBlank { null }, 
+            currentState.email, 
+            currentState.passwordPlain
+        )
+    }
 
-        val validation = AuthValidator.validateRegister(firstName, lastName, email, password)
+    private fun register(fName: String, lName: String, bDate: String?, phoneNum: String?, emailInput: String, passwordInput: String) {
+        val validation = AuthValidator.validateRegister(fName, lName, emailInput, passwordInput)
         if (validation.isFailure) {
-            _uiState.update { it.copy(errorMessage = validation.exceptionOrNull()?.message) }
+            updateState { it.copy(errorMessage = validation.exceptionOrNull()?.message) }
             return
         }
 
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        updateState { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
-                authRepository.register(firstName, lastName, birthDate, phone, email, password)
+                authRepository.register(fName, lName, bDate, phoneNum, emailInput, passwordInput)
                     .onSuccess { authResponse ->
-                        _uiState.update {
+                        updateState {
                             it.copy(
                                 isLoading = false,
                                 jwtToken = authResponse.token,
@@ -658,26 +694,16 @@ class LoginViewModel(
                         fetchResidences()
                     }
                     .onFailure { exception ->
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                errorMessage = exception.message
-                            )
-                        }
+                        updateState { it.copy(isLoading = false, errorMessage = exception.message) }
                     }
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Erreur réseau : ${e.message}"
-                    )
-                }
+                updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
             }
         }
     }
 
     fun logout() {
-        _uiState.update {
+        updateState {
             it.copy(
                 email = "",
                 passwordPlain = "",
@@ -694,7 +720,9 @@ class LoginViewModel(
                 searchResults = emptyList(),
                 isSearching = false,
                 currentScreen = AuthScreen.LOGIN,
-                currentAppScreen = AppScreen.DASHBOARD
+                currentAppScreen = AppScreen.DASHBOARD,
+                leases = emptyList(),
+                members = emptyList()
             )
         }
         sessionStorage?.clearSession()

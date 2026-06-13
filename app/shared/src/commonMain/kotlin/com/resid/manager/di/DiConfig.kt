@@ -30,6 +30,8 @@ val repositoryModule = module {
     single<AuthRepository> { AuthRepositoryImpl(get()) }
     single<ResidenceRepository> { ResidenceRepositoryImpl(get()) }
     single<LogementRepository> { LogementRepositoryImpl(get()) }
+    single<LeaseRepository> { LeaseRepositoryImpl(get()) }
+    single<MemberRepository> { MemberRepositoryImpl(get()) }
 }
 
 val useCaseModule = module {
@@ -38,7 +40,7 @@ val useCaseModule = module {
 
 val viewModelModule = module {
     factory { (sessionStorage: SessionStorage?) -> 
-        LoginViewModel(get(), get(), get(), get(), sessionStorage)
+        LoginViewModel(get(), get(), get(), get(), get(), get(), sessionStorage)
     }
 }
 

@@ -645,28 +645,52 @@ fun Application.configureAppRoutes() {
                 }
             }
 
-            // GET /api/user/search?q=name Search a user by his name
+            // GET /api/users/tenant/search?q=name Search User by his name or his residence role
             get("/api/users/search") {
                 val query = call.request.queryParameters["q"] ?: ""
+                val residenceId = call.request.queryParameters["residenceId"] ?: ""
+                val role = call.request.queryParameters["role"] ?: ""
                 try {
                     val users = transaction {
-                        Users.select(Users.id, Users.firstName, Users.lastName, Users.email)
-                            .where {
-                                (Users.email like "%$query%") or
-                                (Users.firstName like "%$query%") or
-                                (Users.lastName like "%$query%")
-                            }
-                            .map { row ->
-                                UserSearchDto(
-                                    id = row[Users.id].value.toString(),
-                                    email = row[Users.email],
-                                    name = "${row[Users.firstName]} ${row[Users.lastName]}",
-                                )
-                            }
+                        if (residenceId.isNotBlank()) {
+                            (Users innerJoin ResidenceMembers)
+                                .select(Users.id, Users.firstName, Users.lastName, Users.email, ResidenceMembers.role)
+                                .where {
+                                    ((Users.email like "%$query%") or
+                                        (Users.firstName like "%$query%") or
+                                        (Users.lastName like "%$query%")) and
+                                     ((ResidenceMembers.residenceId eq UUID.fromString(residenceId)) or
+                                        (ResidenceMembers.role like  role))
+                                }
+                                .withDistinct()
+                                .map { row ->
+                                    UserSearchDto(
+                                        id = row[Users.id].value.toString(),
+                                        email = row[Users.email],
+                                        name = "${row[Users.firstName]} ${row[Users.lastName]}",
+                                        role = row[ResidenceMembers.role]
+                                    )
+                                }
+                        } else {
+                            Users.select(Users.id, Users.firstName, Users.lastName, Users.email)
+                                .where {
+                                    (Users.email like "%$query%") or
+                                            (Users.firstName like "%$query%") or
+                                            (Users.lastName like "%$query%")
+                                }
+                                .map { row ->
+                                    UserSearchDto(
+                                        id = row[Users.id].value.toString(),
+                                        email = row[Users.email],
+                                        name = "${row[Users.firstName]} ${row[Users.lastName]}",
+                                    )
+                                }
+                        }
+
                     }
                     call.respond(HttpStatusCode.OK, users)
                 } catch (e: Exception) {
-                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse("Erreur lors de la recherche d'utilisateurs: ${e.message}"))
+                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse("Erreur lors de la recherche de locataires: ${e.message}"))
                 }
             }
 
@@ -958,15 +982,330 @@ fun Application.configureAppRoutes() {
             // POST /api/logements/{id}/baux : Create a lease agreement
             post("/api/logements/{id}/baux") {
                 val logementId = call.parameters["id"] ?: ""
-                // Placeholder: receive LeaseCreateRequest, insert in Baux table, calculate V_initial, set Logement status to OCCUPIED
-                call.respond(HttpStatusCode.Created, mapOf("logementId" to logementId, "message" to "Contrat de bail créé"))
+
+                try {
+                    val request = call.receive<LeaseCreateRequest>()
+                    val parsedStart = LocalDate.parse(request.startDate)
+                    val parsedEnd = LocalDate.parse(request.endDate)
+                    val duration = java.time.temporal.ChronoUnit.MONTHS.between(parsedStart, parsedEnd).toInt()
+
+                    val createdLeaseDto = transaction {
+                        // 1. Fetch logement & verify status == "AVAILABLE"
+                        val dbLogement = Logement.findById(UUID.fromString(logementId)) 
+                            ?: throw Exception("Logement introuvable.")
+                        
+                        if (dbLogement.status != "AVAILABLE") {
+                            throw Exception("Ce logement n'est plus disponible pour une location.")
+                        }
+
+                        // 2. Fetch or create tenant user
+                        val dbTenant = if (request.tenantId != null) {
+                            User.findById(UUID.fromString(request.tenantId))
+                                ?: throw Exception("Locataire (utilisateur) introuvable.")
+                        } else if (request.inlineTenant != null) {
+                            val inline = request.inlineTenant!!
+                            // Check if email already exists
+                            val existingUser = User.find { Users.email eq inline.email }.firstOrNull()
+                            if (existingUser != null) {
+                                existingUser
+                            } else {
+                                val tempPasswordHash = BCrypt.withDefaults().hashToString(12, "Locataire123!".toCharArray())
+                                val newUser = User.new {
+                                    email = inline.email
+                                    passwordHash = tempPasswordHash
+                                    firstName = inline.firstName
+                                    lastName = inline.lastName
+                                    birthDate = null
+                                    phone = inline.phone
+                                    createdAt = LocalDateTime.now()
+                                    updatedAt = LocalDateTime.now()
+                                }
+                                newUser.flush()
+
+                                // Instantly register as a member of this residence
+                                ResidenceMembers.insert {
+                                    it[userId] = newUser.id.value
+                                    it[residenceId] = dbLogement.residence.id.value
+                                    it[role] = "TENANT"
+                                    it[status] = "ACCEPTED"
+                                    it[createdAt] = LocalDateTime.now()
+                                }
+                                newUser
+                            }
+                        } else {
+                            throw Exception("Veuillez sélectionner un locataire existant ou remplir le formulaire d'inscription inline.")
+                        }
+
+                        // 3. Check if tenant already has an ongoing lease (not TERMINATED)
+                        val hasOngoingLease = Baux
+                            .select(Baux.id)
+                            .where { 
+                                (Baux.tenantId eq dbTenant.id.value) and 
+                                (Baux.status neq "TERMINATED") 
+                            }
+                            .count() > 0
+
+                        if (hasOngoingLease) {
+                            throw Exception("Ce locataire possède déjà un contrat de bail en cours dans l'application.")
+                        }
+
+                        // 4. Calculate Total Requirement and Initial Status based on Advanced Payments
+                        val isMonthly = request.paymentFrequency == "MONTHLY"
+                        val rentAndCharges = dbLogement.nominalRent + dbLogement.serviceCharges
+                        val advanceMonths = if (isMonthly) 1 else (request.advanceMonths ?: 12)
+                        
+                        val requiredFirstRent = advanceMonths * rentAndCharges
+                        val totalRequiredToPay = request.depositAmount + requiredFirstRent
+                        val initialPayment = request.advancePaymentAmount ?: 0.0
+
+                        val initialStatusStr = if (initialPayment >= totalRequiredToPay) {
+                            "PENDING_SIGNATURE"
+                        } else if (initialPayment > 0.0) {
+                            "DOWN_PAYMENT_PAID"
+                        } else {
+                            "PENDING_PAYMENT"
+                        }
+
+                        // Create Lease record
+                        val newLease = Lease.new {
+                            this.logement = dbLogement
+                            this.tenant = dbTenant
+                            this.durationMonths = if (duration <= 0) 12 else duration
+                            this.paymentFrequency = request.paymentFrequency
+                            this.depositAmount = request.depositAmount
+                            this.depositStatus = if (initialPayment >= request.depositAmount) "PAID" else "PENDING"
+                            this.status = initialStatusStr
+                            this.startDate = parsedStart
+                            this.endDate = parsedEnd
+                            this.advanceMonths = advanceMonths
+                            this.advancePaymentAmount = initialPayment
+                            this.createdAt = LocalDateTime.now()
+                            this.updatedAt = LocalDateTime.now()
+                        }
+
+                        // 5. Update logement status to OCCUPIED
+                        dbLogement.status = "OCCUPIED"
+                        dbLogement.flush()
+                        newLease.flush()
+
+                        // 6. Generate financial transaction entry if an advance payment was actually made!
+                        if (initialPayment > 0.0) {
+                            FinancialTransaction.new {
+                                this.residence = dbLogement.residence
+                                this.type = "INCOME"
+                                this.category = "Lease Payment"
+                                this.amount = initialPayment
+                                this.description = "Versement d'avance à la signature pour le logement ${dbLogement.name}"
+                                this.relatedEntityType = "BAIL"
+                                this.relatedEntityId = newLease.id.value
+                                this.transactionDate = LocalDate.now()
+                                this.createdAt = LocalDateTime.now()
+                                this.updatedAt = LocalDateTime.now()
+                            }
+                        }
+
+                        val leaseStatusEnum = try {
+                            LeaseStatus.valueOf(initialStatusStr)
+                        } catch (e: Exception) {
+                            LeaseStatus.PENDING_PAYMENT
+                        }
+
+                        LeaseDto(
+                            id = newLease.id.value.toString(),
+                            logementId = newLease.logement.id.value.toString(),
+                            tenantId = newLease.tenant.id.value.toString(),
+                            startDate = newLease.startDate.toString(),
+                            endDate = newLease.endDate.toString(),
+                            depositAmount = newLease.depositAmount,
+                            monthlyRentAtSign = request.monthlyRentAtSign,
+                            status = leaseStatusEnum,
+                            createdAt = newLease.createdAt.toString(),
+                            updatedAt = newLease.updatedAt.toString()
+                        )
+                    }
+
+                    call.respond(HttpStatusCode.Created, createdLeaseDto)
+                } catch (e: Exception) {
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse("Erreur lors de la création du contrat de bail : ${e.message}")
+                    )
+                }
+            }
+
+            // GET /api/residences/{id}/baux : List all lease agreements for a residence
+            get("/api/residences/{id}/baux") {
+                val principal = call.principal<JWTPrincipal>()
+                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
+                val residenceId = call.parameters["id"] ?: ""
+
+                try {
+                    // Check if member exists in residence_members with ACCEPTED status
+                    val isMember = transaction {
+                        !ResidenceMembers
+                            .select(ResidenceMembers.userId)
+                            .where { 
+                                (ResidenceMembers.userId eq UUID.fromString(userId)) and 
+                                (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
+                                (ResidenceMembers.status eq "ACCEPTED") 
+                            }
+                            .empty()
+                    }
+
+                    if (!isMember) {
+                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit : vous ne faites pas partie de cette résidence."))
+                        return@get
+                    }
+
+                    val leasesList = transaction {
+                        // Find baux for all logements in this residence
+                        Lease.all().filter { it.logement.residence.id.value == UUID.fromString(residenceId) }.map {
+                            LeaseDto(
+                                id = it.id.value.toString(),
+                                logementId = it.logement.id.value.toString(),
+                                tenantId = it.tenant.id.value.toString(),
+                                startDate = it.startDate.toString(),
+                                endDate = it.endDate.toString(),
+                                depositAmount = it.depositAmount,
+                                monthlyRentAtSign = it.logement.nominalRent,
+                                status = try {
+                                    LeaseStatus.valueOf(it.status)
+                                } catch (e: Exception) {
+                                    LeaseStatus.PENDING_PAYMENT
+                                },
+                                createdAt = it.createdAt.toString(),
+                                updatedAt = it.updatedAt.toString()
+                            )
+                        }
+                    }
+
+                    call.respond(HttpStatusCode.OK, leasesList)
+                } catch (e: Exception) {
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse("Erreur lors de la récupération des contrats de bail : ${e.message}")
+                    )
+                }
             }
 
             // PUT /api/baux/{id}/payment : Log a deposit, down payment, or lease balance payment
             put("/api/baux/{id}/payment") {
                 val leaseId = call.parameters["id"] ?: ""
-                // Placeholder: receive payment body, update lease status, generate a financial_transaction entry
-                call.respond(HttpStatusCode.OK, mapOf("leaseId" to leaseId, "status" to "Paiement enregistré"))
+
+                try {
+                    val request = call.receive<LeasePaymentRequest>()
+
+                    val updatedLeaseDto = transaction {
+                        // 1. Fetch lease record
+                        val dbLease = Lease.findById(UUID.fromString(leaseId)) 
+                            ?: throw Exception("Contrat de bail introuvable.")
+
+                        // 2. Fetch all previous deposit payments registered as income transactions for this lease
+                        val alreadyPaid = FinancialTransaction.find { 
+                            (FinancialTransactions.relatedEntityType eq "BAIL") and 
+                            (FinancialTransactions.relatedEntityId eq UUID.fromString(leaseId)) and 
+                            (FinancialTransactions.type eq "INCOME") 
+                        }.sumOf { it.amount }
+
+                        val totalPaid = alreadyPaid + request.amountPaid
+
+                        // 3. Determine the state-machine status update
+                        val newStatusStr = if (totalPaid >= dbLease.depositAmount) {
+                            "PENDING_SIGNATURE"
+                        } else if (totalPaid > 0.0) {
+                            "DOWN_PAYMENT_PAID"
+                        } else {
+                            "PENDING_PAYMENT"
+                        }
+
+                        // Map status back to the database record
+                        dbLease.status = newStatusStr
+                        if (totalPaid >= dbLease.depositAmount) {
+                            dbLease.depositStatus = "PAID"
+                        }
+                        dbLease.updatedAt = LocalDateTime.now()
+                        dbLease.flush()
+
+                        // 4. Generate financial transaction entry
+                        FinancialTransaction.new {
+                            this.residence = dbLease.logement.residence
+                            this.type = "INCOME"
+                            this.category = "Deposit"
+                            this.amount = request.amountPaid
+                            this.description = "Paiement dépôt de garantie pour le logement ${dbLease.logement.name}"
+                            this.relatedEntityType = "BAIL"
+                            this.relatedEntityId = UUID.fromString(leaseId)
+                            this.transactionDate = LocalDate.now()
+                            this.createdAt = LocalDateTime.now()
+                            this.updatedAt = LocalDateTime.now()
+                        }
+
+                        val leaseStatusEnum = try {
+                            LeaseStatus.valueOf(newStatusStr)
+                        } catch (e: Exception) {
+                            LeaseStatus.PENDING_PAYMENT
+                        }
+
+                        LeaseDto(
+                            id = dbLease.id.value.toString(),
+                            logementId = dbLease.logement.id.value.toString(),
+                            tenantId = dbLease.tenant.id.value.toString(),
+                            startDate = dbLease.startDate.toString(),
+                            endDate = dbLease.endDate.toString(),
+                            depositAmount = dbLease.depositAmount,
+                            monthlyRentAtSign = dbLease.logement.nominalRent,
+                            status = leaseStatusEnum,
+                            createdAt = dbLease.createdAt.toString(),
+                            updatedAt = dbLease.updatedAt.toString()
+                        )
+                    }
+
+                    call.respond(HttpStatusCode.OK, updatedLeaseDto)
+                } catch (e: Exception) {
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse("Erreur lors de l'enregistrement du paiement : ${e.message}")
+                    )
+                }
+            }
+
+            // PUT /api/baux/{id}/status : Update lease status (e.g. to SIGNED_ACTIVE)
+            put("/api/baux/{id}/status") {
+                val leaseId = call.parameters["id"] ?: ""
+                try {
+                    val request = call.receive<LeaseUpdateRequest>()
+                    val updatedLeaseDto = transaction {
+                        val dbLease = Lease.findById(UUID.fromString(leaseId)) 
+                            ?: throw Exception("Contrat de bail introuvable.")
+
+                        request.status?.let { dbLease.status = it.name }
+                        dbLease.updatedAt = LocalDateTime.now()
+                        dbLease.flush()
+
+                        LeaseDto(
+                            id = dbLease.id.value.toString(),
+                            logementId = dbLease.logement.id.value.toString(),
+                            tenantId = dbLease.tenant.id.value.toString(),
+                            startDate = dbLease.startDate.toString(),
+                            endDate = dbLease.endDate.toString(),
+                            depositAmount = dbLease.depositAmount,
+                            monthlyRentAtSign = dbLease.logement.nominalRent,
+                            status = try {
+                                LeaseStatus.valueOf(dbLease.status)
+                            } catch (e: Exception) {
+                                LeaseStatus.PENDING_PAYMENT
+                            },
+                            createdAt = dbLease.createdAt.toString(),
+                            updatedAt = dbLease.updatedAt.toString()
+                        )
+                    }
+                    call.respond(HttpStatusCode.OK, updatedLeaseDto)
+                } catch (e: Exception) {
+                    call.respond(
+                        HttpStatusCode.InternalServerError,
+                        ErrorResponse("Erreur lors de la mise à jour du statut du bail : ${e.message}")
+                    )
+                }
             }
 
             // POST /api/logements/{id}/electricity : Enter new meter index and generate statement

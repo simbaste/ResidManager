@@ -67,6 +67,8 @@ object Baux : UUIDTable("baux") {
     val status = varchar("status", 20).default("PENDING_PAYMENT") // PENDING_PAYMENT, PARTIALLY_PAID, PENDING_SIGNATURE, ACTIVE, TERMINATED
     val startDate = date("start_date")
     val endDate = date("end_date")
+    val advanceMonths = integer("advance_months").default(1)
+    val advancePaymentAmount = double("advance_payment_amount").default(0.0)
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
 }
@@ -166,6 +168,8 @@ class Lease(id: EntityID<UUID>) : UUIDEntity(id) {
     var status by Baux.status
     var startDate by Baux.startDate
     var endDate by Baux.endDate
+    var advanceMonths by Baux.advanceMonths
+    var advancePaymentAmount by Baux.advancePaymentAmount
     var createdAt by Baux.createdAt
     var updatedAt by Baux.updatedAt
 }
