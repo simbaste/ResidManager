@@ -31,6 +31,7 @@ fun LogementsPage(viewModel: LoginViewModel) {
     var showDeleteConfirmationId by remember { mutableStateOf<String?>(null) }
     var editingLogement by remember { mutableStateOf<LogementDto?>(null) }
     var selectedLogementForDetail by remember { mutableStateOf<LogementDto?>(null) }
+    var showAssignLeaseWizardByLogementId by remember { mutableStateOf<String?>(null) }
 
     if (selectedLogementForDetail != null) {
         val logement = selectedLogementForDetail!!
@@ -217,9 +218,20 @@ fun LogementsPage(viewModel: LoginViewModel) {
                                 color = MaterialTheme.colorScheme.outline
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                ListOfAmenityBadge(icon = Icons.Default.Settings, label = "Climatisation")
-                                ListOfAmenityBadge(icon = Icons.Default.Share, label = "Wi-Fi Fibre")
-                                ListOfAmenityBadge(icon = Icons.Default.Star, label = "Eau Courante")
+                                if (logement.equipements.isEmpty()) {
+                                    Text("Aucun équipement renseigné", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                } else {
+                                    logement.equipements.forEach { eq ->
+                                        val icon = when (eq.key) {
+                                            "WIFI" -> Icons.Default.Share
+                                            "CLIM" -> Icons.Default.Settings
+                                            "EAU" -> Icons.Default.Star
+                                            "PARKING" -> Icons.Default.LocationOn
+                                            else -> Icons.Default.Home
+                                        }
+                                        ListOfAmenityBadge(icon = icon, label = eq.label)
+                                    }
+                                }
                             }
                         }
                     }
@@ -284,7 +296,7 @@ fun LogementsPage(viewModel: LoginViewModel) {
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                         )
                                         OutlinedButton(
-                                            onClick = { },
+                                            onClick = { showAssignLeaseWizardByLogementId = logement.id },
                                             shape = RoundedCornerShape(8.dp)
                                         ) {
                                             Text("Attribuer un nouveau locataire", color = Color(0xFF006948))
@@ -636,8 +648,8 @@ fun LogementsPage(viewModel: LoginViewModel) {
             viewModel = viewModel,
             logement = target,
             onDismiss = { editingLogement = null },
-            onSubmit = { name, floor, type, rent, charges, initialIndex ->
-                viewModel.updateLogement(target.id, name, floor, type, rent, charges, initialIndex)
+            onSubmit = { name, floor, type, rent, charges, initialIndex, equipementIds ->
+                viewModel.updateLogement(target.id, name, floor, type, rent, charges, initialIndex, equipementIds)
                 editingLogement = null
                 selectedLogementForDetail = target.copy(
                     name = name,
@@ -645,9 +657,23 @@ fun LogementsPage(viewModel: LoginViewModel) {
                     type = type,
                     nominalRent = rent,
                     serviceCharges = charges,
-                    initialElectricityIndex = initialIndex
+                    initialElectricityIndex = initialIndex,
+                    equipements = uiState.availableEquipements.filter { equipementIds.contains(it.id) }
                 )
             }
+        )
+    }
+
+    if (showAssignLeaseWizardByLogementId != null) {
+        LeaseWizardDialog(
+            viewModel = viewModel,
+            onDismiss = { 
+                showAssignLeaseWizardByLogementId = null
+                selectedLogementForDetail = null // return to list to update and refresh
+                viewModel.fetchLogements()
+                viewModel.fetchLeases()
+            },
+            initialLogementId = showAssignLeaseWizardByLogementId
         )
     }
 }

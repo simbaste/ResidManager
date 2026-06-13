@@ -111,6 +111,19 @@ object FinancialTransactions : UUIDTable("financial_transactions") {
     val updatedAt = datetime("updated_at")
 }
 
+object Equipements : UUIDTable("equipements") {
+    val key = varchar("key", 50).uniqueIndex()
+    val label = varchar("label", 100)
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
+}
+
+object LogementEquipements : Table("logement_equipements") {
+    val logementId = reference("logement_id", Logements, onDelete = ReferenceOption.CASCADE)
+    val equipementId = reference("equipement_id", Equipements, onDelete = ReferenceOption.CASCADE)
+    override val primaryKey = PrimaryKey(logementId, equipementId)
+}
+
 
 // =========================================================================
 // SECTION 2: JetBrains Exposed DAO Entity Classes
@@ -154,6 +167,17 @@ class Logement(id: EntityID<UUID>) : UUIDEntity(id) {
     var status by Logements.status
     var createdAt by Logements.createdAt
     var updatedAt by Logements.updatedAt
+
+    var equipements by Equipement via LogementEquipements
+}
+
+class Equipement(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<Equipement>(Equipements)
+
+    var key by Equipements.key
+    var label by Equipements.label
+    var createdAt by Equipements.createdAt
+    var updatedAt by Equipements.updatedAt
 }
 
 class Lease(id: EntityID<UUID>) : UUIDEntity(id) {

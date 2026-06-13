@@ -72,7 +72,10 @@ data class LoginUiState(
     val darkMode: Boolean = false,
 
     // Language state (e.g. "fr", "en")
-    val language: String = "fr"
+    val language: String = "fr",
+
+    // Predefined equipments list
+    val availableEquipements: List<EquipementDto> = emptyList()
 )
 
 sealed interface LoginIntent {
@@ -86,8 +89,8 @@ sealed interface LoginIntent {
     data class DeleteResidence(val residenceId: String) : LoginIntent
     data class SelectResidence(val residence: ResidenceContext) : LoginIntent
     
-    data class CreateLogement(val name: String, val floor: String, val type: String, val nominalRent: Double, val serviceCharges: Double, val initialIndex: Double) : LoginIntent
-    data class UpdateLogement(val id: String, val name: String, val floor: String, val type: String, val rent: Double, val charges: Double, val initialIndex: Double) : LoginIntent
+    data class CreateLogement(val name: String, val floor: String, val type: String, val nominalRent: Double, val serviceCharges: Double, val initialIndex: Double, val equipementIds: List<String> = emptyList()) : LoginIntent
+    data class UpdateLogement(val id: String, val name: String, val floor: String, val type: String, val rent: Double, val charges: Double, val initialIndex: Double, val equipementIds: List<String> = emptyList()) : LoginIntent
     data class DeleteLogement(val id: String) : LoginIntent
     
     data class CreateLease(val logementId: String, val request: LeaseCreateRequest, val onSuccess: () -> Unit) : LoginIntent
@@ -119,6 +122,7 @@ class LoginViewModel(
     private var searchJob: kotlinx.coroutines.Job? = null
 
     init {
+        fetchEquipements()
         // Load session if available on startup
         sessionStorage?.loadSession()?.let { (token, userName) ->
             val nameParts = userName.split(" ")
@@ -156,8 +160,8 @@ class LoginViewModel(
             is LoginIntent.UpdateResidence -> updateResidence(intent.residenceId, intent.name, intent.address, intent.kWhPrice)
             is LoginIntent.DeleteResidence -> deleteResidence(intent.residenceId)
             is LoginIntent.SelectResidence -> selectResidence(intent.residence)
-            is LoginIntent.CreateLogement -> createLogement(intent.name, intent.floor, intent.type, intent.nominalRent, intent.serviceCharges, intent.initialIndex)
-            is LoginIntent.UpdateLogement -> updateLogement(intent.id, intent.name, intent.floor, intent.type, intent.rent, intent.charges, intent.initialIndex)
+            is LoginIntent.CreateLogement -> createLogement(intent.name, intent.floor, intent.type, intent.nominalRent, intent.serviceCharges, intent.initialIndex, intent.equipementIds)
+            is LoginIntent.UpdateLogement -> updateLogement(intent.id, intent.name, intent.floor, intent.type, intent.rent, intent.charges, intent.initialIndex, intent.equipementIds)
             is LoginIntent.DeleteLogement -> deleteLogement(intent.id)
             is LoginIntent.CreateLease -> createLease(intent.logementId, intent.request, intent.onSuccess)
             is LoginIntent.RecordLeasePayment -> recordLeasePayment(intent.leaseId, intent.amount, intent.onResult)
@@ -177,6 +181,18 @@ class LoginViewModel(
 
     fun setLanguage(lang: String) {
         updateState { it.copy(language = lang) }
+    }
+
+    fun fetchEquipements() {
+        viewModelScope.launch {
+            try {
+                val response = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/equipements")
+                if (response.status == io.ktor.http.HttpStatusCode.OK) {
+                    val list = response.body<List<EquipementDto>>()
+                    updateState { it.copy(availableEquipements = list) }
+                }
+            } catch (e: Exception) {}
+        }
     }
 
     // Public setters for text fields to fully preserve standard login/register ui bindings
@@ -228,6 +244,7 @@ class LoginViewModel(
     // Public actions to preserve classic direct UI invocations and support stateless screens
 
     fun fetchResidences() {
+        fetchEquipements()
         val token = uiState.value.jwtToken ?: return
         
         viewModelScope.launch {
@@ -442,7 +459,8 @@ class LoginViewModel(
         type: String,
         nominalRent: Double,
         serviceCharges: Double,
-        initialElectricityIndex: Double
+        initialElectricityIndex: Double,
+        equipementIds: List<String> = emptyList()
     ) {
         val token = uiState.value.jwtToken ?: return
         val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
@@ -450,7 +468,7 @@ class LoginViewModel(
 
         viewModelScope.launch {
             try {
-                val request = LogementCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex)
+                val request = LogementCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex, equipementIds)
                 logementRepository.createLogement(token, residenceId, request)
                     .onSuccess {
                         fetchLogements()
@@ -493,7 +511,8 @@ class LoginViewModel(
         type: String,
         nominalRent: Double,
         serviceCharges: Double,
-        initialElectricityIndex: Double
+        initialElectricityIndex: Double,
+        equipementIds: List<String> = emptyList()
     ) {
         val token = uiState.value.jwtToken ?: return
         val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
@@ -501,7 +520,7 @@ class LoginViewModel(
 
         viewModelScope.launch {
             try {
-                val request = LogementCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex)
+                val request = LogementCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex, equipementIds)
                 logementRepository.updateLogement(token, residenceId, logementId, request)
                     .onSuccess {
                         fetchLogements()

@@ -1,8 +1,11 @@
 package com.resid.manager.ui
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -177,27 +180,62 @@ fun JoinResidenceDialog(
 
 @Composable
 fun CreateLogementDialog(
+    viewModel: LoginViewModel,
     onDismiss: () -> Unit,
-    onSubmit: (String, String, String, Double, Double, Double) -> Unit
+    onSubmit: (String, String, String, Double, Double, Double, List<String>) -> Unit
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     var name by remember { mutableStateOf("") }
     var floor by remember { mutableStateOf("") }
     var type by remember { mutableStateOf("STUDIO") }
     var nominalRent by remember { mutableStateOf("0.0") }
     var serviceCharges by remember { mutableStateOf("0.0") }
     var initialElectricityIndex by remember { mutableStateOf("0.0") }
+    var selectedEquipements by remember { mutableStateOf(emptySet<String>()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Ajouter un logement") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom / Numéro d'unité *") })
-                OutlinedTextField(value = floor, onValueChange = { floor = it }, label = { Text("Étage / Bloc *") })
-                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Type d'unité *") })
-                OutlinedTextField(value = nominalRent, onValueChange = { nominalRent = it }, label = { Text("Loyer mensuel nominal (XOF) *") })
-                OutlinedTextField(value = serviceCharges, onValueChange = { serviceCharges = it }, label = { Text("Charges fixes d'entretien *") })
-                OutlinedTextField(value = initialElectricityIndex, onValueChange = { initialElectricityIndex = it }, label = { Text("Index Électricité initial (kWh)") })
+            Column(
+                modifier = Modifier.widthIn(max = 500.dp).heightIn(max = 450.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom / Numéro d'unité *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = floor, onValueChange = { floor = it }, label = { Text("Étage / Bloc *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Type d'unité *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = nominalRent, onValueChange = { nominalRent = it }, label = { Text("Loyer mensuel nominal (XOF) *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = serviceCharges, onValueChange = { serviceCharges = it }, label = { Text("Charges fixes d'entretien *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = initialElectricityIndex, onValueChange = { initialElectricityIndex = it }, label = { Text("Index Électricité initial (kWh)") }, modifier = Modifier.fillMaxWidth())
+                
+                // Predefined Equipements list picker
+                if (uiState.availableEquipements.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Équipements inclus :", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        uiState.availableEquipements.forEach { eq ->
+                            val isChecked = selectedEquipements.contains(eq.id)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        selectedEquipements = if (isChecked) selectedEquipements - eq.id else selectedEquipements + eq.id
+                                    }
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Checkbox(
+                                    checked = isChecked,
+                                    onCheckedChange = { checked ->
+                                        selectedEquipements = if (checked == true) selectedEquipements + eq.id else selectedEquipements - eq.id
+                                    }
+                                )
+                                Text(eq.label, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
@@ -206,7 +244,7 @@ fun CreateLogementDialog(
                     val rent = nominalRent.toDoubleOrNull() ?: 0.0
                     val charges = serviceCharges.toDoubleOrNull() ?: 0.0
                     val index = initialElectricityIndex.toDoubleOrNull() ?: 0.0
-                    onSubmit(name, floor, type, rent, charges, index)
+                    onSubmit(name, floor, type, rent, charges, index, selectedEquipements.toList())
                 },
                 enabled = name.isNotBlank() && floor.isNotBlank() && type.isNotBlank()
             ) {
@@ -224,7 +262,7 @@ fun EditLogementDialog(
     viewModel: LoginViewModel,
     logement: LogementDto,
     onDismiss: () -> Unit,
-    onSubmit: (String, String, String, Double, Double, Double) -> Unit
+    onSubmit: (String, String, String, Double, Double, Double, List<String>) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var name by remember { mutableStateOf(logement.name) }
@@ -233,19 +271,52 @@ fun EditLogementDialog(
     var nominalRent by remember { mutableStateOf(logement.nominalRent.toString()) }
     var serviceCharges by remember { mutableStateOf(logement.serviceCharges.toString()) }
     var initialElectricityIndex by remember { mutableStateOf(logement.initialElectricityIndex.toString()) }
+    var selectedEquipements by remember { mutableStateOf(logement.equipements.map { it.id }.toSet()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Modifier le logement") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom d'unité *") })
-                OutlinedTextField(value = floor, onValueChange = { floor = it }, label = { Text("Étage *") })
-                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Type d'unité *") })
-                OutlinedTextField(value = nominalRent, onValueChange = { nominalRent = it }, label = { Text("Loyer de base (XOF) *") })
-                OutlinedTextField(value = serviceCharges, onValueChange = { serviceCharges = it }, label = { Text("Charges fixes *") })
-                OutlinedTextField(value = initialElectricityIndex, onValueChange = { initialElectricityIndex = it }, label = { Text("Index Elec initial *") })
+            Column(
+                modifier = Modifier.widthIn(max = 500.dp).heightIn(max = 450.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom d'unité *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = floor, onValueChange = { floor = it }, label = { Text("Étage *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Type d'unité *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = nominalRent, onValueChange = { nominalRent = it }, label = { Text("Loyer de base (XOF) *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = serviceCharges, onValueChange = { serviceCharges = it }, label = { Text("Charges fixes *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = initialElectricityIndex, onValueChange = { initialElectricityIndex = it }, label = { Text("Index Elec initial *") }, modifier = Modifier.fillMaxWidth())
                 
+                // Predefined Equipements list picker
+                if (uiState.availableEquipements.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Équipements inclus :", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        uiState.availableEquipements.forEach { eq ->
+                            val isChecked = selectedEquipements.contains(eq.id)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        selectedEquipements = if (isChecked) selectedEquipements - eq.id else selectedEquipements + eq.id
+                                    }
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Checkbox(
+                                    checked = isChecked,
+                                    onCheckedChange = { checked ->
+                                        selectedEquipements = if (checked == true) selectedEquipements + eq.id else selectedEquipements - eq.id
+                                    }
+                                )
+                                Text(eq.label, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                }
+
                 val err = uiState.errorMessage
                 if (err != null) {
                     Text(text = err, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
@@ -258,7 +329,7 @@ fun EditLogementDialog(
                     val rent = nominalRent.toDoubleOrNull() ?: 0.0
                     val charges = serviceCharges.toDoubleOrNull() ?: 0.0
                     val index = initialElectricityIndex.toDoubleOrNull() ?: 0.0
-                    onSubmit(name, floor, type, rent, charges, index)
+                    onSubmit(name, floor, type, rent, charges, index, selectedEquipements.toList())
                 },
                 enabled = name.isNotBlank() && floor.isNotBlank() && type.isNotBlank() && !uiState.isLoading
             ) {

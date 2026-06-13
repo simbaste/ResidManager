@@ -325,7 +325,8 @@ enum class WizardStep { TENANT, UNIT, FINANCIALS, TIMELINE }
 @Composable
 fun LeaseWizardDialog(
     viewModel: LoginViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    initialLogementId: String? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var currentStep by remember { mutableStateOf(WizardStep.TENANT) }
@@ -339,7 +340,7 @@ fun LeaseWizardDialog(
     var inlineEmail by remember { mutableStateOf("") }
     var inlinePhone by remember { mutableStateOf("") }
 
-    var draftLogementId by remember { mutableStateOf("") }
+    var draftLogementId by remember { mutableStateOf(initialLogementId ?: "") }
     var draftDepositAmount by remember { mutableStateOf("0.0") }
     var draftPaymentFrequency by remember { mutableStateOf("MONTHLY") }
     var draftStartDate by remember { mutableStateOf("") }

@@ -113,6 +113,23 @@ fun Application.configureAppRoutes() {
         // -----------------------------------------------------------------
         // SECTION 2: SECURED ROUTES (JWT AUTHENTICATED)
         // -----------------------------------------------------------------
+        // GET /api/equipements : List predefined equipments (Publicly accessible helper)
+        get("/api/equipements") {
+            try {
+                val list = transaction {
+                    Equipement.all().map {
+                        EquipementDto(id = it.id.value.toString(), key = it.key, label = it.label)
+                    }
+                }
+                call.respond(HttpStatusCode.OK, list)
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    ErrorResponse("Erreur lors de la récupération des équipements : ${e.message}")
+                )
+            }
+        }
+
         authenticate("auth-jwt") {
             
             // GET /api/profile : Fetch logged-in user profile details
@@ -783,7 +800,10 @@ fun Application.configureAppRoutes() {
                                 nominalRent = it.nominalRent,
                                 serviceCharges = it.serviceCharges,
                                 initialElectricityIndex = it.initialElectricityIndex,
-                                status = it.status
+                                status = it.status,
+                                equipements = it.equipements.map { eq ->
+                                    EquipementDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
+                                }
                             )
                         }
                     }
@@ -844,6 +864,14 @@ fun Application.configureAppRoutes() {
                             status = "AVAILABLE" // Forced initial business state
                         }
 
+                        // Attach selected equipments
+                        if (request.equipementIds.isNotEmpty()) {
+                            val selectedEq = request.equipementIds.mapNotNull { eqId ->
+                                Equipement.findById(UUID.fromString(eqId))
+                            }
+                            newLogement.equipements = SizedCollection(selectedEq)
+                        }
+
                         newLogement.flush()
 
                         LogementDto(
@@ -855,7 +883,10 @@ fun Application.configureAppRoutes() {
                             nominalRent = newLogement.nominalRent,
                             serviceCharges = newLogement.serviceCharges,
                             initialElectricityIndex = newLogement.initialElectricityIndex,
-                            status = newLogement.status
+                            status = newLogement.status,
+                            equipements = newLogement.equipements.map { eq ->
+                                EquipementDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
+                            }
                         )
                     }
 
@@ -955,6 +986,12 @@ fun Application.configureAppRoutes() {
                         dbLogement.initialElectricityIndex = request.initialElectricityIndex
                         dbLogement.updatedAt = LocalDateTime.now()
 
+                        // Update selected equipments
+                        val selectedEq = request.equipementIds.mapNotNull { eqId ->
+                            Equipement.findById(UUID.fromString(eqId))
+                        }
+                        dbLogement.equipements = SizedCollection(selectedEq)
+
                         dbLogement.flush()
 
                         LogementDto(
@@ -966,7 +1003,10 @@ fun Application.configureAppRoutes() {
                             nominalRent = dbLogement.nominalRent,
                             serviceCharges = dbLogement.serviceCharges,
                             initialElectricityIndex = dbLogement.initialElectricityIndex,
-                            status = dbLogement.status
+                            status = dbLogement.status,
+                            equipements = dbLogement.equipements.map { eq ->
+                                EquipementDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
+                            }
                         )
                     }
 

@@ -130,9 +130,10 @@ fun AppShell(
 
     if (uiState.showCreateLogementDialog) {
         CreateLogementDialog(
+            viewModel = viewModel,
             onDismiss = { viewModel.setShowCreateLogementDialog(false) },
-            onSubmit = { name, floor, type, rent, charges, initialIndex ->
-                viewModel.createLogement(name, floor, type, rent, charges, initialIndex)
+            onSubmit = { name, floor, type, rent, charges, initialIndex, equipementIds ->
+                viewModel.createLogement(name, floor, type, rent, charges, initialIndex, equipementIds)
             }
         )
     }
