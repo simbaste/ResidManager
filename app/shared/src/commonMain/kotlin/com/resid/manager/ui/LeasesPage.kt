@@ -1,15 +1,23 @@
 package com.resid.manager.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import com.resid.manager.ui.i18n.LocalStrings
 import com.resid.manager.dto.*
 import com.resid.manager.network.ApiClient
 import com.resid.manager.viewmodel.LoginViewModel
@@ -207,103 +215,161 @@ fun LeasesPage(viewModel: LoginViewModel) {
             }
         }
     } else {
-        Column(
+        // State variables for filter capsule selection
+        var activeFilter by remember { mutableStateOf("ALL") } // "ALL", "ACTIVE", "TERMINATED", "PENDING"
+        val strings = LocalStrings.current
+
+        val filteredLeases = remember(uiState.leases, activeFilter) {
+            val list = uiState.leases
+            when (activeFilter) {
+                "ACTIVE" -> list.filter { it.status == LeaseStatus.SIGNED_ACTIVE }
+                "TERMINATED" -> emptyList() // No terminated leases in current KMP enum
+                "PENDING" -> list.filter { it.status == LeaseStatus.PENDING_PAYMENT || it.status == LeaseStatus.PENDING_SIGNATURE || it.status == LeaseStatus.DOWN_PAYMENT_PAID }
+                else -> list
+            }
+        }
+
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 300.dp),
             modifier = Modifier.fillMaxSize().padding(24.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Title Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Gestion des Contrats de Bail (Baux)",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                
-                if (isAuthorized) {
-                    Button(onClick = { showWizard = true }) {
-                        Text("+ Nouveau contrat de bail")
+            // 1. Header (Spans full width)
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "Gestion des Contrats de Bail (Baux)",
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = Color(0xFF006948) // Brand deep primary green
+                        )
+                        Text(
+                            text = "Consultez et gérez l'ensemble des contrats actifs et passés de la résidence.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                    
+                    if (isAuthorized) {
+                        Button(
+                            onClick = { showWizard = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                                Text("Nouveau contrat de bail", color = Color.White)
+                            }
+                        }
                     }
                 }
             }
 
-            if (uiState.leases.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize().weight(1f),
-                    contentAlignment = Alignment.Center
+            // 2. Filter Bar (Spans full width)
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(9999.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .padding(4.dp)
+                        .width(IntrinsicSize.Max),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Card(
-                        modifier = Modifier.widthIn(max = 500.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    FilterCapsuleItem(label = "Tous les contrats", isSelected = activeFilter == "ALL", onClick = { activeFilter = "ALL" })
+                    FilterCapsuleItem(label = "En cours", isSelected = activeFilter == "ACTIVE", onClick = { activeFilter = "ACTIVE" })
+                    FilterCapsuleItem(label = "Terminés", isSelected = activeFilter == "TERMINATED", onClick = { activeFilter = "TERMINATED" })
+                    FilterCapsuleItem(label = "En attente", isSelected = activeFilter == "PENDING", onClick = { activeFilter = "PENDING" })
+                }
+            }
+
+            // 3. Grid List of leases
+            if (filteredLeases.isEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(250.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            modifier = Modifier.padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                text = "Aucun contrat de bail",
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.secondary
-                            )
-                            Text(
-                                text = "Aucun bail n'a été enregistré pour le moment. Cliquez sur le bouton ci-dessus pour initier l'assistant de création étape par étape.",
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                        }
+                        Text(
+                            text = "Aucun contrat ne correspond à ce filtre.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.outline
+                        )
                     }
                 }
             } else {
-                // Leases Grid/List
-                Column(
-                    modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                items(filteredLeases) { lease ->
+                    val matchedLogement = uiState.logements.firstOrNull { it.id == lease.logementId }?.name ?: "Logement ${lease.logementId.take(5)}"
+                    val matchedTenant = uiState.members.firstOrNull { it.userId == lease.tenantId }
+                    val tenantName = matchedTenant?.let { "${it.firstName} ${it.lastName}" } ?: "Inconnu"
+
+                    // Custom colors based on lease status
+                    val (badgeBg, badgeColor, badgeText) = when (lease.status) {
+                        LeaseStatus.SIGNED_ACTIVE -> Triple(Color(0xFFE0E7FF), Color(0xFF1E3A8A), "EN COURS")
+                        LeaseStatus.PENDING_SIGNATURE -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "EN ATTENTE SIGNATURE")
+                        LeaseStatus.PENDING_PAYMENT -> Triple(Color(0xFFFDE8E8), Color(0xFFBA1A1A), "EN ATTENTE PAIEMENT")
+                        LeaseStatus.DOWN_PAYMENT_PAID -> Triple(Color(0xFFE6F7F0), Color(0xFF006948), "DOWN_PAYMENT_PAID")
+                    }
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedLeaseForDetail = lease },
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        uiState.leases.forEach { lease ->
-                            val matchedLogement = uiState.logements.firstOrNull { it.id == lease.logementId }?.name ?: "Logement ${lease.logementId.take(5)}"
-                            
-                            Card(
-                                modifier = Modifier.width(300.dp).wrapContentHeight().clickable { selectedLeaseForDetail = lease },
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Header Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
                             ) {
-                                Column(
-                                    modifier = Modifier.padding(20.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(text = matchedLogement, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                                        Badge(
-                                            containerColor = when (lease.status) {
-                                                LeaseStatus.SIGNED_ACTIVE -> MaterialTheme.colorScheme.primaryContainer
-                                                LeaseStatus.PENDING_SIGNATURE -> MaterialTheme.colorScheme.tertiaryContainer
-                                                else -> MaterialTheme.colorScheme.surfaceVariant
-                                            }
-                                        ) {
-                                            Text(text = lease.status.name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(4.dp))
-                                        }
-                                    }
-
-                                    HorizontalDivider()
-
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(text = "Du : ${lease.startDate}", style = MaterialTheme.typography.bodyMedium)
-                                        Text(text = "Au : ${lease.endDate}", style = MaterialTheme.typography.bodyMedium)
-                                        Text(text = "Loyer mensuel : ${lease.monthlyRentAtSign} XOF", style = MaterialTheme.typography.bodyMedium)
-                                        Text(text = "Caution : ${lease.depositAmount} XOF", style = MaterialTheme.typography.bodyMedium)
-                                    }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = matchedLogement, 
+                                        style = MaterialTheme.typography.titleLarge, 
+                                        color = Color(0xFF006948)
+                                    )
+                                    Text(
+                                        text = "Locataire: $tenantName", 
+                                        style = MaterialTheme.typography.bodySmall, 
+                                        color = MaterialTheme.colorScheme.outline
+                                    )
                                 }
+                                Card(
+                                    colors = CardDefaults.cardColors(containerColor = badgeBg),
+                                    shape = RoundedCornerShape(4.dp),
+                                    border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.2f))
+                                ) {
+                                    Text(
+                                        text = badgeText, 
+                                        style = MaterialTheme.typography.bodySmall, 
+                                        color = badgeColor,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                            // Key-Value Rows
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                LeaseInfoRow(label = "Du :", value = lease.startDate)
+                                LeaseInfoRow(label = "Au :", value = lease.endDate)
+                                LeaseInfoRow(label = "Loyer mensuel :", value = "${lease.monthlyRentAtSign} XOF", isGreen = true)
+                                LeaseInfoRow(label = "Caution :", value = "${lease.depositAmount} XOF")
                             }
                         }
                     }
@@ -316,6 +382,48 @@ fun LeasesPage(viewModel: LoginViewModel) {
         LeaseWizardDialog(
             viewModel = viewModel,
             onDismiss = { showWizard = false }
+        )
+    }
+}
+
+@Composable
+fun FilterCapsuleItem(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
+            contentColor = if (isSelected) Color(0xFF006948) else MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 2.dp else 0.dp),
+        shape = RoundedCornerShape(9999.dp),
+        modifier = Modifier.height(36.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
+            Text(text = label, style = MaterialTheme.typography.titleSmall)
+        }
+    }
+}
+
+@Composable
+fun LeaseInfoRow(
+    label: String,
+    value: String,
+    isGreen: Boolean = false
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+        Text(
+            text = value, 
+            style = MaterialTheme.typography.titleMedium, 
+            color = if (isGreen) Color(0xFF006948) else MaterialTheme.colorScheme.onSurface
         )
     }
 }
