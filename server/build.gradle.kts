@@ -29,6 +29,7 @@ dependencies {
     implementation(libs.bcrypt)
     implementation(libs.flyway.core)
     implementation(libs.flyway.postgresql)
+    implementation(libs.openpdf)
     testImplementation(libs.ktor.serverTestHost)
     testImplementation(libs.kotlin.testJunit)
 }

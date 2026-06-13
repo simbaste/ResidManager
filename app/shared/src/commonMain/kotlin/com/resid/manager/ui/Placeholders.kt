@@ -7,10 +7,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-@Composable
-fun ElectricityPage() {
-    PagePlaceholder(title = "Facturation Électricité", description = "Enregistrez les relevés de compteurs d'électricité de vos logements. L'application calcule automatiquement les montants dus d'après la formule d'Eco-Print.")
-}
+
 
 @Composable
 fun TicketsPage() {

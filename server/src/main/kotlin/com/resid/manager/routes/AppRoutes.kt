@@ -4,6 +4,8 @@ import at.favre.lib.crypto.bcrypt.BCrypt
 import com.resid.manager.auth.JwtConfig
 import com.resid.manager.data.*
 import com.resid.manager.dto.*
+import com.resid.manager.service.ElectricityService
+import com.resid.manager.service.PdfService
 import com.resid.manager.validation.AuthValidator
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -1434,27 +1436,139 @@ fun Application.configureAppRoutes() {
                 }
             }
 
+            // GET /api/logements/{id}/electricity/previous : Fetch the previous (locked/read-only) meter index
+            get("/api/logements/{id}/electricity/previous") {
+                val logementId = call.parameters["id"] ?: ""
+                try {
+                    val previous = transaction {
+                        ElectricityService.getPreviousIndex(UUID.fromString(logementId))
+                    }
+                    call.respond(HttpStatusCode.OK, mapOf("previousIndex" to previous))
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Erreur de chargement de l'index précédent."))
+                }
+            }
+
             // POST /api/logements/{id}/electricity : Enter new meter index and generate statement
             post("/api/logements/{id}/electricity") {
                 val logementId = call.parameters["id"] ?: ""
-                // Placeholder: receive ElectricityStatementCreateRequest, query oldIndex, calculate amountDue = (newIndex - oldIndex) * kWhPrice, insert statement in DB
-                call.respond(HttpStatusCode.Created, mapOf("logementId" to logementId, "message" to "Relevé d'électricité enregistré"))
+                try {
+                    val request = call.receive<ElectricityStatementCreateRequest>()
+                    val created = transaction {
+                        ElectricityService.submitStatement(
+                            logementId = UUID.fromString(logementId),
+                            newIndex = request.newIndex,
+                            kWhPriceApplied = request.kWhPriceApplied,
+                            dateStr = request.statementDate
+                        )
+                    }
+                    call.respond(HttpStatusCode.Created, created)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Erreur de validation de l'index."))
+                }
             }
 
             // GET /api/residences/{id}/electricity/statements : List statements with filters
             get("/api/residences/{id}/electricity/statements") {
                 val residenceId = call.parameters["id"] ?: ""
-                val floor = call.request.queryParameters["floor"]
-                val status = call.request.queryParameters["status"]
-                // Placeholder: select statements with filters
-                call.respond(HttpStatusCode.OK, mapOf("residenceId" to residenceId, "statements" to emptyList<String>()))
+                val statusParam = call.request.queryParameters["status"]
+                val logementParam = call.request.queryParameters["logementId"]
+                val floorParam = call.request.queryParameters["floor"]
+                val tenantParam = call.request.queryParameters["tenantName"]
+
+                try {
+                    val statements = transaction {
+                        val list = ElectricityStatement.all().filter { 
+                            it.logement.residence.id.value == UUID.fromString(residenceId) 
+                        }
+                        
+                        var filtered = list
+
+                        statusParam?.ifBlank { null }?.let { status ->
+                            filtered = filtered.filter { it.status.uppercase() == status.uppercase() }
+                        }
+
+                        logementParam?.ifBlank { null }?.let { logId ->
+                            filtered = filtered.filter { it.logement.id.value == UUID.fromString(logId) }
+                        }
+
+                        floorParam?.ifBlank { null }?.let { floor ->
+                            filtered = filtered.filter { it.logement.floor.contains(floor, ignoreCase = true) }
+                        }
+
+                        tenantParam?.ifBlank { null }?.let { tenantName ->
+                            filtered = filtered.filter { stmt ->
+                                val activeLease = Lease.find { 
+                                    (Baux.logementId eq stmt.logement.id) and (Baux.status eq "SIGNED_ACTIVE") 
+                                }.firstOrNull()
+                                val tenant = activeLease?.tenant
+                                val fullName = "${tenant?.firstName} ${tenant?.lastName}"
+                                fullName.contains(tenantName, ignoreCase = true)
+                            }
+                        }
+
+                        filtered.sortedByDescending { it.statementDate }.map {
+                            ElectricityStatementDto(
+                                id = it.id.value.toString(),
+                                logementId = it.logement.id.value.toString(),
+                                previousIndex = it.oldIndex,
+                                newIndex = it.newIndex,
+                                kWhPriceApplied = it.kWhPriceApplied,
+                                amountDue = it.amountDue,
+                                statementDate = it.statementDate.toString(),
+                                status = if (it.status == "PAID") StatementStatus.PAID else StatementStatus.UNPAID,
+                                createdAt = it.createdAt.toString(),
+                                updatedAt = it.updatedAt.toString()
+                            )
+                        }
+                    }
+
+                    call.respond(HttpStatusCode.OK, statements)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Erreur lors de la récupération des relevés."))
+                }
             }
 
             // GET /api/residences/{id}/electricity/export-pdf : Generates the "Eco-Print" PDF
             get("/api/residences/{id}/electricity/export-pdf") {
                 val residenceId = call.parameters["id"] ?: ""
-                // Placeholder: fetch selected statements, format and generate Eco-Print PDF bytes
-                call.respondBytes("PDF Content Placeholder".toByteArray(), ContentType.Application.Pdf)
+                val statementIdsParam = call.request.queryParameters["ids"]
+
+                try {
+                    val pdfBytes = transaction {
+                        val dbResidence = Residence.findById(UUID.fromString(residenceId))
+                            ?: throw Exception("Résidence introuvable.")
+
+                        val statementsToPrint = if (!statementIdsParam.isNullOrBlank()) {
+                            val uuids = statementIdsParam.split(",").map { UUID.fromString(it.trim()) }
+                            ElectricityStatement.all().filter { it.id.value in uuids }
+                        } else {
+                            ElectricityStatement.all()
+                                .filter { it.logement.residence.id.value == UUID.fromString(residenceId) }
+                                .sortedByDescending { it.statementDate }
+                                .take(4)
+                        }.map {
+                            ElectricityStatementDto(
+                                id = it.id.value.toString(),
+                                logementId = it.logement.id.value.toString(),
+                                previousIndex = it.oldIndex,
+                                newIndex = it.newIndex,
+                                kWhPriceApplied = it.kWhPriceApplied,
+                                amountDue = it.amountDue,
+                                statementDate = it.statementDate.toString(),
+                                status = if (it.status == "PAID") StatementStatus.PAID else StatementStatus.UNPAID,
+                                createdAt = it.createdAt.toString(),
+                                updatedAt = it.updatedAt.toString()
+                            )
+                        }
+
+                        PdfService.generateEcoPrintPdf(statementsToPrint, dbResidence.name)
+                    }
+
+                    call.respondBytes(pdfBytes, ContentType.Application.Pdf)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Erreur lors de l'export PDF."))
+                }
             }
 
             // POST /api/logements/{id}/tickets : Open a maintenance ticket

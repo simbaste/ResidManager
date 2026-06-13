@@ -204,7 +204,7 @@ class ElectricityStatement(id: EntityID<UUID>) : UUIDEntity(id) {
     var logement by Logement referencedOn ElectricityStatements.logementId
     var oldIndex by ElectricityStatements.oldIndex
     var newIndex by ElectricityStatements.newIndex
-    val kWhPriceApplied by ElectricityStatements.kWhPriceApplied
+    var kWhPriceApplied by ElectricityStatements.kWhPriceApplied
     var amountDue by ElectricityStatements.amountDue
     var status by ElectricityStatements.status
     var statementDate by ElectricityStatements.statementDate

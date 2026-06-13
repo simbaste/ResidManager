@@ -14,7 +14,8 @@ data class ElectricityStatementDto(
     val logementId: String,
     val previousIndex: Double,
     val newIndex: Double,
-    val amountDue: Double, // (newIndex - previousIndex) * kWhPrice
+    val kWhPriceApplied: Double,
+    val amountDue: Double, // (newIndex - previousIndex) * kWhPriceApplied
     val statementDate: String,
     val status: StatementStatus,
     val createdAt: String,
@@ -26,6 +27,7 @@ data class ElectricityStatementCreateRequest(
     val logementId: String,
     val previousIndex: Double,
     val newIndex: Double,
+    val kWhPriceApplied: Double,
     val statementDate: String
 ) {
     init {
