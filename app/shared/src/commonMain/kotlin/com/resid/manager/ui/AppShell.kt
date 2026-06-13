@@ -29,6 +29,7 @@ fun AppShell(
                     onScreenSelected = { screen ->
                         viewModel.navigateToAppScreen(screen)
                     },
+                    onAddResidenceClick = { viewModel.setShowCreateResidenceDialog(true) },
                     modifier = Modifier
                         .width(260.dp)
                         .fillMaxHeight()
@@ -43,6 +44,7 @@ fun AppShell(
                 HeaderBar(
                     title = uiState.currentAppScreen.title,
                     userName = "${uiState.firstName} ${uiState.lastName}",
+                    userRole = uiState.selectedResidenceContext?.userRoleInResidence?.name,
                     residences = uiState.residences,
                     selectedResidence = uiState.selectedResidenceContext,
                     onResidenceSelected = { viewModel.selectResidence(it) },
@@ -99,6 +101,7 @@ fun AppShell(
                         viewModel.navigateToAppScreen(screen)
                         isMobileSidebarVisible = false // Close sidebar on selection
                     },
+                    onAddResidenceClick = { viewModel.setShowCreateResidenceDialog(true) },
                     modifier = Modifier.fillMaxSize()
                 )
             }

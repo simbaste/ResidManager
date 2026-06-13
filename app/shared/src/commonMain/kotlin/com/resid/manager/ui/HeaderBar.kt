@@ -1,14 +1,19 @@
 package com.resid.manager.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceContext
 
@@ -16,6 +21,7 @@ import com.resid.manager.dto.ResidenceContext
 fun HeaderBar(
     title: String,
     userName: String,
+    userRole: String?,
     residences: List<ResidenceContext>,
     selectedResidence: ResidenceContext?,
     onResidenceSelected: (ResidenceContext) -> Unit,
@@ -34,10 +40,12 @@ fun HeaderBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(64.dp)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+        // Left Side: Navigation Title and Active Residence Badge Capsule
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (!isDesktop) {
                 IconButton(onClick = onMenuClick) {
@@ -57,13 +65,29 @@ fun HeaderBar(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Global Residence Dropdown Selector
+            // Global Residence Dropdown Selector Styled as a Capsule Badge
             Box {
-                Button(
-                    onClick = { showDropdown = !showDropdown },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer)
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(9999.dp))
+                        .background(Color(0xFF006948).copy(alpha = 0.08f))
+                        .border(1.dp, Color(0xFF006948).copy(alpha = 0.2f), RoundedCornerShape(9999.dp))
+                        .clickable { showDropdown = !showDropdown }
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(selectedResidence?.residenceName ?: "No Active Residence")
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = null,
+                        tint = Color(0xFF006948),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = selectedResidence?.residenceName ?: "No Active Residence",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF006948)
+                    )
                 }
 
                 DropdownMenu(
@@ -115,36 +139,96 @@ fun HeaderBar(
             }
         }
 
+        // Right Side: Utility Icons, Divider, Profile Column, and Logout Button
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Theme Toggle Button (Sun/Moon represented with ☼ and ☾ portable for Compose JS Canvas!)
+            // Theme Toggle Button (☼ / ☾)
             Text(
                 text = if (isDarkTheme) "☼" else "☾",
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
                     .clickable { onToggleTheme() }
-                    .padding(8.dp)
-            )
-
-            // Profile link showing User Name
-            Text(
-                text = userName,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .clickable { onProfileClick() }
                     .padding(4.dp)
             )
 
-            // Simple sign out option
+            // Notification Bell
+            IconButton(onClick = { }) {
+                Icon(
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = "Notifications",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Help Question Mark Icon (using info)
+            IconButton(onClick = { }) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = "Aide",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Vertical divider
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(24.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant)
+            )
+
+            // User Segment Profile
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .clickable { onProfileClick() }
+                    .padding(4.dp)
+            ) {
+                // Circular Initials Avatar
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF006948).copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val initials = if (userName.length >= 2) userName.take(2).uppercase() else "AD"
+                    Text(
+                        text = initials,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color(0xFF006948)
+                    )
+                }
+
+                // Profile Column (Name + Role)
+                if (isDesktop) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = userName,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Rôle: ${userRole ?: "Non spécifié"}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            }
+
+            // Logout CTA Button
             Button(
                 onClick = onLogoutClick,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Text("Déconnexion")
+                Text("Déconnexion", color = Color.White)
             }
         }
     }
