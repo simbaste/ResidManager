@@ -1128,19 +1128,39 @@ fun Application.configureAppRoutes() {
                         dbLogement.flush()
                         newLease.flush()
 
-                        // 6. Generate financial transaction entry if an advance payment was actually made!
+                        // 6. Generate financial transaction entries if an advance payment was actually made!
                         if (initialPayment > 0.0) {
-                            FinancialTransaction.new {
-                                this.residence = dbLogement.residence
-                                this.type = "INCOME"
-                                this.category = "Lease Payment"
-                                this.amount = initialPayment
-                                this.description = "Versement d'avance à la signature pour le logement ${dbLogement.name}"
-                                this.relatedEntityType = "BAIL"
-                                this.relatedEntityId = newLease.id.value
-                                this.transactionDate = LocalDate.now()
-                                this.createdAt = LocalDateTime.now()
-                                this.updatedAt = LocalDateTime.now()
+                            val paidCaution = minOf(initialPayment, request.depositAmount)
+                            val paidRent = maxOf(0.0, initialPayment - request.depositAmount)
+
+                            if (paidCaution > 0.0) {
+                                FinancialTransaction.new {
+                                    this.residence = dbLogement.residence
+                                    this.type = "INCOME"
+                                    this.category = "Deposit"
+                                    this.amount = paidCaution
+                                    this.description = "Acompte caution à la signature pour le logement ${dbLogement.name}"
+                                    this.relatedEntityType = "BAIL"
+                                    this.relatedEntityId = newLease.id.value
+                                    this.transactionDate = LocalDate.now()
+                                    this.createdAt = LocalDateTime.now()
+                                    this.updatedAt = LocalDateTime.now()
+                                }
+                            }
+
+                            if (paidRent > 0.0) {
+                                FinancialTransaction.new {
+                                    this.residence = dbLogement.residence
+                                    this.type = "INCOME"
+                                    this.category = "Rent"
+                                    this.amount = paidRent
+                                    this.description = "Acompte loyer d'avance à la signature pour le logement ${dbLogement.name}"
+                                    this.relatedEntityType = "BAIL"
+                                    this.relatedEntityId = newLease.id.value
+                                    this.transactionDate = LocalDate.now()
+                                    this.createdAt = LocalDateTime.now()
+                                    this.updatedAt = LocalDateTime.now()
+                                }
                             }
                         }
 
@@ -1199,22 +1219,35 @@ fun Application.configureAppRoutes() {
 
                     val leasesList = transaction {
                         // Find baux for all logements in this residence
-                        Lease.all().filter { it.logement.residence.id.value == UUID.fromString(residenceId) }.map {
+                        Lease.all().filter { it.logement.residence.id.value == UUID.fromString(residenceId) }.map { lease ->
+                            val previousPayments = FinancialTransaction.find { 
+                                (FinancialTransactions.relatedEntityType eq "BAIL") and 
+                                (FinancialTransactions.relatedEntityId eq lease.id.value) 
+                            }.map { tx ->
+                                LeasePaymentDto(
+                                    id = tx.id.value.toString(),
+                                    category = if (tx.category == "Deposit") "CAUTION" else "LOYER",
+                                    amount = tx.amount,
+                                    description = tx.description,
+                                    transactionDate = tx.transactionDate.toString()
+                                )
+                            }
                             LeaseDto(
-                                id = it.id.value.toString(),
-                                logementId = it.logement.id.value.toString(),
-                                tenantId = it.tenant.id.value.toString(),
-                                startDate = it.startDate.toString(),
-                                endDate = it.endDate.toString(),
-                                depositAmount = it.depositAmount,
-                                monthlyRentAtSign = it.logement.nominalRent,
+                                id = lease.id.value.toString(),
+                                logementId = lease.logement.id.value.toString(),
+                                tenantId = lease.tenant.id.value.toString(),
+                                startDate = lease.startDate.toString(),
+                                endDate = lease.endDate.toString(),
+                                depositAmount = lease.depositAmount,
+                                monthlyRentAtSign = lease.logement.nominalRent,
                                 status = try {
-                                    LeaseStatus.valueOf(it.status)
+                                    LeaseStatus.valueOf(lease.status)
                                 } catch (e: Exception) {
                                     LeaseStatus.PENDING_PAYMENT
                                 },
-                                createdAt = it.createdAt.toString(),
-                                updatedAt = it.updatedAt.toString()
+                                createdAt = lease.createdAt.toString(),
+                                updatedAt = lease.updatedAt.toString(),
+                                payments = previousPayments
                             )
                         }
                     }
@@ -1240,19 +1273,34 @@ fun Application.configureAppRoutes() {
                         val dbLease = Lease.findById(UUID.fromString(leaseId)) 
                             ?: throw Exception("Contrat de bail introuvable.")
 
-                        // 2. Fetch all previous deposit payments registered as income transactions for this lease
-                        val alreadyPaid = FinancialTransaction.find { 
+                        // 2. Fetch all previous caution (Deposit) payments registered
+                        val previousPaidCaution = FinancialTransaction.find { 
                             (FinancialTransactions.relatedEntityType eq "BAIL") and 
                             (FinancialTransactions.relatedEntityId eq UUID.fromString(leaseId)) and 
-                            (FinancialTransactions.type eq "INCOME") 
+                            (FinancialTransactions.type eq "INCOME") and
+                            (FinancialTransactions.category eq "Deposit")
                         }.sumOf { it.amount }
 
-                        val totalPaid = alreadyPaid + request.amountPaid
+                        // 3. Fetch all previous rent payments registered
+                        val previousPaidRent = FinancialTransaction.find { 
+                            (FinancialTransactions.relatedEntityType eq "BAIL") and 
+                            (FinancialTransactions.relatedEntityId eq UUID.fromString(leaseId)) and 
+                            (FinancialTransactions.type eq "INCOME") and
+                            ((FinancialTransactions.category eq "Rent") or (FinancialTransactions.category eq "Lease Payment"))
+                        }.sumOf { it.amount }
 
-                        // 3. Determine the state-machine status update
-                        val newStatusStr = if (totalPaid >= dbLease.depositAmount) {
+                        // 4. Incorporate the new incoming payment
+                        val totalPaidCaution = previousPaidCaution + if (request.category == "CAUTION") request.amountPaid else 0.0
+                        val totalPaidRent = previousPaidRent + if (request.category == "LOYER") request.amountPaid else 0.0
+
+                        // 5. Calculate required amounts
+                        val requiredCaution = dbLease.depositAmount
+                        val requiredRent = dbLease.advanceMonths * (dbLease.logement.nominalRent + dbLease.logement.serviceCharges)
+
+                        // 6. Determine status update based on dual ledger
+                        val newStatusStr = if (totalPaidCaution >= requiredCaution && totalPaidRent >= requiredRent) {
                             "PENDING_SIGNATURE"
-                        } else if (totalPaid > 0.0) {
+                        } else if (totalPaidCaution > 0.0 || totalPaidRent > 0.0) {
                             "DOWN_PAYMENT_PAID"
                         } else {
                             "PENDING_PAYMENT"
@@ -1260,19 +1308,23 @@ fun Application.configureAppRoutes() {
 
                         // Map status back to the database record
                         dbLease.status = newStatusStr
-                        if (totalPaid >= dbLease.depositAmount) {
+                        if (totalPaidCaution >= requiredCaution) {
                             dbLease.depositStatus = "PAID"
                         }
                         dbLease.updatedAt = LocalDateTime.now()
                         dbLease.flush()
 
-                        // 4. Generate financial transaction entry
+                        // 7. Generate financial transaction entry
                         FinancialTransaction.new {
                             this.residence = dbLease.logement.residence
                             this.type = "INCOME"
-                            this.category = "Deposit"
+                            this.category = if (request.category == "CAUTION") "Deposit" else "Rent"
                             this.amount = request.amountPaid
-                            this.description = "Paiement dépôt de garantie pour le logement ${dbLease.logement.name}"
+                            this.description = if (request.category == "CAUTION") {
+                                "Versement partiel caution pour le logement ${dbLease.logement.name}"
+                            } else {
+                                "Versement partiel loyer pour le logement ${dbLease.logement.name}"
+                            }
                             this.relatedEntityType = "BAIL"
                             this.relatedEntityId = UUID.fromString(leaseId)
                             this.transactionDate = LocalDate.now()
@@ -1286,6 +1338,19 @@ fun Application.configureAppRoutes() {
                             LeaseStatus.PENDING_PAYMENT
                         }
 
+                        val previousPayments = FinancialTransaction.find { 
+                            (FinancialTransactions.relatedEntityType eq "BAIL") and 
+                            (FinancialTransactions.relatedEntityId eq dbLease.id.value) 
+                        }.map { tx ->
+                            LeasePaymentDto(
+                                id = tx.id.value.toString(),
+                                category = if (tx.category == "Deposit") "CAUTION" else "LOYER",
+                                amount = tx.amount,
+                                description = tx.description,
+                                transactionDate = tx.transactionDate.toString()
+                            )
+                        }
+
                         LeaseDto(
                             id = dbLease.id.value.toString(),
                             logementId = dbLease.logement.id.value.toString(),
@@ -1296,7 +1361,8 @@ fun Application.configureAppRoutes() {
                             monthlyRentAtSign = dbLease.logement.nominalRent,
                             status = leaseStatusEnum,
                             createdAt = dbLease.createdAt.toString(),
-                            updatedAt = dbLease.updatedAt.toString()
+                            updatedAt = dbLease.updatedAt.toString(),
+                            payments = previousPayments
                         )
                     }
 
@@ -1309,7 +1375,7 @@ fun Application.configureAppRoutes() {
                 }
             }
 
-            // PUT /api/baux/{id}/status : Update lease status (e.g. to SIGNED_ACTIVE)
+            // PUT /api/baux/{id}/status : Update lease status (e.g. to SIGNED_ACTIVE or TERMINATED)
             put("/api/baux/{id}/status") {
                 val leaseId = call.parameters["id"] ?: ""
                 try {
@@ -1318,9 +1384,28 @@ fun Application.configureAppRoutes() {
                         val dbLease = Lease.findById(UUID.fromString(leaseId)) 
                             ?: throw Exception("Contrat de bail introuvable.")
 
-                        request.status?.let { dbLease.status = it.name }
+                        request.status?.let { 
+                            dbLease.status = it.name 
+                            if (it == LeaseStatus.TERMINATED) {
+                                dbLease.logement.status = "AVAILABLE"
+                                dbLease.logement.flush()
+                            }
+                        }
                         dbLease.updatedAt = LocalDateTime.now()
                         dbLease.flush()
+
+                        val previousPayments = FinancialTransaction.find { 
+                            (FinancialTransactions.relatedEntityType eq "BAIL") and 
+                            (FinancialTransactions.relatedEntityId eq dbLease.id.value) 
+                        }.map { tx ->
+                            LeasePaymentDto(
+                                id = tx.id.value.toString(),
+                                category = if (tx.category == "Deposit") "CAUTION" else "LOYER",
+                                amount = tx.amount,
+                                description = tx.description,
+                                transactionDate = tx.transactionDate.toString()
+                            )
+                        }
 
                         LeaseDto(
                             id = dbLease.id.value.toString(),
@@ -1336,7 +1421,8 @@ fun Application.configureAppRoutes() {
                                 LeaseStatus.PENDING_PAYMENT
                             },
                             createdAt = dbLease.createdAt.toString(),
-                            updatedAt = dbLease.updatedAt.toString()
+                            updatedAt = dbLease.updatedAt.toString(),
+                            payments = previousPayments
                         )
                     }
                     call.respond(HttpStatusCode.OK, updatedLeaseDto)

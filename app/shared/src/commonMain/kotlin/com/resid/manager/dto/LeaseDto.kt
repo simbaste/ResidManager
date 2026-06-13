@@ -7,8 +7,18 @@ enum class LeaseStatus {
     PENDING_PAYMENT,
     DOWN_PAYMENT_PAID,
     PENDING_SIGNATURE,
-    SIGNED_ACTIVE
+    SIGNED_ACTIVE,
+    TERMINATED
 }
+
+@Serializable
+data class LeasePaymentDto(
+    val id: String,
+    val category: String, // "CAUTION" or "LOYER"
+    val amount: Double,
+    val description: String,
+    val transactionDate: String
+)
 
 @Serializable
 data class LeaseDto(
@@ -21,7 +31,8 @@ data class LeaseDto(
     val monthlyRentAtSign: Double,
     val status: LeaseStatus,
     val createdAt: String,
-    val updatedAt: String
+    val updatedAt: String,
+    val payments: List<LeasePaymentDto> = emptyList()
 )
 
 @Serializable
@@ -57,5 +68,6 @@ data class LeaseUpdateRequest(
 
 @Serializable
 data class LeasePaymentRequest(
-    val amountPaid: Double
+    val amountPaid: Double,
+    val category: String // "CAUTION" or "LOYER"
 )

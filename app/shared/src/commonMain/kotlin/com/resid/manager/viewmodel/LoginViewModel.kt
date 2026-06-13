@@ -94,7 +94,7 @@ sealed interface LoginIntent {
     data class DeleteLogement(val id: String) : LoginIntent
     
     data class CreateLease(val logementId: String, val request: LeaseCreateRequest, val onSuccess: () -> Unit) : LoginIntent
-    data class RecordLeasePayment(val leaseId: String, val amount: Double, val onResult: (Result<LeaseDto>) -> Unit) : LoginIntent
+    data class RecordLeasePayment(val leaseId: String, val amount: Double, val category: String, val onResult: (Result<LeaseDto>) -> Unit) : LoginIntent
     data class UpdateLeaseStatus(val leaseId: String, val status: LeaseStatus, val onResult: (Result<LeaseDto>) -> Unit) : LoginIntent
     
     data class SearchResidences(val query: String) : LoginIntent
@@ -164,7 +164,7 @@ class LoginViewModel(
             is LoginIntent.UpdateLogement -> updateLogement(intent.id, intent.name, intent.floor, intent.type, intent.rent, intent.charges, intent.initialIndex, intent.equipementIds)
             is LoginIntent.DeleteLogement -> deleteLogement(intent.id)
             is LoginIntent.CreateLease -> createLease(intent.logementId, intent.request, intent.onSuccess)
-            is LoginIntent.RecordLeasePayment -> recordLeasePayment(intent.leaseId, intent.amount, intent.onResult)
+            is LoginIntent.RecordLeasePayment -> recordLeasePayment(intent.leaseId, intent.amount, intent.category, intent.onResult)
             is LoginIntent.UpdateLeaseStatus -> updateLeaseStatus(intent.leaseId, intent.status, intent.onResult)
             is LoginIntent.SearchResidences -> onSearchQueryChanged(intent.query)
             is LoginIntent.NavigateToAppScreen -> navigateToAppScreen(intent.screen)
@@ -558,13 +558,13 @@ class LoginViewModel(
         }
     }
 
-    fun recordLeasePayment(leaseId: String, amount: Double, onResult: (Result<LeaseDto>) -> Unit) {
+    fun recordLeasePayment(leaseId: String, amount: Double, category: String, onResult: (Result<LeaseDto>) -> Unit) {
         val token = uiState.value.jwtToken ?: return
         updateState { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
-                leaseRepository.recordLeasePayment(token, leaseId, amount)
+                leaseRepository.recordLeasePayment(token, leaseId, amount, category)
                     .onSuccess { updated ->
                         fetchLeases()
                         updateState { it.copy(isLoading = false, errorMessage = null) }

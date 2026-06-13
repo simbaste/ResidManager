@@ -17,9 +17,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import com.resid.manager.ui.i18n.LocalStrings
 import com.resid.manager.dto.*
 import com.resid.manager.network.ApiClient
+import com.resid.manager.ui.i18n.LocalStrings
 import com.resid.manager.viewmodel.LoginViewModel
 import io.ktor.client.request.*
 import io.ktor.client.call.body
@@ -41,6 +41,8 @@ fun LeasesPage(viewModel: LoginViewModel) {
         
         var paymentAmountText by remember { mutableStateOf("") }
         var localError by remember { mutableStateOf<String?>(null) }
+        var paymentCategorySelected by remember { mutableStateOf(if (lease.depositAmount > 0.0) "CAUTION" else "LOYER") }
+        var showTerminateConfirmation by remember { mutableStateOf(false) }
 
         Column(
             modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
@@ -58,14 +60,21 @@ fun LeasesPage(viewModel: LoginViewModel) {
                     }
                     Text(text = "Détails du Contrat de Bail", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
                 }
-                Badge(
-                    containerColor = when (lease.status) {
-                        LeaseStatus.SIGNED_ACTIVE -> MaterialTheme.colorScheme.primaryContainer
-                        LeaseStatus.PENDING_SIGNATURE -> MaterialTheme.colorScheme.tertiaryContainer
-                        else -> MaterialTheme.colorScheme.surfaceVariant
-                    }
+
+                // Header status badge
+                val (badgeBg, badgeColor, badgeText) = when (lease.status) {
+                    LeaseStatus.SIGNED_ACTIVE -> Triple(Color(0xFFE6F7F0), Color(0xFF006948), "ACTIF / LOGEMENT OCCUPÉ")
+                    LeaseStatus.PENDING_SIGNATURE -> Triple(Color(0xFFE0E7FF), Color(0xFF1E3A8A), "ATTENTE SIGNATURE")
+                    LeaseStatus.DOWN_PAYMENT_PAID -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "ACOMPTE ENREGISTRÉ (PARTIAL)")
+                    else -> Triple(Color(0xFFFDE8E8), Color(0xFFBA1A1A), "ATTENTE DE VERSEMENT")
+                }
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = badgeBg),
+                    border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.2f)),
+                    shape = RoundedCornerShape(9999.dp)
                 ) {
-                    Text(text = lease.status.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(8.dp))
+                    Text(text = badgeText, style = MaterialTheme.typography.bodyMedium, color = badgeColor, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 }
             }
 
@@ -75,78 +84,211 @@ fun LeasesPage(viewModel: LoginViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                // Left Column: Lease Details
-                Card(
-                    modifier = Modifier.weight(1f),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                // Left Column: Lease Details & Payments History
+                Column(
+                    modifier = Modifier.weight(1.2f),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text("Fiche d'Informations", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                        HorizontalDivider()
+                    Card(
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text("Fiche d'Informations", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            HorizontalDivider()
 
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Unité rattachée : $matchedLogementName", style = MaterialTheme.typography.bodyLarge)
-                            Text("Étage : ${matchedLogement?.floor ?: "Non spécifié"}", style = MaterialTheme.typography.bodyMedium)
-                            Text("Type d'unité : ${matchedLogement?.type ?: "Non spécifié"}", style = MaterialTheme.typography.bodyMedium)
-                            
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("Unité rattachée : $matchedLogementName", style = MaterialTheme.typography.bodyLarge)
+                                Text("Étage : ${matchedLogement?.floor ?: "Non spécifié"}", style = MaterialTheme.typography.bodyMedium)
+                                Text("Type d'unité : ${matchedLogement?.type ?: "Non spécifié"}", style = MaterialTheme.typography.bodyMedium)
+                                
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                            val matchedTenant = uiState.members.firstOrNull { it.userId == lease.tenantId }
-                            if (matchedTenant != null) {
-                                Text("Locataire : ${matchedTenant.firstName} ${matchedTenant.lastName}", style = MaterialTheme.typography.bodyLarge)
-                                Text("Email : ${matchedTenant.email}", style = MaterialTheme.typography.bodyMedium)
-                                Text("Téléphone : ${matchedTenant.phone ?: "Non spécifié"}", style = MaterialTheme.typography.bodyMedium)
-                            } else {
-                                Text("Locataire (ID) : ${lease.tenantId}", style = MaterialTheme.typography.bodyLarge)
+                                val matchedTenant = uiState.members.firstOrNull { it.userId == lease.tenantId }
+                                if (matchedTenant != null) {
+                                    Text("Locataire : ${matchedTenant.firstName} ${matchedTenant.lastName}", style = MaterialTheme.typography.bodyLarge)
+                                    Text("Email : ${matchedTenant.email}", style = MaterialTheme.typography.bodyMedium)
+                                    Text("Téléphone : ${matchedTenant.phone ?: "Non spécifié"}", style = MaterialTheme.typography.bodyMedium)
+                                } else {
+                                    Text("Locataire (ID) : ${lease.tenantId}", style = MaterialTheme.typography.bodyLarge)
+                                }
+                                
+                                Text("Date de début : ${lease.startDate}", style = MaterialTheme.typography.bodyMedium)
+                                Text("Date de fin : ${lease.endDate}", style = MaterialTheme.typography.bodyMedium)
+                                
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                                Text("Loyer de base : ${lease.monthlyRentAtSign} XOF / mois", style = MaterialTheme.typography.bodyLarge)
+                                Text("Caution requise : ${lease.depositAmount} XOF", style = MaterialTheme.typography.bodyLarge)
                             }
-                            
-                            Text("Date de début : ${lease.startDate}", style = MaterialTheme.typography.bodyMedium)
-                            Text("Date de fin : ${lease.endDate}", style = MaterialTheme.typography.bodyMedium)
-                            
-                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        }
+                    }
 
-                            Text("Loyer de base : ${lease.monthlyRentAtSign} XOF / mois", style = MaterialTheme.typography.bodyLarge)
-                            Text("Caution requise : ${lease.depositAmount} XOF", style = MaterialTheme.typography.bodyLarge)
+                    // Payments History Ledger Card
+                    Card(
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text("Historique des Règlements", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            HorizontalDivider()
+
+                            if (lease.payments.isEmpty()) {
+                                Text(
+                                    text = "Aucun versement n'a encore été enregistré pour ce bail.", 
+                                    style = MaterialTheme.typography.bodyMedium, 
+                                    color = MaterialTheme.colorScheme.outline,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                )
+                            } else {
+                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    lease.payments.forEach { pay ->
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                                Text(pay.description, style = MaterialTheme.typography.bodyMedium)
+                                                Text(pay.transactionDate, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                                            }
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                                Card(
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = if (pay.category == "CAUTION") Color(0xFFFEF3C7) else Color(0xFFE0E7FF)
+                                                    ),
+                                                    shape = RoundedCornerShape(4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = pay.category, 
+                                                        style = MaterialTheme.typography.labelSmall, 
+                                                        color = if (pay.category == "CAUTION") Color(0xFFD97706) else Color(0xFF1E3A8A),
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                                    )
+                                                }
+                                                Text(
+                                                    text = "${pay.amount} XOF", 
+                                                    style = MaterialTheme.typography.titleSmall, 
+                                                    color = Color(0xFF006948)
+                                                )
+                                            }
+                                        }
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                    }
+                                }
+                            }
                         }
                     }
                 }
 
-                // Right Column: Payments & Signing Actions
+                // Right Column: Payments & State Machine Signing Actions
                 Card(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(0.8f),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Text("Actions d'Administration", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         HorizontalDivider()
 
-                        // Display payment progress
-                        val isFullyPaid = lease.status == LeaseStatus.PENDING_SIGNATURE || lease.status == LeaseStatus.SIGNED_ACTIVE
-                        
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isFullyPaid) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = if (isFullyPaid) "✓ CAUTION ENTIÈREMENT PAYÉE" else "⚠ ATTENTE DE PAIEMENT DE LA CAUTION",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = if (isFullyPaid) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
-                                )
-                                Text(
-                                    text = "Montant de la caution : ${lease.depositAmount} XOF",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = if (isFullyPaid) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
-                                )
+                        val isTerminated = lease.status == LeaseStatus.TERMINATED
+                        val isLocked = lease.status == LeaseStatus.SIGNED_ACTIVE
+                        val isCautionExempt = lease.depositAmount == 0.0
+                        val isFullyPaid = lease.status == LeaseStatus.PENDING_SIGNATURE || lease.status == LeaseStatus.SIGNED_ACTIVE || lease.status == LeaseStatus.TERMINATED
+                        val isReadyToSign = lease.status == LeaseStatus.PENDING_SIGNATURE
+
+                        // Display contract locked or current state progress
+                        if (isTerminated) {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
+                                border = BorderStroke(1.dp, Color(0xFF475569).copy(alpha = 0.2f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("✕ CONTRAT RÉSILIÉ / CLÔTURÉ", style = MaterialTheme.typography.titleSmall, color = Color(0xFF475569))
+                                    Text("Ce contrat de bail est définitivement clos. Le logement rattaché est repassé automatiquement à l'état disponible pour une nouvelle location.", style = MaterialTheme.typography.bodySmall, color = Color(0xFF475569))
+                                }
+                            }
+                        } else if (isLocked) {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F7F0)),
+                                border = BorderStroke(1.dp, Color(0xFF006948).copy(alpha = 0.2f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text("✓ CONTRAT VERROUILLÉ / ACTIF", style = MaterialTheme.typography.titleSmall, color = Color(0xFF006948))
+                                    Text("Ce bail est actuellement actif. Le logement associé passe automatiquement à l'état OCCUPIED. Les modifications financières et de caution sont closes.", style = MaterialTheme.typography.bodySmall, color = Color(0xFF006948))
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            // Terminate contract button
+                            Button(
+                                onClick = { showTerminateConfirmation = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBA1A1A)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth().height(44.dp)
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Clear, contentDescription = null, tint = Color.White)
+                                    Text("Résilier / Clôturer le Contrat", color = Color.White)
+                                }
+                            }
+                        } else {
+                            // Ledger explanation card
+                            Card(
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isFullyPaid) Color(0xFFE0E7FF) else Color(0xFFFDE8E8)
+                                ),
+                                border = BorderStroke(1.dp, (if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A)).copy(alpha = 0.2f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text(
+                                        text = if (isFullyPaid) "✓ TOUTES LES SOMMES SONT RÉGLÉES" else "⚠ VERSEMENT DE SOLDE ATTENDU",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A)
+                                    )
+                                    HorizontalDivider(color = (if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A)).copy(alpha = 0.2f))
+                                    
+                                    // Caution breakdown
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Dépôt de Garantie (Caution) :", style = MaterialTheme.typography.bodyMedium, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                        Text(if (isCautionExempt) "0 XOF (Exempt)" else "${lease.depositAmount} XOF", style = MaterialTheme.typography.titleSmall, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                    }
+
+                                    // Rent breakdown
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text("Premier loyer d'avance :", style = MaterialTheme.typography.bodyMedium, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                        Text("${lease.monthlyRentAtSign} XOF", style = MaterialTheme.typography.titleSmall, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                    }
+                                }
                             }
                         }
 
-                        // Action 1: Add Payment
-                        if (!isFullyPaid && isAuthorized) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Saisir un versement pour la caution :", style = MaterialTheme.typography.bodyMedium)
+                        // Rule 2.1: If PENDING_PAYMENT or PARTIALLY_PAID, display Saisir règlement allowing dynamic category selection
+                        if (!isFullyPaid && !isLocked && !isTerminated && isAuthorized) {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text("Sélectionnez la catégorie à créditer :", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                                
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    if (!isCautionExempt) {
+                                        Button(
+                                            onClick = { paymentCategorySelected = "CAUTION" },
+                                            colors = ButtonDefaults.buttonColors(containerColor = if (paymentCategorySelected == "CAUTION") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                                        ) {
+                                            Text("Dépôt de Garantie (Caution)")
+                                        }
+                                    }
+                                    Button(
+                                        onClick = { paymentCategorySelected = "LOYER" },
+                                        colors = ButtonDefaults.buttonColors(containerColor = if (paymentCategorySelected == "LOYER") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        Text("Loyer / Avance")
+                                    }
+                                }
+
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -162,10 +304,10 @@ fun LeasesPage(viewModel: LoginViewModel) {
                                         onClick = {
                                             val amount = paymentAmountText.toDoubleOrNull()
                                             if (amount == null || amount <= 0.0) {
-                                                localError = "Veuillez saisir un montant valide supérieur à 0."
+                                                localError = "Veuillez saisir un montant valide."
                                                 return@Button
                                             }
-                                            viewModel.recordLeasePayment(lease.id, amount) { res ->
+                                            viewModel.recordLeasePayment(lease.id, amount, paymentCategorySelected) { res ->
                                                 res.onSuccess {
                                                     selectedLeaseForDetail = it
                                                     paymentAmountText = ""
@@ -183,10 +325,13 @@ fun LeasesPage(viewModel: LoginViewModel) {
                             }
                         }
 
-                        // Action 2: Sign and Activate Lease
-                        if (lease.status == LeaseStatus.PENDING_SIGNATURE && isAuthorized) {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
-                                Text("Le dépôt de garantie a été entièrement réglé. Vous pouvez maintenant signer et activer le contrat de bail :", style = MaterialTheme.typography.bodyMedium)
+                        // Rule 2.2: If ready to sign (all sums paid), show sign contract
+                        if (isReadyToSign && !isLocked && !isTerminated && isAuthorized) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 8.dp)) {
+                                Text(
+                                    text = "L'ensemble des sommes (caution et loyers exigibles) a été réglé avec succès. Le contrat de bail est prêt à être signé et activé :",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
                                 Button(
                                     onClick = {
                                         viewModel.updateLeaseStatus(lease.id, LeaseStatus.SIGNED_ACTIVE) { res ->
@@ -198,10 +343,10 @@ fun LeasesPage(viewModel: LoginViewModel) {
                                             }
                                         }
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                    modifier = Modifier.fillMaxWidth()
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948)),
+                                    modifier = Modifier.fillMaxWidth().height(48.dp)
                                 ) {
-                                    Text("✎ Signer et Activer le Bail")
+                                    Text("✎ Valider la Signature du Contrat", color = Color.White)
                                 }
                             }
                         }
@@ -214,6 +359,37 @@ fun LeasesPage(viewModel: LoginViewModel) {
                 }
             }
         }
+        
+        if (showTerminateConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showTerminateConfirmation = false },
+                title = { Text("Clôturer / Résilier le Contrat de Bail") },
+                text = { Text("Êtes-vous sûr de vouloir définitivement résilier et clôturer ce contrat de bail ? Le logement rattaché sera automatiquement libéré et repassé à l'état disponible pour une nouvelle location. Cette action est irréversible.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            viewModel.updateLeaseStatus(lease.id, LeaseStatus.TERMINATED) { res ->
+                                res.onSuccess {
+                                    selectedLeaseForDetail = it
+                                    localError = null
+                                }.onFailure { ex ->
+                                    localError = ex.message
+                                }
+                            }
+                            showTerminateConfirmation = false
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Confirmer la clôture")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showTerminateConfirmation = false }) {
+                        Text("Annuler")
+                    }
+                }
+            )
+        }
     } else {
         // State variables for filter capsule selection
         var activeFilter by remember { mutableStateOf("ALL") } // "ALL", "ACTIVE", "TERMINATED", "PENDING"
@@ -223,7 +399,6 @@ fun LeasesPage(viewModel: LoginViewModel) {
             val list = uiState.leases
             when (activeFilter) {
                 "ACTIVE" -> list.filter { it.status == LeaseStatus.SIGNED_ACTIVE }
-                "TERMINATED" -> emptyList() // No terminated leases in current KMP enum
                 "PENDING" -> list.filter { it.status == LeaseStatus.PENDING_PAYMENT || it.status == LeaseStatus.PENDING_SIGNATURE || it.status == LeaseStatus.DOWN_PAYMENT_PAID }
                 else -> list
             }
@@ -286,7 +461,6 @@ fun LeasesPage(viewModel: LoginViewModel) {
                 ) {
                     FilterCapsuleItem(label = "Tous les contrats", isSelected = activeFilter == "ALL", onClick = { activeFilter = "ALL" })
                     FilterCapsuleItem(label = "En cours", isSelected = activeFilter == "ACTIVE", onClick = { activeFilter = "ACTIVE" })
-                    FilterCapsuleItem(label = "Terminés", isSelected = activeFilter == "TERMINATED", onClick = { activeFilter = "TERMINATED" })
                     FilterCapsuleItem(label = "En attente", isSelected = activeFilter == "PENDING", onClick = { activeFilter = "PENDING" })
                 }
             }
@@ -317,6 +491,7 @@ fun LeasesPage(viewModel: LoginViewModel) {
                         LeaseStatus.PENDING_SIGNATURE -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "EN ATTENTE SIGNATURE")
                         LeaseStatus.PENDING_PAYMENT -> Triple(Color(0xFFFDE8E8), Color(0xFFBA1A1A), "EN ATTENTE PAIEMENT")
                         LeaseStatus.DOWN_PAYMENT_PAID -> Triple(Color(0xFFE6F7F0), Color(0xFF006948), "DOWN_PAYMENT_PAID")
+                        LeaseStatus.TERMINATED -> Triple(Color(0xFFF1F5F9), Color(0xFF475569), "TERMINÉ")
                     }
 
                     Card(
@@ -455,6 +630,7 @@ fun LeaseWizardDialog(
     var draftEndDate by remember { mutableStateOf("") }
     var draftAdvanceMonths by remember { mutableStateOf("12") }
     var draftAdvancePaymentAmount by remember { mutableStateOf("0.0") }
+    var draftPaymentMethod by remember { mutableStateOf("CASH") } // State for selector
 
     // User lookup variables
     var userQuery by remember { mutableStateOf("") }
@@ -480,7 +656,7 @@ fun LeaseWizardDialog(
         },
         text = {
             Column(
-                modifier = Modifier.widthIn(max = 600.dp).heightIn(max = 450.dp).verticalScroll(rememberScrollState()),
+                modifier = Modifier.widthIn(max = 600.dp).heightIn(max = 480.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Step Progress tracker
@@ -668,27 +844,62 @@ fun LeaseWizardDialog(
                                     isError = (draftAdvanceMonths.toIntOrNull() ?: 0) <= 0,
                                     modifier = Modifier.fillMaxWidth()
                                 )
+                            }
 
-                                OutlinedTextField(
-                                    value = draftAdvancePaymentAmount,
-                                    onValueChange = { draftAdvancePaymentAmount = it },
-                                    label = { Text("Montant du versement d'avance fait immédiatement (XOF) *") },
-                                    isError = (draftAdvancePaymentAmount.toDoubleOrNull() ?: 0.0) < 0.0,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
+                            // Rule 1: Acompte field is always visible to dynamically calculate target status
+                            OutlinedTextField(
+                                value = draftAdvancePaymentAmount,
+                                onValueChange = { draftAdvancePaymentAmount = it },
+                                label = { Text("Montant de l'acompte immédiat versé (XOF)") },
+                                isError = (draftAdvancePaymentAmount.toDoubleOrNull() ?: 0.0) < 0.0,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            val deposit = draftDepositAmount.toDoubleOrNull() ?: 0.0
+                            val acompteVal = draftAdvancePaymentAmount.toDoubleOrNull() ?: 0.0
+
+                            // Rule 2.3: Conditional Payment Method selector only visible if acompte > 0
+                            if (acompteVal > 0.0) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("Mode de paiement de l'acompte :", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Button(
+                                        onClick = { draftPaymentMethod = "CASH" },
+                                        colors = ButtonDefaults.buttonColors(containerColor = if (draftPaymentMethod == "CASH") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        Text("Espèces")
+                                    }
+                                    Button(
+                                        onClick = { draftPaymentMethod = "TRANSFER" },
+                                        colors = ButtonDefaults.buttonColors(containerColor = if (draftPaymentMethod == "TRANSFER") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        Text("Virement")
+                                    }
+                                    Button(
+                                        onClick = { draftPaymentMethod = "MOBILE" },
+                                        colors = ButtonDefaults.buttonColors(containerColor = if (draftPaymentMethod == "MOBILE") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        Text("Mobile Money")
+                                    }
+                                }
                             }
 
                             if (selectedLogement != null) {
                                 val rent = selectedLogement.nominalRent
                                 val charges = selectedLogement.serviceCharges
-                                val deposit = draftDepositAmount.toDoubleOrNull() ?: 0.0
                                 
                                 val months = if (isAnnual) (draftAdvanceMonths.toIntOrNull() ?: 12) else 1
                                 val firstRent = months * (rent + charges)
                                 
-                                val totalToPay = deposit + firstRent
-                                val advancePaid = if (isAnnual) (draftAdvancePaymentAmount.toDoubleOrNull() ?: 0.0) else 0.0
-                                val remainingToPay = totalToPay - advancePaid
+                                val totalRequiredToPay = deposit + firstRent
+                                val remainingToPay = totalRequiredToPay - acompteVal
+
+                                // Rule 1.1, 1.2, 1.3: Real-time dynamic target status badge
+                                val (probadgeBg, probadgeColor, probadgeText) = when {
+                                    acompteVal <= 0.0 -> Triple(Color(0xFFFDE8E8), Color(0xFFBA1A1A), "[État cible : PENDING_PAYMENT] (Attente)")
+                                    acompteVal < totalRequiredToPay -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "[État cible : PARTIALLY_PAID] (Acompte)")
+                                    else -> Triple(Color(0xFFE0E7FF), Color(0xFF1E3A8A), "[État cible : PENDING_SIGNATURE] (Solder / Prêt à signer)")
+                                }
 
                                 Card(
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -698,16 +909,30 @@ fun LeaseWizardDialog(
                                         modifier = Modifier.padding(16.dp),
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        Text("Récapitulatif Financier de l'Entrée :", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                                        HorizontalDivider()
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("Calculateur de Cycle de Vie :", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                                            Card(
+                                                colors = CardDefaults.cardColors(containerColor = probadgeBg),
+                                                shape = RoundedCornerShape(4.dp),
+                                                border = BorderStroke(1.dp, probadgeColor.copy(alpha = 0.2f))
+                                            ) {
+                                                Text(text = probadgeText, style = MaterialTheme.typography.bodySmall, color = probadgeColor, modifier = Modifier.padding(6.dp))
+                                            }
+                                        }
+
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                                         
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text("Loyer de base :", style = MaterialTheme.typography.bodyMedium)
-                                            Text("$rent XOF / mois", style = MaterialTheme.typography.bodyMedium)
+                                            Text("Loyer mensuel :", style = MaterialTheme.typography.bodyMedium)
+                                            Text("$rent XOF", style = MaterialTheme.typography.bodyMedium)
                                         }
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                             Text("Charges fixes d'entretien :", style = MaterialTheme.typography.bodyMedium)
-                                            Text("$charges XOF / mois", style = MaterialTheme.typography.bodyMedium)
+                                            Text("$charges XOF", style = MaterialTheme.typography.bodyMedium)
                                         }
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                             Text("Dépôt de garantie (Caution) :", style = MaterialTheme.typography.bodyMedium)
@@ -720,23 +945,16 @@ fun LeaseWizardDialog(
                                             )
                                             Text("$firstRent XOF", style = MaterialTheme.typography.bodyMedium)
                                         }
-                                        
-                                        if (isAnnual && advancePaid > 0.0) {
-                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                                Text("Acompte versé immédiatement :", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                                                Text("- $advancePaid XOF", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
-                                            }
-                                        }
 
-                                        HorizontalDivider()
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                                         
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text("TOTAL À PAYER À L'ENTRÉE :", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                                            Text("$totalToPay XOF", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                                            Text("TOTAL REQUIS (Caution + Loyers) :", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                                            Text("$totalRequiredToPay XOF", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                                         }
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text("RESTE À PAYER :", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
-                                            Text("$remainingToPay XOF", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error)
+                                            Text("RESTE À PAYER :", style = MaterialTheme.typography.titleMedium, color = if (remainingToPay > 0.0) Color(0xFFBA1A1A) else Color(0xFF006948))
+                                            Text("${if (remainingToPay > 0.0) remainingToPay else 0.0} XOF", style = MaterialTheme.typography.titleMedium, color = if (remainingToPay > 0.0) Color(0xFFBA1A1A) else Color(0xFF006948))
                                         }
                                     }
                                 }
@@ -808,7 +1026,7 @@ fun LeaseWizardDialog(
                             endDate = draftEndDate,
                             monthlyRentAtSign = rentVal,
                             advanceMonths = if (draftPaymentFrequency == "ANNUAL") (draftAdvanceMonths.toIntOrNull() ?: 12) else 1,
-                            advancePaymentAmount = if (draftPaymentFrequency == "ANNUAL") (draftAdvancePaymentAmount.toDoubleOrNull() ?: 0.0) else 0.0
+                            advancePaymentAmount = (draftAdvancePaymentAmount.toDoubleOrNull() ?: 0.0)
                         )
                         viewModel.createLease(draftLogementId, req) {
                             onDismiss()
