@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -494,89 +495,88 @@ fun LogementsPage(viewModel: LoginViewModel) {
             }
         }
     } else {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 300.dp),
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Title & Add Button Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = "Gestion des Logements",
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = Color(0xFF006948) // Brand deep primary green
-                    )
-                    Text(
-                        text = "Visualisez et gérez l'état d'occupation de vos unités immobilières.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-                
-                if (isAuthorized) {
-                    Button(
-                        onClick = { viewModel.setShowCreateLogementDialog(true) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948)),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+            // 1. Title & Add Button Row (Spans full width)
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "Gestion des Logements",
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = Color(0xFF006948) // Brand deep primary green
+                        )
+                        Text(
+                            text = "Visualisez et gérez l'état d'occupation de vos unités immobilières.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline
+                        )
+                    }
+                    
+                    if (isAuthorized) {
+                        Button(
+                            onClick = { viewModel.setShowCreateLogementDialog(true) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948)),
+                            shape = RoundedCornerShape(12.dp)
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
-                            Text("Ajouter un logement", color = Color.White)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                                Text("Ajouter un logement", color = Color.White)
+                            }
                         }
                     }
                 }
             }
 
-            // Stats Cards Row (Total, Available, Occupied, Late)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                val total = uiState.logements.size
-                val available = uiState.logements.count { it.status == "AVAILABLE" }
-                val occupied = uiState.logements.count { it.status == "OCCUPIED" }
+            // 2. Stats Cards Row (Spans full width)
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    val total = uiState.logements.size
+                    val available = uiState.logements.count { it.status == "AVAILABLE" }
+                    val occupied = uiState.logements.count { it.status == "OCCUPIED" }
 
-                BentoMiniStatCard(title = "Total Unités", value = total.toString().padStart(2, '0'), borderColor = Color(0xFF8E9193), modifier = Modifier.weight(1f))
-                BentoMiniStatCard(title = "Disponibles", value = available.toString().padStart(2, '0'), borderColor = Color(0xFF006948), modifier = Modifier.weight(1f))
-                BentoMiniStatCard(title = "Occupés", value = occupied.toString().padStart(2, '0'), borderColor = Color(0xFF3F465C), modifier = Modifier.weight(1f))
-                BentoMiniStatCard(title = "En Retard", value = "00", borderColor = Color(0xFFBA1A1A), modifier = Modifier.weight(1f))
+                    BentoMiniStatCard(title = "Total Unités", value = total.toString().padStart(2, '0'), borderColor = Color(0xFF8E9193), modifier = Modifier.weight(1f))
+                    BentoMiniStatCard(title = "Disponibles", value = available.toString().padStart(2, '0'), borderColor = Color(0xFF006948), modifier = Modifier.weight(1f))
+                    BentoMiniStatCard(title = "Occupés", value = occupied.toString().padStart(2, '0'), borderColor = Color(0xFF3F465C), modifier = Modifier.weight(1f))
+                    BentoMiniStatCard(title = "En Retard", value = "00", borderColor = Color(0xFFBA1A1A), modifier = Modifier.weight(1f))
+                }
             }
 
-            // Cards Bento Grid
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                // List housing units
-                uiState.logements.forEach { logement ->
-                    LogementCard(
-                        logement = logement,
-                        isAuthorized = isAuthorized,
-                        onDetailClick = { selectedLogementForDetail = logement },
-                        onEditClick = { editingLogement = logement }
-                    )
-                }
+            // 3. List of logement cards (takes adaptive grid spacing automatically)
+            items(uiState.logements) { logement ->
+                LogementCard(
+                    logement = logement,
+                    isAuthorized = isAuthorized,
+                    onDetailClick = { selectedLogementForDetail = logement },
+                    onEditClick = { editingLogement = logement }
+                )
+            }
 
-                // Plus / Add Action Card
-                if (isAuthorized) {
+            // 4. Plus / Add Action Card
+            if (isAuthorized) {
+                item {
                     Card(
                         onClick = { viewModel.setShowCreateLogementDialog(true) },
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF006948).copy(alpha = 0.04f)),
                         border = BorderStroke(1.dp, Color(0xFF006948).copy(alpha = 0.2f)),
                         modifier = Modifier
-                            .width(300.dp)
-                            .height(410.dp)
+                            .fillMaxWidth()
+                            .height(410.dp) // fills parent cell dynamically
                     ) {
                         Column(
                             modifier = Modifier.padding(24.dp).fillMaxSize(),
