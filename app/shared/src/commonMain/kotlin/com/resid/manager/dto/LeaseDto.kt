@@ -32,6 +32,8 @@ data class LeaseDto(
     val status: LeaseStatus,
     val createdAt: String,
     val updatedAt: String,
+    val paymentFrequency: String = "MONTHLY",
+    val advanceMonths: Int = 1,
     val payments: List<LeasePaymentDto> = emptyList()
 )
 

@@ -9,15 +9,9 @@ import androidx.compose.ui.unit.dp
 
 
 
-@Composable
-fun TicketsPage() {
-    PagePlaceholder(title = "Tickets d'Intervention", description = "Consultez, modifiez ou résolvez les rapports d'incidents techniques (plomberie, électricité, etc.) signalés par les résidents.")
-}
 
-@Composable
-fun FinancesPage() {
-    PagePlaceholder(title = "Finances & Cashflow", description = "Analysez en temps réel les flux d'entrées et de dépenses de chaque résidence, filtrez par période et suivez les impayés.")
-}
+
+
 
 @Composable
 fun PagePlaceholder(

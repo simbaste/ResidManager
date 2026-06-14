@@ -191,8 +191,20 @@ fun LeasesPage(viewModel: LoginViewModel) {
                         val isTerminated = lease.status == LeaseStatus.TERMINATED
                         val isLocked = lease.status == LeaseStatus.SIGNED_ACTIVE
                         val isCautionExempt = lease.depositAmount == 0.0
-                        val isFullyPaid = lease.status == LeaseStatus.PENDING_SIGNATURE || lease.status == LeaseStatus.SIGNED_ACTIVE || lease.status == LeaseStatus.TERMINATED
-                        val isReadyToSign = lease.status == LeaseStatus.PENDING_SIGNATURE
+
+                        val isAnnual = lease.paymentFrequency == "ANNUAL"
+                        val rentMonthsRequired = if (isAnnual) 12 else lease.advanceMonths
+                        val totalRequiredRent = rentMonthsRequired * lease.monthlyRentAtSign
+
+                        val totalPaidCaution = lease.payments.filter { it.category == "CAUTION" }.sumOf { it.amount }
+                        val totalPaidRent = lease.payments.filter { it.category == "LOYER" }.sumOf { it.amount }
+
+                        val remainingCaution = maxOf(0.0, lease.depositAmount - totalPaidCaution)
+                        val remainingRent = maxOf(0.0, totalRequiredRent - totalPaidRent)
+                        val totalRemaining = remainingCaution + remainingRent
+
+                        val isFullyPaid = lease.status == LeaseStatus.PENDING_SIGNATURE || lease.status == LeaseStatus.SIGNED_ACTIVE || lease.status == LeaseStatus.TERMINATED || totalRemaining <= 0.0
+                        val isReadyToSign = lease.status == LeaseStatus.PENDING_SIGNATURE || totalRemaining <= 0.0
 
                         // Display contract locked or current state progress
                         if (isTerminated) {
@@ -253,15 +265,47 @@ fun LeasesPage(viewModel: LoginViewModel) {
                                     HorizontalDivider(color = (if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A)).copy(alpha = 0.2f))
                                     
                                     // Caution breakdown
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("Dépôt de Garantie (Caution) :", style = MaterialTheme.typography.bodyMedium, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
-                                        Text(if (isCautionExempt) "0 XOF (Exempt)" else "${lease.depositAmount} XOF", style = MaterialTheme.typography.titleSmall, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text("Dépôt de Garantie (Caution) :", style = MaterialTheme.typography.titleSmall, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("• Requis :", style = MaterialTheme.typography.bodySmall, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                            Text(if (isCautionExempt) "0 XOF" else "${lease.depositAmount} XOF", style = MaterialTheme.typography.bodySmall)
+                                        }
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("• Réglé :", style = MaterialTheme.typography.bodySmall, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                            Text("$totalPaidCaution XOF", style = MaterialTheme.typography.bodySmall)
+                                        }
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("• Restant :", style = MaterialTheme.typography.bodySmall, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                            Text("$remainingCaution XOF", style = MaterialTheme.typography.bodySmall)
+                                        }
                                     }
 
+                                    HorizontalDivider(color = (if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A)).copy(alpha = 0.1f))
+
                                     // Rent breakdown
-                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                        Text("Premier loyer d'avance :", style = MaterialTheme.typography.bodyMedium, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
-                                        Text("${lease.monthlyRentAtSign} XOF", style = MaterialTheme.typography.titleSmall, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text("Loyer d'Avance (${lease.advanceMonths} mois) :", style = MaterialTheme.typography.titleSmall, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("• Requis :", style = MaterialTheme.typography.bodySmall, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                            Text("$totalRequiredRent XOF", style = MaterialTheme.typography.bodySmall)
+                                        }
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("• Réglé :", style = MaterialTheme.typography.bodySmall, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                            Text("$totalPaidRent XOF", style = MaterialTheme.typography.bodySmall)
+                                        }
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("• Restant :", style = MaterialTheme.typography.bodySmall, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                            Text("$remainingRent XOF", style = MaterialTheme.typography.bodySmall)
+                                        }
+                                    }
+
+                                    HorizontalDivider(color = (if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A)).copy(alpha = 0.2f))
+
+                                    // Grand Total Remaining
+                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                        Text("RESTE À VERSER AVANT SIGNATURE :", style = MaterialTheme.typography.titleMedium, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
+                                        Text("$totalRemaining XOF", style = MaterialTheme.typography.titleLarge, color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A))
                                     }
                                 }
                             }

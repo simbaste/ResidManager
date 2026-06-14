@@ -69,8 +69,8 @@ fun AppShell(
                         AppScreen.BAUX -> LeasesPage(viewModel = viewModel)
                         AppScreen.MEMBERS -> MembersPage(viewModel = viewModel)
                         AppScreen.ELECTRICITY -> ElectricityPage(viewModel = viewModel)
-                        AppScreen.TICKETS -> TicketsPage()
-                        AppScreen.FINANCES -> FinancesPage()
+                        AppScreen.TICKETS -> TicketsPage(viewModel = viewModel)
+                        AppScreen.FINANCES -> FinancesPage(viewModel = viewModel)
                         AppScreen.PROFILE -> ProfilePage(viewModel = viewModel)
                     }
                 }

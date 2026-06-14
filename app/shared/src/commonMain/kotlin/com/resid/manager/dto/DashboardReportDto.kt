@@ -3,14 +3,11 @@ package com.resid.manager.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class DashboardReportDto(
+data class DashboardDataDto(
     val residenceId: String,
-    val totalRevenue: Double,         // RENT + ELECTRICITY in XOF
-    val totalExpenses: Double,        // MAINTENANCE + OPERATIONAL EXPENSES in XOF
-    val netProfit: Double,            // Revenue - Expenses in XOF
-    val occupancyRate: Double,        // (Occupied units / Total units)
-    val activeLeasesCount: Int,
-    val openTicketsCount: Int,
-    val pendingUnpaidRentsCount: Int,
-    val unpaidRentsAmount: Double
+    val totalRevenuesCollected: Double,
+    val totalExpensesIncurred: Double,
+    val netCashflow: Double,
+    val delinquencyRate: Double,
+    val occupancyRate: Double
 )

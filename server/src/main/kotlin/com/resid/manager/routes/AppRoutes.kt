@@ -6,6 +6,9 @@ import com.resid.manager.data.*
 import com.resid.manager.dto.*
 import com.resid.manager.service.ElectricityService
 import com.resid.manager.service.PdfService
+import com.resid.manager.service.TicketService
+import com.resid.manager.service.DashboardService
+import com.resid.manager.service.FinanceOperationService
 import com.resid.manager.validation.AuthValidator
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -1182,7 +1185,9 @@ fun Application.configureAppRoutes() {
                             monthlyRentAtSign = request.monthlyRentAtSign,
                             status = leaseStatusEnum,
                             createdAt = newLease.createdAt.toString(),
-                            updatedAt = newLease.updatedAt.toString()
+                            updatedAt = newLease.updatedAt.toString(),
+                            paymentFrequency = newLease.paymentFrequency,
+                            advanceMonths = newLease.advanceMonths
                         )
                     }
 
@@ -1249,6 +1254,8 @@ fun Application.configureAppRoutes() {
                                 },
                                 createdAt = lease.createdAt.toString(),
                                 updatedAt = lease.updatedAt.toString(),
+                                paymentFrequency = lease.paymentFrequency,
+                                advanceMonths = lease.advanceMonths,
                                 payments = previousPayments
                             )
                         }
@@ -1364,6 +1371,8 @@ fun Application.configureAppRoutes() {
                             status = leaseStatusEnum,
                             createdAt = dbLease.createdAt.toString(),
                             updatedAt = dbLease.updatedAt.toString(),
+                            paymentFrequency = dbLease.paymentFrequency,
+                            advanceMonths = dbLease.advanceMonths,
                             payments = previousPayments
                         )
                     }
@@ -1424,6 +1433,8 @@ fun Application.configureAppRoutes() {
                             },
                             createdAt = dbLease.createdAt.toString(),
                             updatedAt = dbLease.updatedAt.toString(),
+                            paymentFrequency = dbLease.paymentFrequency,
+                            advanceMonths = dbLease.advanceMonths,
                             payments = previousPayments
                         )
                     }
@@ -1571,25 +1582,126 @@ fun Application.configureAppRoutes() {
                 }
             }
 
+            // GET /api/residences/{id}/tickets : List all tickets for this residence
+            get("/api/residences/{id}/tickets") {
+                val residenceId = call.parameters["id"] ?: ""
+                try {
+                    val ticketsList = transaction {
+                        Ticket.all().filter { it.logement.residence.id.value == UUID.fromString(residenceId) }.map {
+                            TicketDto(
+                                id = it.id.value.toString(),
+                                logementId = it.logement.id.value.toString(),
+                                creatorId = it.creator.id.value.toString(),
+                                category = TicketCategory.valueOf(it.category),
+                                title = it.title,
+                                description = it.description,
+                                urgency = TicketUrgency.valueOf(it.urgency),
+                                status = TicketStatus.valueOf(it.status),
+                                interventionCost = it.interventionCost,
+                                createdAt = it.createdAt.toString(),
+                                updatedAt = it.updatedAt.toString()
+                            )
+                        }
+                    }
+                    call.respond(HttpStatusCode.OK, ticketsList)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Erreur de chargement des tickets."))
+                }
+            }
+
             // POST /api/logements/{id}/tickets : Open a maintenance ticket
             post("/api/logements/{id}/tickets") {
                 val logementId = call.parameters["id"] ?: ""
-                // Placeholder: receive TicketCreateRequest, save to Tickets table
-                call.respond(HttpStatusCode.Created, mapOf("logementId" to logementId, "message" to "Ticket de maintenance ouvert"))
+                try {
+                    val request = call.receive<TicketCreateRequest>()
+                    val principal = call.principal<JWTPrincipal>()
+                    val creatorIdStr = principal?.payload?.getClaim("userId")?.asString() 
+                        ?: throw Exception("Utilisateur non authentifié.")
+
+                    val created = transaction {
+                        TicketService.createTicket(
+                            logementId = UUID.fromString(logementId),
+                            creatorId = UUID.fromString(creatorIdStr),
+                            category = request.category,
+                            title = request.title,
+                            description = request.description,
+                            urgency = request.urgency
+                        )
+                    }
+                    call.respond(HttpStatusCode.Created, created)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Erreur lors de la création du ticket."))
+                }
             }
 
             // PUT /api/tickets/{id}/status : Update status (OPEN -> IN_PROGRESS -> CLOSED)
             put("/api/tickets/{id}/status") {
                 val ticketId = call.parameters["id"] ?: ""
-                // Placeholder: receive TicketUpdateRequest, if status is CLOSED requires intervention_cost and triggers an EXPENSE in financial_transactions
-                call.respond(HttpStatusCode.OK, mapOf("ticketId" to ticketId, "message" to "Ticket mis à jour"))
+                try {
+                    val request = call.receive<TicketUpdateRequest>()
+                    val principal = call.principal<JWTPrincipal>()
+                    val updaterIdStr = principal?.payload?.getClaim("userId")?.asString()
+                        ?: throw Exception("Utilisateur non authentifié.")
+
+                    val updated = transaction {
+                        TicketService.updateTicketStatus(
+                            ticketId = UUID.fromString(ticketId),
+                            newStatus = request.status ?: throw Exception("Statut de transition manquant."),
+                            cost = request.interventionCost,
+                            comment = request.comment,
+                            updaterUserId = UUID.fromString(updaterIdStr)
+                        )
+                    }
+                    call.respond(HttpStatusCode.OK, updated)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Erreur lors de la transition d'état du ticket."))
+                }
             }
 
-            // GET /api/residences/{id}/transactions : Log or list operational expenses
+            // GET /api/residences/{id}/transactions : List operations ledger
             get("/api/residences/{id}/transactions") {
                 val residenceId = call.parameters["id"] ?: ""
-                // Placeholder: select from FinancialTransactions where residenceId = id
-                call.respond(HttpStatusCode.OK, mapOf("residenceId" to residenceId, "transactions" to emptyList<String>()))
+                val typeParam = call.request.queryParameters["type"]
+                val categoryParam = call.request.queryParameters["category"]
+                val startDateParam = call.request.queryParameters["start_date"]
+                val endDateParam = call.request.queryParameters["end_date"]
+                val queryParam = call.request.queryParameters["q"]
+
+                try {
+                    val list = transaction {
+                        FinanceOperationService.getTransactions(
+                            residenceId = UUID.fromString(residenceId),
+                            typeParam = typeParam,
+                            categoryParam = categoryParam,
+                            startDateParam = startDateParam,
+                            endDateParam = endDateParam,
+                            queryParam = queryParam
+                        )
+                    }
+                    call.respond(HttpStatusCode.OK, list)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Erreur de chargement du grand livre."))
+                }
+            }
+
+            // POST /api/residences/{id}/transactions : Record manual operational expense
+            post("/api/residences/{id}/transactions") {
+                val residenceId = call.parameters["id"] ?: ""
+                try {
+                    val request = call.receive<ExpenseRecordRequest>()
+                    val created = transaction {
+                        FinanceOperationService.recordExpense(
+                            residenceId = UUID.fromString(residenceId),
+                            category = request.category,
+                            amount = request.amount,
+                            description = request.description,
+                            date = LocalDate.parse(request.transactionDate)
+                        )
+                    }
+                    call.respond(HttpStatusCode.Created, created)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Erreur de saisie de la dépense."))
+                }
             }
 
             // GET /api/residences/{id}/dashboard : Returns Cashflow, occupancy rate, delinquency rate
@@ -1614,18 +1726,21 @@ fun Application.configureAppRoutes() {
                     return@get
                 }
 
+                val filterParam = call.request.queryParameters["filter"] ?: "MONTH"
                 val startDate = call.request.queryParameters["start_date"]
                 val endDate = call.request.queryParameters["end_date"]
 
-                // Placeholder: calculate Net Cashflow (Income - Expense), occupancy rate (occupied units / total units), delinquency rate
-                call.respond(HttpStatusCode.OK, mapOf(
-                    "residenceId" to residenceId,
-                    "userRoleInResidence" to userRole,
-                    "netCashflow" to 1250000.0, // Mock calculations in XOF
-                    "occupancyRate" to 82.5,     // Percentage
-                    "delinquencyRate" to 14.2,    // Percentage
-                    "activeTickets" to 3
-                ))
+                try {
+                    val data = DashboardService.getDashboardData(
+                        residenceId = UUID.fromString(residenceId),
+                        filterType = filterParam,
+                        customStart = startDate,
+                        customEnd = endDate
+                    )
+                    call.respond(HttpStatusCode.OK, data)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Erreur lors du calcul analytique du tableau de bord."))
+                }
             }
         }
     }
