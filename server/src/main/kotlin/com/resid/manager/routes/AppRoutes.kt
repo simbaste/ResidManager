@@ -135,6 +135,48 @@ fun Application.configureAppRoutes() {
             }
         }
 
+        // GET /api/residences/{id}/electricity/export-pdf : Generates the "Eco-Print" PDF (Publicly accessible for browser tabs printing)
+        get("/api/residences/{id}/electricity/export-pdf") {
+            val residenceId = call.parameters["id"] ?: ""
+            val statementIdsParam = call.request.queryParameters["ids"]
+
+            try {
+                val pdfBytes = transaction {
+                    val dbResidence = Residence.findById(UUID.fromString(residenceId))
+                        ?: throw Exception("Résidence introuvable.")
+
+                    val statementsToPrint = if (!statementIdsParam.isNullOrBlank()) {
+                        val uuids = statementIdsParam.split(",").map { UUID.fromString(it.trim()) }
+                        ElectricityStatement.all().filter { it.id.value in uuids }
+                    } else {
+                        ElectricityStatement.all()
+                            .filter { it.logement.residence.id.value == UUID.fromString(residenceId) }
+                            .sortedByDescending { it.statementDate }
+                            .take(4)
+                    }.map {
+                        ElectricityStatementDto(
+                            id = it.id.value.toString(),
+                            logementId = it.logement.id.value.toString(),
+                            previousIndex = it.oldIndex,
+                            newIndex = it.newIndex,
+                            kWhPriceApplied = it.kWhPriceApplied,
+                            amountDue = it.amountDue,
+                            statementDate = it.statementDate.toString(),
+                            status = if (it.status == "PAID") StatementStatus.PAID else StatementStatus.UNPAID,
+                            createdAt = it.createdAt.toString(),
+                            updatedAt = it.updatedAt.toString()
+                        )
+                    }
+
+                    PdfService.generateEcoPrintPdf(statementsToPrint, dbResidence.name)
+                }
+
+                call.respondBytes(pdfBytes, ContentType.Application.Pdf)
+            } catch (e: Exception) {
+                call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Erreur lors de l'export PDF."))
+            }
+        }
+
         authenticate("auth-jwt") {
             
             // GET /api/profile : Fetch logged-in user profile details
@@ -1540,47 +1582,7 @@ fun Application.configureAppRoutes() {
                 }
             }
 
-            // GET /api/residences/{id}/electricity/export-pdf : Generates the "Eco-Print" PDF
-            get("/api/residences/{id}/electricity/export-pdf") {
-                val residenceId = call.parameters["id"] ?: ""
-                val statementIdsParam = call.request.queryParameters["ids"]
 
-                try {
-                    val pdfBytes = transaction {
-                        val dbResidence = Residence.findById(UUID.fromString(residenceId))
-                            ?: throw Exception("Résidence introuvable.")
-
-                        val statementsToPrint = if (!statementIdsParam.isNullOrBlank()) {
-                            val uuids = statementIdsParam.split(",").map { UUID.fromString(it.trim()) }
-                            ElectricityStatement.all().filter { it.id.value in uuids }
-                        } else {
-                            ElectricityStatement.all()
-                                .filter { it.logement.residence.id.value == UUID.fromString(residenceId) }
-                                .sortedByDescending { it.statementDate }
-                                .take(4)
-                        }.map {
-                            ElectricityStatementDto(
-                                id = it.id.value.toString(),
-                                logementId = it.logement.id.value.toString(),
-                                previousIndex = it.oldIndex,
-                                newIndex = it.newIndex,
-                                kWhPriceApplied = it.kWhPriceApplied,
-                                amountDue = it.amountDue,
-                                statementDate = it.statementDate.toString(),
-                                status = if (it.status == "PAID") StatementStatus.PAID else StatementStatus.UNPAID,
-                                createdAt = it.createdAt.toString(),
-                                updatedAt = it.updatedAt.toString()
-                            )
-                        }
-
-                        PdfService.generateEcoPrintPdf(statementsToPrint, dbResidence.name)
-                    }
-
-                    call.respondBytes(pdfBytes, ContentType.Application.Pdf)
-                } catch (e: Exception) {
-                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Erreur lors de l'export PDF."))
-                }
-            }
 
             // GET /api/residences/{id}/tickets : List all tickets for this residence
             get("/api/residences/{id}/tickets") {
