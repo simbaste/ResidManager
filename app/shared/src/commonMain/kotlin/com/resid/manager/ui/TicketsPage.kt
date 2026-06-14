@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -370,6 +371,20 @@ fun TicketsPage(viewModel: LoginViewModel) {
 
     // Modal creation dialog (Mobile-declaration form with dynamic categories!)
     if (showCreateDialog) {
+        var logementSearchQuery by remember { mutableStateOf("") }
+        var selectedLogementName by remember { mutableStateOf("") }
+
+        val filteredLogements = remember(uiState.logements, logementSearchQuery, selectedLogementName) {
+            if (logementSearchQuery.isBlank() || logementSearchQuery == selectedLogementName) {
+                emptyList()
+            } else {
+                uiState.logements.filter {
+                    it.name.contains(logementSearchQuery, ignoreCase = true) ||
+                    it.floor.contains(logementSearchQuery, ignoreCase = true)
+                }
+            }
+        }
+
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
             title = { Text("Déclarer un Incident / Ticket", style = MaterialTheme.typography.titleLarge) },
@@ -378,43 +393,87 @@ fun TicketsPage(viewModel: LoginViewModel) {
                     modifier = Modifier.widthIn(max = 500.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text("Unité concernée * :", style = MaterialTheme.typography.titleSmall)
-                    uiState.logements.forEach { logement ->
-                        val isSelected = formLogementId == logement.id
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-                                .clickable { formLogementId = logement.id }
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    Text("Rechercher l'unité concernée * :", style = MaterialTheme.typography.titleSmall)
+                    
+                    // Compact autocomplete search input
+                    OutlinedTextField(
+                        value = logementSearchQuery,
+                        onValueChange = { logementSearchQuery = it },
+                        label = { Text("Saisissez le nom ou l'étage...") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    // Results dropdown list (only visible when user is typing a query)
+                    if (filteredLogements.isNotEmpty()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                         ) {
-                            RadioButton(selected = isSelected, onClick = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(logement.name, style = MaterialTheme.typography.titleSmall)
+                            Column(
+                                modifier = Modifier.heightIn(max = 140.dp).fillMaxWidth().verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                filteredLogements.forEach { logement ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                formLogementId = logement.id
+                                                selectedLogementName = logement.name
+                                                logementSearchQuery = logement.name // collapses list
+                                            }
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Home, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(logement.name, style = MaterialTheme.typography.titleSmall)
+                                            Text("Étage : ${logement.floor} | Type : ${logement.type}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Selected logement feedback card
+                    if (formLogementId.isNotEmpty() && selectedLogementName.isNotEmpty()) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF006948))
+                                Column {
+                                    Text("Unité rattachée sélectionnée :", style = MaterialTheme.typography.labelSmall, color = Color(0xFF006948))
+                                    Text(selectedLogementName, style = MaterialTheme.typography.titleSmall, color = Color(0xFF006948))
+                                }
+                            }
                         }
                     }
 
                     HorizontalDivider()
 
+                    // Categories chip selector to avoid long list
                     Text("Catégorie de panne * :", style = MaterialTheme.typography.titleSmall)
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         categoriesList.forEach { cat ->
                             val isSelected = formCategoryId == cat.id
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
-                                    .clickable { formCategoryId = cat.id }
-                                    .padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(selected = isSelected, onClick = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(cat.label, style = MaterialTheme.typography.bodyMedium)
-                            }
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { formCategoryId = cat.id },
+                                label = { Text(cat.label) }
+                            )
                         }
                     }
 
