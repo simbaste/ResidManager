@@ -8,7 +8,9 @@ data class ResidenceSummaryItem(
     val name: String,
     val address: String,
     val photoUrl: String?,
-    val totalUnits: Int
+    val totalUnits: Int,
+    val currencySymbol: String = "FCFA",
+    val currencyCode: String = "XOF"
 )
 
 @Serializable
@@ -18,7 +20,9 @@ data class AssociatedResidenceItem(
     val address: String,
     val photoUrl: String?,
     val role: String, // ADMIN, MANAGER, STAFF, TENANT
-    val totalUnits: Int
+    val totalUnits: Int,
+    val currencySymbol: String = "FCFA",
+    val currencyCode: String = "XOF"
 )
 
 @Serializable

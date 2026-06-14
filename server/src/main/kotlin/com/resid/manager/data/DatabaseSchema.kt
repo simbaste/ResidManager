@@ -25,11 +25,19 @@ object Users : UUIDTable("users") {
     val updatedAt = datetime("updated_at")
 }
 
+object Currencies : UUIDTable("currencies") {
+    val code = varchar("code", 3).uniqueIndex()
+    val symbol = varchar("symbol", 10)
+    val label = varchar("label", 100)
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
+}
+
 object Residences : UUIDTable("residences") {
     val name = varchar("name", 255).uniqueIndex()
     val address = text("address")
     val photoUrl = text("photo_url").nullable()
-    val currencyPivot = varchar("currency_pivot", 3).default("XOF")
+    val currencyId = reference("currency_id", Currencies, onDelete = ReferenceOption.RESTRICT)
     val kWhPrice = double("kwh_price")
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
@@ -85,10 +93,18 @@ object ElectricityStatements : UUIDTable("electricity_statements") {
     val updatedAt = datetime("updated_at")
 }
 
+object TicketCategories : UUIDTable("ticket_categories") {
+    val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE).nullable()
+    val key = varchar("key", 50).uniqueIndex()
+    val label = varchar("label", 100)
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
+}
+
 object Tickets : UUIDTable("tickets") {
     val logementId = reference("logement_id", Logements, onDelete = ReferenceOption.CASCADE)
     val creatorId = reference("creator_id", Users, onDelete = ReferenceOption.CASCADE)
-    val category = varchar("category", 50) // PLUMBING, ELECTRICITY, TILES, CEILING, OTHER
+    val categoryId = reference("category_id", TicketCategories, onDelete = ReferenceOption.RESTRICT)
     val title = varchar("title", 255)
     val description = text("description")
     val urgency = varchar("urgency", 20) // LOW, MEDIUM, CRITICAL
@@ -142,13 +158,23 @@ class User(id: EntityID<UUID>) : UUIDEntity(id) {
     var updatedAt by Users.updatedAt
 }
 
+class CurrencyEntity(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<CurrencyEntity>(Currencies)
+
+    var code by Currencies.code
+    var symbol by Currencies.symbol
+    var label by Currencies.label
+    var createdAt by Currencies.createdAt
+    var updatedAt by Currencies.updatedAt
+}
+
 class Residence(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<Residence>(Residences)
 
     var name by Residences.name
     var address by Residences.address
     var photoUrl by Residences.photoUrl
-    var currencyPivot by Residences.currencyPivot
+    var currency by CurrencyEntity referencedOn Residences.currencyId
     var kWhPrice by Residences.kWhPrice
     var createdAt by Residences.createdAt
     var updatedAt by Residences.updatedAt
@@ -212,12 +238,22 @@ class ElectricityStatement(id: EntityID<UUID>) : UUIDEntity(id) {
     var updatedAt by ElectricityStatements.updatedAt
 }
 
+class TicketCategoryEntity(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<TicketCategoryEntity>(TicketCategories)
+
+    var residence by Residence optionalReferencedOn TicketCategories.residenceId
+    var key by TicketCategories.key
+    var label by TicketCategories.label
+    var createdAt by TicketCategories.createdAt
+    var updatedAt by TicketCategories.updatedAt
+}
+
 class Ticket(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<Ticket>(Tickets)
 
     var logement by Logement referencedOn Tickets.logementId
     var creator by User referencedOn Tickets.creatorId
-    var category by Tickets.category
+    var category by TicketCategoryEntity referencedOn Tickets.categoryId
     var title by Tickets.title
     var description by Tickets.description
     var urgency by Tickets.urgency

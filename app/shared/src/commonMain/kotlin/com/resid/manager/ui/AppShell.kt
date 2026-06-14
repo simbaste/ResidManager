@@ -112,8 +112,8 @@ fun AppShell(
     if (uiState.showCreateResidenceDialog) {
         CreateResidenceDialog(
             onDismiss = { viewModel.setShowCreateResidenceDialog(false) },
-            onSubmit = { name, address, kWhPrice ->
-                viewModel.createResidence(name, address, kWhPrice)
+            onSubmit = { name, address, defaultCurrency, kWhPrice ->
+                viewModel.createResidence(name, address, defaultCurrency, kWhPrice)
             }
         )
     }

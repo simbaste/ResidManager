@@ -244,6 +244,7 @@ fun DashboardPage(viewModel: LoginViewModel) {
                 val revenuesVal = data.totalRevenuesCollected.toLong()
                 val occupancyVal = (data.occupancyRate * 10.0).toInt() / 10.0
                 val delinquencyVal = (data.delinquencyRate * 10.0).toInt() / 10.0
+                val currencySymbol = activeResidence.currencySymbol
 
                 // 3. Bento Box KPI Cards populated with dynamic calculations
                 Row(
@@ -253,7 +254,7 @@ fun DashboardPage(viewModel: LoginViewModel) {
                     // KPI 1: Cashflow Net
                     BentoKpiCard(
                         title = "CASHFLOW NET",
-                        value = "$cashflowVal XOF",
+                        value = "$cashflowVal $currencySymbol",
                         subValue = "Flux net généré",
                         badgeText = if (data.netCashflow >= 0) "Positif" else "Déficitaire",
                         badgeColor = if (data.netCashflow >= 0) Color(0xFF006948) else Color(0xFFBA1A1A),
@@ -266,7 +267,7 @@ fun DashboardPage(viewModel: LoginViewModel) {
                     // KPI 2: Revenues collected
                     BentoKpiCard(
                         title = "RECETTES COLLECTÉES",
-                        value = "$revenuesVal XOF",
+                        value = "$revenuesVal $currencySymbol",
                         subValue = "Loyer + électricité encaissés",
                         icon = Icons.Default.CheckCircle,
                         iconBg = Color(0xFF006948).copy(alpha = 0.1f),

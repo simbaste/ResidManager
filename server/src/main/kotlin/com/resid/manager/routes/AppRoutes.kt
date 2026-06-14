@@ -279,45 +279,52 @@ fun Application.configureAppRoutes() {
                 try {
                     val directoryDto = transaction {
                         // 1. Query owned residences (where role is m.role = 'OWNER')
-                        val ownedList = (Residences innerJoin ResidenceMembers)
-                            .select(Residences.id, Residences.name, Residences.address, Residences.photoUrl)
-                            .where { 
-                                (ResidenceMembers.userId eq UUID.fromString(userId)) and 
-                                (ResidenceMembers.role eq "OWNER") and 
-                                (ResidenceMembers.status eq "ACCEPTED") 
-                            }
-                            .map { row ->
-                                val resId = row[Residences.id].value
-                                val totalUnits = Logement.find { Logements.residenceId eq resId }.count()
-                                ResidenceSummaryItem(
-                                    id = resId.toString(),
-                                    name = row[Residences.name],
-                                    address = row[Residences.address],
-                                    photoUrl = row[Residences.photoUrl],
-                                    totalUnits = totalUnits.toInt()
-                                )
-                            }
+                        val ownedList = Residence.all().filter { res ->
+                            ResidenceMembers.select(ResidenceMembers.role).where {
+                                (ResidenceMembers.userId eq UUID.fromString(userId)) and
+                                (ResidenceMembers.residenceId eq res.id.value) and
+                                (ResidenceMembers.role eq "OWNER") and
+                                (ResidenceMembers.status eq "ACCEPTED")
+                            }.count() > 0
+                        }.map { res ->
+                            val totalUnits = Logement.find { Logements.residenceId eq res.id.value }.count()
+                            ResidenceSummaryItem(
+                                id = res.id.value.toString(),
+                                name = res.name,
+                                address = res.address,
+                                photoUrl = res.photoUrl,
+                                totalUnits = totalUnits.toInt(),
+                                currencySymbol = res.currency.symbol,
+                                currencyCode = res.currency.code
+                            )
+                        }
 
                         // 2. Query associated residences (where role is not m.role = 'OWNER')
-                        val associatedList = (Residences innerJoin ResidenceMembers)
-                            .select(Residences.id, Residences.name, Residences.address, Residences.photoUrl, ResidenceMembers.role)
-                            .where { 
-                                (ResidenceMembers.userId eq UUID.fromString(userId)) and 
-                                (ResidenceMembers.role neq "OWNER") and 
-                                (ResidenceMembers.status eq "ACCEPTED") 
-                            }
-                            .map { row ->
-                                val resId = row[Residences.id].value
-                                val totalUnits = Logement.find { Logements.residenceId eq resId }.count()
-                                AssociatedResidenceItem(
-                                    id = resId.toString(),
-                                    name = row[Residences.name],
-                                    address = row[Residences.address],
-                                    photoUrl = row[Residences.photoUrl],
-                                    role = row[ResidenceMembers.role],
-                                    totalUnits = totalUnits.toInt()
-                                )
-                            }
+                        val associatedList = Residence.all().filter { res ->
+                            ResidenceMembers.select(ResidenceMembers.role).where {
+                                (ResidenceMembers.userId eq UUID.fromString(userId)) and
+                                (ResidenceMembers.residenceId eq res.id.value) and
+                                (ResidenceMembers.role neq "OWNER") and
+                                (ResidenceMembers.status eq "ACCEPTED")
+                            }.count() > 0
+                        }.map { res ->
+                            val roleStr = ResidenceMembers.select(ResidenceMembers.role).where {
+                                (ResidenceMembers.userId eq UUID.fromString(userId)) and
+                                (ResidenceMembers.residenceId eq res.id.value)
+                            }.map { it[ResidenceMembers.role] }.first()
+                            
+                            val totalUnits = Logement.find { Logements.residenceId eq res.id.value }.count()
+                            AssociatedResidenceItem(
+                                id = res.id.value.toString(),
+                                name = res.name,
+                                address = res.address,
+                                photoUrl = res.photoUrl,
+                                role = roleStr,
+                                totalUnits = totalUnits.toInt(),
+                                currencySymbol = res.currency.symbol,
+                                currencyCode = res.currency.code
+                            )
+                        }
 
                         ResidenceDirectoryDTO(ownedResidences = ownedList, associatedResidences = associatedList)
                     }
@@ -340,12 +347,15 @@ fun Application.configureAppRoutes() {
                     val request = call.receive<ResidenceCreateRequest>()
                     
                     val newResidence = transaction {
+                        val selectedCurrency = CurrencyEntity.find { Currencies.code eq request.defaultCurrency.uppercase() }.firstOrNull()
+                            ?: CurrencyEntity.find { Currencies.code eq "XOF" }.first()
+
                         // 1. Insert residence
                         val r = Residence.new {
                             name = request.name
                             address = request.address
                             photoUrl = null
-                            currencyPivot = request.defaultCurrency.ifBlank { "XOF" }
+                            currency = selectedCurrency
                             kWhPrice = request.kWhPrice
                             createdAt = LocalDateTime.now()
                             updatedAt = LocalDateTime.now()
@@ -370,7 +380,9 @@ fun Application.configureAppRoutes() {
                         name = newResidence.name,
                         address = newResidence.address,
                         photoUrl = newResidence.photoUrl,
-                        totalUnits = 0
+                        totalUnits = 0,
+                        currencySymbol = transaction { newResidence.currency.symbol },
+                        currencyCode = transaction { newResidence.currency.code }
                     )
 
                     call.respond(HttpStatusCode.Created, summary)
@@ -423,6 +435,41 @@ fun Application.configureAppRoutes() {
                 }
             }
 
+            // PUT /api/residences/{id}/currency : Update ONLY residence currency
+            put("/api/residences/{id}/currency") {
+                val residenceId = call.parameters["id"] ?: ""
+                try {
+                    val request = call.receive<Map<String, String>>()
+                    val code = request["currencyCode"] ?: throw Exception("Code devise manquant.")
+                    
+                    val updated = transaction {
+                        val dbResidence = Residence.findById(UUID.fromString(residenceId))
+                            ?: throw Exception("Résidence introuvable.")
+
+                        val selectedCurrency = CurrencyEntity.find { Currencies.code eq code.uppercase() }.firstOrNull()
+                            ?: throw Exception("Devise introuvable.")
+
+                        dbResidence.currency = selectedCurrency
+                        dbResidence.updatedAt = LocalDateTime.now()
+                        dbResidence.flush()
+
+                        val totalUnits = Logement.find { Logements.residenceId eq dbResidence.id.value }.count()
+                        ResidenceSummaryItem(
+                            id = dbResidence.id.value.toString(),
+                            name = dbResidence.name,
+                            address = dbResidence.address,
+                            photoUrl = dbResidence.photoUrl,
+                            totalUnits = totalUnits.toInt(),
+                            currencySymbol = dbResidence.currency.symbol,
+                            currencyCode = dbResidence.currency.code
+                        )
+                    }
+                    call.respond(HttpStatusCode.OK, updated)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Erreur lors du changement de la devise."))
+                }
+            }
+
             // PUT /api/residences/{id} : Update a residence
             put("/api/residences/{id}") {
                 val principal = call.principal<JWTPrincipal>()
@@ -461,10 +508,12 @@ fun Application.configureAppRoutes() {
 
                     val updatedSummary = transaction {
                         val dbResidence = Residence.findById(UUID.fromString(residenceId)) ?: throw Exception("Résidence introuvable.")
-                        
+                        val selectedCurrency = CurrencyEntity.find { Currencies.code eq request.defaultCurrency.uppercase() }.firstOrNull()
+                            ?: CurrencyEntity.find { Currencies.code eq "XOF" }.first()
+
                         dbResidence.name = request.name
                         dbResidence.address = request.address
-                        dbResidence.currencyPivot = request.defaultCurrency.ifBlank { "XOF" }
+                        dbResidence.currency = selectedCurrency
                         dbResidence.kWhPrice = request.kWhPrice
                         dbResidence.updatedAt = LocalDateTime.now()
 
@@ -477,7 +526,9 @@ fun Application.configureAppRoutes() {
                             name = dbResidence.name,
                             address = dbResidence.address,
                             photoUrl = dbResidence.photoUrl,
-                            totalUnits = totalUnits.toInt()
+                            totalUnits = totalUnits.toInt(),
+                            currencySymbol = dbResidence.currency.symbol,
+                            currencyCode = dbResidence.currency.code
                         )
                     }
 
@@ -496,20 +547,20 @@ fun Application.configureAppRoutes() {
 
                 try {
                     val results = transaction {
-                        Residences
-                            .select(Residences.id, Residences.name, Residences.address, Residences.photoUrl)
-                            .where { Residences.name.lowerCase() like "%${searchName.lowercase()}%" }
-                            .map { row ->
-                                val resId = row[Residences.id].value
-                                val totalUnits = Logement.find { Logements.residenceId eq resId }.count()
-                                ResidenceSummaryItem(
-                                    id = resId.toString(),
-                                    name = row[Residences.name],
-                                    address = row[Residences.address],
-                                    photoUrl = row[Residences.photoUrl],
-                                    totalUnits = totalUnits.toInt()
-                                )
-                            }
+                        Residence.all().filter { 
+                            it.name.contains(searchName, ignoreCase = true) 
+                        }.map { res ->
+                            val totalUnits = Logement.find { Logements.residenceId eq res.id.value }.count()
+                            ResidenceSummaryItem(
+                                id = res.id.value.toString(),
+                                name = res.name,
+                                address = res.address,
+                                photoUrl = res.photoUrl,
+                                totalUnits = totalUnits.toInt(),
+                                currencySymbol = res.currency.symbol,
+                                currencyCode = res.currency.code
+                            )
+                        }
                     }
 
                     call.respond(HttpStatusCode.OK, results)
@@ -1584,6 +1635,110 @@ fun Application.configureAppRoutes() {
 
 
 
+            // GET /api/residences/{id}/ticket-categories : List all ticket categories (global and custom to residence)
+            get("/api/residences/{id}/ticket-categories") {
+                val residenceId = call.parameters["id"] ?: ""
+                try {
+                    val list = transaction {
+                        TicketCategoryEntity.all().filter { 
+                            it.residence?.id?.value == null || it.residence?.id?.value == UUID.fromString(residenceId) 
+                        }.map {
+                            TicketCategoryDto(
+                                id = it.id.value.toString(),
+                                key = it.key,
+                                label = it.label,
+                                residenceId = it.residence?.id?.value?.toString()
+                            )
+                        }
+                    }
+                    call.respond(HttpStatusCode.OK, list)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Erreur de chargement des catégories."))
+                }
+            }
+
+            // POST /api/residences/{id}/ticket-categories : Create custom ticket category
+            post("/api/residences/{id}/ticket-categories") {
+                val residenceId = call.parameters["id"] ?: ""
+                try {
+                    val request = call.receive<TicketCategoryDto>()
+                    val created = transaction {
+                        val dbResidence = Residence.findById(UUID.fromString(residenceId))
+                            ?: throw Exception("Résidence introuvable.")
+
+                        // Check if key already exists
+                        val exists = TicketCategoryEntity.find { TicketCategories.key eq request.key.uppercase() }.count() > 0
+                        if (exists) throw Exception("Cette clé de catégorie existe déjà.")
+
+                        val entity = TicketCategoryEntity.new {
+                            this.residence = dbResidence
+                            this.key = request.key.uppercase()
+                            this.label = request.label
+                            this.createdAt = LocalDateTime.now()
+                            this.updatedAt = LocalDateTime.now()
+                        }
+                        entity.flush()
+
+                        TicketCategoryDto(
+                            id = entity.id.value.toString(),
+                            key = entity.key,
+                            label = entity.label,
+                            residenceId = entity.residence?.id?.value?.toString()
+                        )
+                    }
+                    call.respond(HttpStatusCode.Created, created)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Erreur de création de catégorie."))
+                }
+            }
+
+            // PUT /api/ticket-categories/{id} : Update ticket category
+            put("/api/ticket-categories/{id}") {
+                val categoryId = call.parameters["id"] ?: ""
+                try {
+                    val request = call.receive<TicketCategoryDto>()
+                    val updated = transaction {
+                        val entity = TicketCategoryEntity.findById(UUID.fromString(categoryId))
+                            ?: throw Exception("Catégorie de ticket introuvable.")
+
+                        entity.label = request.label
+                        entity.updatedAt = LocalDateTime.now()
+                        entity.flush()
+
+                        TicketCategoryDto(
+                            id = entity.id.value.toString(),
+                            key = entity.key,
+                            label = entity.label,
+                            residenceId = entity.residence?.id?.value?.toString()
+                        )
+                    }
+                    call.respond(HttpStatusCode.OK, updated)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Erreur de modification de catégorie."))
+                }
+            }
+
+            // DELETE /api/ticket-categories/{id} : Delete custom ticket category
+            delete("/api/ticket-categories/{id}") {
+                val categoryId = call.parameters["id"] ?: ""
+                try {
+                    val success = transaction {
+                        val entity = TicketCategoryEntity.findById(UUID.fromString(categoryId))
+                            ?: throw Exception("Catégorie de ticket introuvable.")
+
+                        if (entity.residence == null) {
+                            throw Exception("Action interdite : Les catégories globales par défaut ne peuvent pas être supprimées.")
+                        }
+
+                        entity.delete()
+                        true
+                    }
+                    call.respond(HttpStatusCode.OK, mapOf("success" to success, "message" to "Catégorie supprimée avec succès."))
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Erreur de suppression de catégorie."))
+                }
+            }
+
             // GET /api/residences/{id}/tickets : List all tickets for this residence
             get("/api/residences/{id}/tickets") {
                 val residenceId = call.parameters["id"] ?: ""
@@ -1594,7 +1749,12 @@ fun Application.configureAppRoutes() {
                                 id = it.id.value.toString(),
                                 logementId = it.logement.id.value.toString(),
                                 creatorId = it.creator.id.value.toString(),
-                                category = TicketCategory.valueOf(it.category),
+                                category = TicketCategoryDto(
+                                    id = it.category.id.value.toString(),
+                                    key = it.category.key,
+                                    label = it.category.label,
+                                    residenceId = it.category.residence?.id?.value?.toString()
+                                ),
                                 title = it.title,
                                 description = it.description,
                                 urgency = TicketUrgency.valueOf(it.urgency),
@@ -1624,7 +1784,7 @@ fun Application.configureAppRoutes() {
                         TicketService.createTicket(
                             logementId = UUID.fromString(logementId),
                             creatorId = UUID.fromString(creatorIdStr),
-                            category = request.category,
+                            categoryId = UUID.fromString(request.categoryId),
                             title = request.title,
                             description = request.description,
                             urgency = request.urgency

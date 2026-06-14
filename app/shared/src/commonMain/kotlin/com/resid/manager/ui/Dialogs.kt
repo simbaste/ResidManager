@@ -20,10 +20,11 @@ import com.resid.manager.viewmodel.LoginViewModel
 @Composable
 fun CreateResidenceDialog(
     onDismiss: () -> Unit,
-    onSubmit: (String, String, Double) -> Unit
+    onSubmit: (String, String, String, Double) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
+    var defaultCurrency by remember { mutableStateOf("XOF") }
     var kWhPrice by remember { mutableStateOf("150.0") }
 
     AlertDialog(
@@ -33,14 +34,46 @@ fun CreateResidenceDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom *") })
                 OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Adresse *") })
-                OutlinedTextField(value = kWhPrice, onValueChange = { kWhPrice = it }, label = { Text("Prix kWh Électricité (XOF) *") })
+                OutlinedTextField(value = kWhPrice, onValueChange = { kWhPrice = it }, label = { Text("Prix kWh Électricité *") })
+
+                Text("Devise d'opération * :", style = MaterialTheme.typography.titleSmall)
+                var expandedDropdown by remember { mutableStateOf(false) }
+                val displayLabel = when (defaultCurrency) {
+                    "XOF" -> "Franc CFA (XOF - FCFA)"
+                    "EUR" -> "Euro (EUR - €)"
+                    "USD" -> "US Dollar (USD - $)"
+                    else -> defaultCurrency
+                }
+
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { expandedDropdown = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(displayLabel)
+                    }
+                    DropdownMenu(
+                        expanded = expandedDropdown,
+                        onDismissRequest = { expandedDropdown = false }
+                    ) {
+                        listOf("XOF" to "Franc CFA (XOF)", "EUR" to "Euro (EUR)", "USD" to "US Dollar (USD)").forEach { (code, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                onClick = {
+                                    defaultCurrency = code
+                                    expandedDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
                     val price = kWhPrice.toDoubleOrNull() ?: 150.0
-                    onSubmit(name, address, price)
+                    onSubmit(name, address, defaultCurrency, price)
                 },
                 enabled = name.isNotBlank() && address.isNotBlank()
             ) {
@@ -201,10 +234,11 @@ fun CreateLogementDialog(
                 modifier = Modifier.widthIn(max = 500.dp).heightIn(max = 450.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: "XOF"
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom / Numéro d'unité *") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = floor, onValueChange = { floor = it }, label = { Text("Étage / Bloc *") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Type d'unité *") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = nominalRent, onValueChange = { nominalRent = it }, label = { Text("Loyer mensuel nominal (XOF) *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = nominalRent, onValueChange = { nominalRent = it }, label = { Text("Loyer mensuel nominal ($currencySymbol) *") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = serviceCharges, onValueChange = { serviceCharges = it }, label = { Text("Charges fixes d'entretien *") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = initialElectricityIndex, onValueChange = { initialElectricityIndex = it }, label = { Text("Index Électricité initial (kWh)") }, modifier = Modifier.fillMaxWidth())
                 
@@ -281,10 +315,11 @@ fun EditLogementDialog(
                 modifier = Modifier.widthIn(max = 500.dp).heightIn(max = 450.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                val currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: "XOF"
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom d'unité *") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = floor, onValueChange = { floor = it }, label = { Text("Étage *") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Type d'unité *") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = nominalRent, onValueChange = { nominalRent = it }, label = { Text("Loyer de base (XOF) *") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = nominalRent, onValueChange = { nominalRent = it }, label = { Text("Loyer de base ($currencySymbol) *") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = serviceCharges, onValueChange = { serviceCharges = it }, label = { Text("Charges fixes *") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = initialElectricityIndex, onValueChange = { initialElectricityIndex = it }, label = { Text("Index Elec initial *") }, modifier = Modifier.fillMaxWidth())
                 

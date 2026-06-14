@@ -83,7 +83,7 @@ sealed interface LoginIntent {
     data class RegisterAction(val firstName: String, val lastName: String, val birthDate: String?, val phone: String?, val email: String, val passwordPlain: String) : LoginIntent
     data object LogoutAction : LoginIntent
     
-    data class CreateResidence(val name: String, val address: String, val kWhPrice: Double) : LoginIntent
+    data class CreateResidence(val name: String, val address: String, val defaultCurrency: String, val kWhPrice: Double) : LoginIntent
     data class JoinResidence(val residenceId: String) : LoginIntent
     data class UpdateResidence(val residenceId: String, val name: String, val address: String, val kWhPrice: Double) : LoginIntent
     data class DeleteResidence(val residenceId: String) : LoginIntent
@@ -155,7 +155,7 @@ class LoginViewModel(
             is LoginIntent.LoginAction -> login(intent.email, intent.passwordPlain)
             is LoginIntent.RegisterAction -> register(intent.firstName, intent.lastName, intent.birthDate, intent.phone, intent.email, intent.passwordPlain)
             is LoginIntent.LogoutAction -> logout()
-            is LoginIntent.CreateResidence -> createResidence(intent.name, intent.address, intent.kWhPrice)
+            is LoginIntent.CreateResidence -> createResidence(intent.name, intent.address, intent.defaultCurrency, intent.kWhPrice)
             is LoginIntent.JoinResidence -> joinResidence(intent.residenceId)
             is LoginIntent.UpdateResidence -> updateResidence(intent.residenceId, intent.name, intent.address, intent.kWhPrice)
             is LoginIntent.DeleteResidence -> deleteResidence(intent.residenceId)
@@ -257,7 +257,9 @@ class LoginViewModel(
                                 residenceName = it.name,
                                 residenceAddress = it.address,
                                 userRoleInResidence = UserRole.ADMIN,
-                                totalUnits = it.totalUnits
+                                totalUnits = it.totalUnits,
+                                currencySymbol = it.currencySymbol,
+                                currencyCode = it.currencyCode
                             )
                         }
                         val associatedContexts = directory.associatedResidences.map {
@@ -271,7 +273,9 @@ class LoginViewModel(
                                 residenceName = it.name,
                                 residenceAddress = it.address,
                                 userRoleInResidence = roleEnum,
-                                totalUnits = it.totalUnits
+                                totalUnits = it.totalUnits,
+                                currencySymbol = it.currencySymbol,
+                                currencyCode = it.currencyCode
                             )
                         }
                         
@@ -363,13 +367,13 @@ class LoginViewModel(
         updateState { it.copy(currentAppScreen = screen, errorMessage = null) }
     }
 
-    fun createResidence(name: String, address: String, kWhPrice: Double) {
+    fun createResidence(name: String, address: String, defaultCurrency: String, kWhPrice: Double) {
         val token = uiState.value.jwtToken ?: return
         updateState { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
-                residenceRepository.createResidence(token, ResidenceCreateRequest(name, address, "XOF", kWhPrice))
+                residenceRepository.createResidence(token, ResidenceCreateRequest(name, address, defaultCurrency, kWhPrice))
                     .onSuccess {
                         fetchResidences()
                         updateState { it.copy(isLoading = false, showCreateResidenceDialog = false, errorMessage = null) }
@@ -745,5 +749,19 @@ class LoginViewModel(
             )
         }
         sessionStorage?.clearSession()
+    }
+
+    fun updateUserProfile(user: UserDto) {
+        val nameParts = user.name.split(" ")
+        val fName = nameParts.firstOrNull() ?: ""
+        val lName = if (nameParts.size > 1) nameParts.drop(1).joinToString(" ") else ""
+        updateState { 
+            it.copy(
+                loggedInUser = user, 
+                firstName = fName, 
+                lastName = lName, 
+                phone = user.phone ?: ""
+            ) 
+        }
     }
 }

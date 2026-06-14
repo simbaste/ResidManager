@@ -12,7 +12,7 @@ object TicketService {
     fun createTicket(
         logementId: UUID,
         creatorId: UUID,
-        category: TicketCategory,
+        categoryId: UUID,
         title: String,
         description: String,
         urgency: TicketUrgency
@@ -20,6 +20,7 @@ object TicketService {
         // 1. Role validation
         val dbLogement = Logement.findById(logementId) ?: throw Exception("Logement introuvable.")
         val dbUser = User.findById(creatorId) ?: throw Exception("Utilisateur introuvable.")
+        val dbCategory = TicketCategoryEntity.findById(categoryId) ?: throw Exception("Catégorie de ticket introuvable.")
         
         // Find role in residence members
         val memberRole = ResidenceMembers
@@ -56,7 +57,7 @@ object TicketService {
         val ticket = Ticket.new {
             this.logement = dbLogement
             this.creator = dbUser
-            this.category = category.name
+            this.category = dbCategory
             this.title = title
             this.description = description
             this.urgency = urgency.name
@@ -71,7 +72,12 @@ object TicketService {
             id = ticket.id.value.toString(),
             logementId = ticket.logement.id.value.toString(),
             creatorId = ticket.creator.id.value.toString(),
-            category = category,
+            category = TicketCategoryDto(
+                id = ticket.category.id.value.toString(),
+                key = ticket.category.key,
+                label = ticket.category.label,
+                residenceId = ticket.category.residence?.id?.value?.toString()
+            ),
             title = ticket.title,
             description = ticket.description,
             urgency = urgency,
@@ -153,7 +159,12 @@ object TicketService {
             id = ticket.id.value.toString(),
             logementId = ticket.logement.id.value.toString(),
             creatorId = ticket.creator.id.value.toString(),
-            category = TicketCategory.valueOf(ticket.category),
+            category = TicketCategoryDto(
+                id = ticket.category.id.value.toString(),
+                key = ticket.category.key,
+                label = ticket.category.label,
+                residenceId = ticket.category.residence?.id?.value?.toString()
+            ),
             title = ticket.title,
             description = ticket.description,
             urgency = TicketUrgency.valueOf(ticket.urgency),

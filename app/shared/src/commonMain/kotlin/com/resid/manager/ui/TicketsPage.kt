@@ -34,6 +34,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
     val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.RESIDENCE_MANAGER)
 
     var tickets by remember { mutableStateOf<List<TicketDto>>(emptyList()) }
+    var categoriesList by remember { mutableStateOf<List<TicketCategoryDto>>(emptyList()) }
     var isLoadingList by remember { mutableStateOf(false) }
 
     // Search and filter states
@@ -44,7 +45,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
     // Dialog form states (Declaration)
     var showCreateDialog by remember { mutableStateOf(false) }
     var formLogementId by remember { mutableStateOf("") }
-    var formCategory by remember { mutableStateOf(TicketCategory.OTHER) }
+    var formCategoryId by remember { mutableStateOf("") }
     var formUrgency by remember { mutableStateOf(TicketUrgency.MEDIUM) }
     var formTitle by remember { mutableStateOf("") }
     var formDescription by remember { mutableStateOf("") }
@@ -79,8 +80,24 @@ fun TicketsPage(viewModel: LoginViewModel) {
         }
     }
 
+    // Load ticket categories from server
+    fun fetchCategories() {
+        if (activeResidence == null) return
+        coroutineScope.launch {
+            try {
+                val response = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/residences/${activeResidence.residenceId}/ticket-categories") {
+                    header(HttpHeaders.Authorization, "Bearer ${uiState.jwtToken}")
+                }
+                if (response.status == io.ktor.http.HttpStatusCode.OK) {
+                    categoriesList = response.body()
+                }
+            } catch (e: Exception) {}
+        }
+    }
+
     LaunchedEffect(activeResidence) {
         fetchTickets()
+        fetchCategories()
     }
 
     // Client-side real-time filtering for absolute mobile snappiness
@@ -119,6 +136,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
             Button(
                 onClick = { 
                     formLogementId = uiState.logements.firstOrNull()?.id ?: ""
+                    formCategoryId = categoriesList.firstOrNull()?.id ?: ""
                     showCreateDialog = true 
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948)),
@@ -283,7 +301,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
 
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(ticket.title, style = MaterialTheme.typography.titleLarge, color = Color(0xFF006948))
-                                Text("Unité : $matchedLogementName | Catégorie : ${ticket.category.name}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                Text("Unité : $matchedLogementName | Catégorie : ${ticket.category.label}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                             }
 
                             Text(
@@ -350,7 +368,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
         }
     }
 
-    // Modal creation dialog (Mobile-declaration form)
+    // Modal creation dialog (Mobile-declaration form with dynamic categories!)
     if (showCreateDialog) {
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
@@ -381,17 +399,22 @@ fun TicketsPage(viewModel: LoginViewModel) {
                     HorizontalDivider()
 
                     Text("Catégorie de panne * :", style = MaterialTheme.typography.titleSmall)
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        TicketCategory.entries.forEach { cat ->
-                            val isSelected = formCategory == cat
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { formCategory = cat },
-                                label = { Text(cat.name) }
-                            )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        categoriesList.forEach { cat ->
+                            val isSelected = formCategoryId == cat.id
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent)
+                                    .clickable { formCategoryId = cat.id }
+                                    .padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(selected = isSelected, onClick = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(cat.label, style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
                     }
 
@@ -435,7 +458,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
             confirmButton = {
                 Button(
                     onClick = {
-                        if (formLogementId.isEmpty() || formTitle.isEmpty() || formDescription.isEmpty()) {
+                        if (formLogementId.isEmpty() || formCategoryId.isEmpty() || formTitle.isEmpty() || formDescription.isEmpty()) {
                             formError = "Veuillez remplir tous les champs obligatoires."
                             return@Button
                         }
@@ -445,7 +468,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
                             try {
                                 val req = TicketCreateRequest(
                                     logementId = formLogementId,
-                                    category = formCategory,
+                                    categoryId = formCategoryId,
                                     title = formTitle,
                                     description = formDescription,
                                     urgency = formUrgency
@@ -550,6 +573,8 @@ fun TicketsPage(viewModel: LoginViewModel) {
                         }
 
                         isSubmittingTransition = true
+                        transitionError = null
+
                         coroutineScope.launch {
                             try {
                                 val req = TicketUpdateRequest(
@@ -655,6 +680,8 @@ fun TicketsPage(viewModel: LoginViewModel) {
                         }
 
                         isSubmittingTransition = true
+                        transitionError = null
+
                         coroutineScope.launch {
                             try {
                                 val req = TicketUpdateRequest(

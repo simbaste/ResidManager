@@ -254,6 +254,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                     val matchedLogement = uiState.logements.firstOrNull { it.id == stmt.logementId }
                     val matchedLogementName = matchedLogement?.name ?: "Logement ${stmt.logementId.take(5)}"
                     val isChecked = selectedStatementIds[stmt.id] ?: false
+                    val currencySymbol = activeResidence?.currencySymbol ?: "XOF"
 
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -309,7 +310,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                                 }
                                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Text("Tarif appliqué :", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-                                    Text("${stmt.kWhPriceApplied} XOF / kWh", style = MaterialTheme.typography.bodyMedium)
+                                    Text("${stmt.kWhPriceApplied} $currencySymbol / kWh", style = MaterialTheme.typography.bodyMedium)
                                 }
                             }
 
@@ -321,7 +322,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("MONTANT DÛ :", style = MaterialTheme.typography.titleMedium, color = Color(0xFF006948))
-                                Text("${stmt.amountDue} XOF", style = MaterialTheme.typography.titleLarge, color = Color(0xFF006948))
+                                Text("${stmt.amountDue} $currencySymbol", style = MaterialTheme.typography.titleLarge, color = Color(0xFF006948))
                             }
                         }
                     }
