@@ -54,22 +54,19 @@ fun LogementsPage(viewModel: LoginViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.clickable { selectedLogementForDetail = null },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = null,
-                        tint = Color(0xFF006948),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = "Retour à la liste",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF006948)
-                    )
+                TextButton(onClick = { selectedLogementForDetail = null }) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = null,
+                            tint = Color(0xFF006948),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text("Retour à la liste")
+                    }
                 }
             }
 

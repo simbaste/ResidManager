@@ -56,7 +56,18 @@ fun LeasesPage(viewModel: LoginViewModel) {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { selectedLeaseForDetail = null }) {
-                        Text("← Retour à la liste")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = null,
+                                tint = Color(0xFF006948),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text("Retour à la liste")
+                        }
                     }
                     Text(text = "Détails du Contrat de Bail", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
                 }
