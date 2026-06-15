@@ -57,6 +57,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
 
     // Selection checkbox map for Eco-Print export
     val selectedStatementIds = remember { mutableStateMapOf<String, Boolean>() }
+    var showPaymentConfirmationForStatement by remember { mutableStateOf<ElectricityStatementDto?>(null) }
 
     val coroutineScope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
@@ -321,8 +322,23 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("MONTANT DÛ :", style = MaterialTheme.typography.titleMedium, color = Color(0xFF006948))
-                                Text("${stmt.amountDue} $currencySymbol", style = MaterialTheme.typography.titleLarge, color = Color(0xFF006948))
+                                Column {
+                                    Text("MONTANT DÛ :", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                                    Text("${stmt.amountDue} $currencySymbol", style = MaterialTheme.typography.titleLarge, color = Color(0xFF006948))
+                                }
+
+                                if (stmt.status == StatementStatus.UNPAID && isAuthorized) {
+                                    Button(
+                                        onClick = { showPaymentConfirmationForStatement = stmt },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948)),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                                            Text("Marquer comme Payé")
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -333,6 +349,20 @@ fun ElectricityPage(viewModel: LoginViewModel) {
 
     // Input Form Dialog (Mobile-First responsive modal)
     if (showFormDialog) {
+        var logementSearchQuery by remember { mutableStateOf("") }
+        var selectedLogementName by remember { mutableStateOf("") }
+
+        val filteredLogements = remember(uiState.logements, logementSearchQuery, selectedLogementName) {
+            if (logementSearchQuery.isBlank() || logementSearchQuery == selectedLogementName) {
+                emptyList()
+            } else {
+                uiState.logements.filter {
+                    it.name.contains(logementSearchQuery, ignoreCase = true) ||
+                    it.floor.contains(logementSearchQuery, ignoreCase = true)
+                }
+            }
+        }
+
         val calculatedOldIndex = formPreviousIndex ?: 0.0
         val calculatedNewIndex = formNewIndexText.toDoubleOrNull() ?: calculatedOldIndex
         val calculatedPrice = formKWhPriceText.toDoubleOrNull() ?: 0.0
@@ -346,41 +376,82 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                     modifier = Modifier.widthIn(max = 500.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Logement selection dropdown
-                    Text("Sélectionnez l'unité * :", style = MaterialTheme.typography.titleSmall)
+                    Text("Rechercher l'unité concernée * :", style = MaterialTheme.typography.titleSmall)
                     
-                    uiState.logements.forEach { logement ->
-                        val isSelected = formSelectedLogementId == logement.id
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-                                .clickable {
-                                    formSelectedLogementId = logement.id
-                                    // Dynamically fetch previous index for read-only display!
-                                    isLoadingPreviousIndex = true
-                                    coroutineScope.launch {
-                                        try {
-                                            val resp = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/logements/${logement.id}/electricity/previous") {
-                                                header(HttpHeaders.Authorization, "Bearer ${uiState.jwtToken}")
+                    // Compact autocomplete search input
+                    OutlinedTextField(
+                        value = logementSearchQuery,
+                        onValueChange = { logementSearchQuery = it },
+                        label = { Text("Saisissez le nom ou l'étage...") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+
+                    // Results dropdown list
+                    if (filteredLogements.isNotEmpty()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                        ) {
+                            Column(
+                                modifier = Modifier.heightIn(max = 140.dp).fillMaxWidth().verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                filteredLogements.forEach { logement ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                formSelectedLogementId = logement.id
+                                                selectedLogementName = logement.name
+                                                logementSearchQuery = logement.name // collapses list
+                                                
+                                                // Dynamically fetch previous index for read-only display!
+                                                isLoadingPreviousIndex = true
+                                                coroutineScope.launch {
+                                                    try {
+                                                        val resp = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/logements/${logement.id}/electricity/previous") {
+                                                            header(HttpHeaders.Authorization, "Bearer ${uiState.jwtToken}")
+                                                        }
+                                                        if (resp.status == io.ktor.http.HttpStatusCode.OK) {
+                                                            val bodyMap = resp.body<Map<String, Double>>()
+                                                            formPreviousIndex = bodyMap["previousIndex"]
+                                                        }
+                                                    } catch (e: Exception) {}
+                                                    isLoadingPreviousIndex = false
+                                                }
                                             }
-                                            if (resp.status == io.ktor.http.HttpStatusCode.OK) {
-                                                val bodyMap = resp.body<Map<String, Double>>()
-                                                formPreviousIndex = bodyMap["previousIndex"]
-                                            }
-                                        } catch (e: Exception) {}
-                                        isLoadingPreviousIndex = false
+                                            .padding(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(Icons.Default.Home, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Column {
+                                            Text(logement.name, style = MaterialTheme.typography.titleSmall)
+                                            Text("Étage : ${logement.floor} | Type : ${logement.type}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                        }
                                     }
                                 }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            }
+                        }
+                    }
+
+                    // Selected logement feedback card
+                    if (formSelectedLogementId.isNotEmpty() && selectedLogementName.isNotEmpty()) {
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            RadioButton(selected = isSelected, onClick = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text(logement.name, style = MaterialTheme.typography.titleSmall)
-                                Text("Étage : ${logement.floor} | Statut : ${logement.status}", style = MaterialTheme.typography.bodySmall)
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF006948))
+                                Column {
+                                    Text("Unité sélectionnée avec succès :", style = MaterialTheme.typography.labelSmall, color = Color(0xFF006948))
+                                    Text(selectedLogementName, style = MaterialTheme.typography.titleSmall, color = Color(0xFF006948))
+                                }
                             }
                         }
                     }
@@ -390,7 +461,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                     // Locked Read-only previous index field
                     if (formSelectedLogementId.isNotEmpty()) {
                         if (isLoadingPreviousIndex) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp).align(Alignment.CenterHorizontally))
                         } else {
                             OutlinedTextField(
                                 value = "${formPreviousIndex ?: 0.0} kWh",
@@ -501,6 +572,48 @@ fun ElectricityPage(viewModel: LoginViewModel) {
             },
             dismissButton = {
                 TextButton(onClick = { showFormDialog = false }) {
+                    Text("Annuler")
+                }
+            }
+        )
+    }
+
+    // Modal Payment Confirmation Dialog
+    if (showPaymentConfirmationForStatement != null) {
+        val stmt = showPaymentConfirmationForStatement!!
+        val currencySymbol = activeResidence?.currencySymbol ?: "XOF"
+        
+        AlertDialog(
+            onDismissRequest = { showPaymentConfirmationForStatement = null },
+            title = { Text("Confirmer le règlement", style = MaterialTheme.typography.titleLarge) },
+            text = { 
+                Text("Êtes-vous sûr de vouloir enregistrer le paiement de cette facture d'électricité d'un montant de ${stmt.amountDue} $currencySymbol ? Cette opération va marquer la facture comme PAYÉE et mettre à jour le grand livre de caisse de manière irréversible.") 
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            try {
+                                val req = ElectricityStatementUpdateRequest(status = StatementStatus.PAID)
+                                val resp = ApiClient.httpClient.put("${ApiClient.BASE_URL}/api/electricity/statements/${stmt.id}/status") {
+                                    contentType(ContentType.Application.Json)
+                                    header(HttpHeaders.Authorization, "Bearer ${uiState.jwtToken}")
+                                    setBody(req)
+                                }
+                                if (resp.status == io.ktor.http.HttpStatusCode.OK) {
+                                    fetchStatements() // Refresh list dynamically!
+                                }
+                            } catch (e: Exception) {}
+                        }
+                        showPaymentConfirmationForStatement = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948))
+                ) {
+                    Text("Confirmer le paiement")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPaymentConfirmationForStatement = null }) {
                     Text("Annuler")
                 }
             }

@@ -1540,6 +1540,50 @@ fun Application.configureAppRoutes() {
                 }
             }
 
+            // PUT /api/electricity/statements/{id}/status : Mark an electricity statement as PAID
+            put("/api/electricity/statements/{id}/status") {
+                val statementId = call.parameters["id"] ?: ""
+                try {
+                    val request = call.receive<ElectricityStatementUpdateRequest>()
+                    val updated = transaction {
+                        val stmt = ElectricityStatement.findById(UUID.fromString(statementId))
+                            ?: throw Exception("Relevé d'électricité introuvable.")
+
+                        stmt.status = request.status?.name ?: "PAID"
+                        stmt.updatedAt = LocalDateTime.now()
+                        stmt.flush()
+
+                        // Update description of original Financial Transaction to reflect payment
+                        val tx = FinancialTransaction.find { 
+                            (FinancialTransactions.relatedEntityType eq "ELECTRICITY_STATEMENT") and 
+                            (FinancialTransactions.relatedEntityId eq stmt.id.value) 
+                        }.firstOrNull()
+
+                        if (tx != null && !tx.description.startsWith("[PAYÉ]")) {
+                            tx.description = "[PAYÉ] " + tx.description
+                            tx.updatedAt = LocalDateTime.now()
+                            tx.flush()
+                        }
+
+                        ElectricityStatementDto(
+                            id = stmt.id.value.toString(),
+                            logementId = stmt.logement.id.value.toString(),
+                            previousIndex = stmt.oldIndex,
+                            newIndex = stmt.newIndex,
+                            kWhPriceApplied = stmt.kWhPriceApplied,
+                            amountDue = stmt.amountDue,
+                            statementDate = stmt.statementDate.toString(),
+                            status = if (stmt.status == "PAID") StatementStatus.PAID else StatementStatus.UNPAID,
+                            createdAt = stmt.createdAt.toString(),
+                            updatedAt = stmt.updatedAt.toString()
+                        )
+                    }
+                    call.respond(HttpStatusCode.OK, updated)
+                } catch (e: Exception) {
+                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Erreur de mise à jour."))
+                }
+            }
+
             // GET /api/logements/{id}/electricity/previous : Fetch the previous (locked/read-only) meter index
             get("/api/logements/{id}/electricity/previous") {
                 val logementId = call.parameters["id"] ?: ""
