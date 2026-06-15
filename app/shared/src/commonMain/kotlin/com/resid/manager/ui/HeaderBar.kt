@@ -144,15 +144,14 @@ fun HeaderBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Theme Toggle Button (☼ / ☾)
-            Text(
-                text = if (isDarkTheme) "☼" else "☾",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier
-                    .clickable { onToggleTheme() }
-                    .padding(4.dp)
-            )
+            // Theme Toggle Button (using core Material Icons to prevent display bugs)
+            IconButton(onClick = onToggleTheme) {
+                Icon(
+                    imageVector = if (isDarkTheme) Icons.Default.Star else Icons.Default.Favorite,
+                    contentDescription = "Toggle Theme",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
 
             // Notification Bell
             IconButton(onClick = { }) {
