@@ -103,12 +103,54 @@ fun MembersPage(viewModel: LoginViewModel) {
             }
         }
 
-        if (uiState.members.isEmpty()) {
+        if (activeResidence == null) {
             Box(
                 modifier = Modifier.fillMaxSize().weight(1f),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                Card(
+                    modifier = Modifier.widthIn(max = 500.dp).padding(16.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFBA1A1A),
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Text(
+                            text = "Aucune résidence active",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = Color(0xFFBA1A1A)
+                        )
+                        Text(
+                            text = "Pour gérer les membres et les habilitations d'accès, vous devez d'abord créer ou rejoindre une résidence d'exploitation.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.outline,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Button(
+                            onClick = { viewModel.setShowCreateResidenceDialog(true) },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(44.dp)
+                        ) {
+                            Text("Créer une résidence maintenant")
+                        }
+                    }
+                }
+            }
+        } else if (uiState.members.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize().weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFF006948))
             }
         } else {
             Card(

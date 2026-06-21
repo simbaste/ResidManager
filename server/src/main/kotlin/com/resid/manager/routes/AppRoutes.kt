@@ -86,6 +86,7 @@ fun Application.configureAppRoutes() {
                         birthDate = parsedBirthDate
                         phone = request.phone
                         createdAt = LocalDateTime.now()
+                        updatedAt = LocalDateTime.now()
                     }
                 }
 
