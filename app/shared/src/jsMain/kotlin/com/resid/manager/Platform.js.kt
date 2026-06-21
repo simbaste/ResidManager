@@ -1,6 +1,7 @@
 package com.resid.manager
 
 import web.navigator.navigator
+import kotlinx.browser.window
 
 class JsPlatform: Platform {
     private val userAgent = navigator.userAgent
@@ -12,3 +13,12 @@ class JsPlatform: Platform {
 }
 
 actual fun getPlatform(): Platform = JsPlatform()
+
+actual fun getBaseUrl(): String {
+    val hostname = window.location.hostname
+    return if (hostname == "localhost" || hostname == "127.0.0.1" || hostname == "0.0.0.0") {
+        "http://localhost:8081"
+    } else {
+        "https://residmanager-api-1043005566320.europe-west1.run.app"
+    }
+}

@@ -1,5 +1,6 @@
 package com.resid.manager.network
 
+import com.resid.manager.getBaseUrl
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.serialization.kotlinx.json.*
@@ -16,5 +17,5 @@ object ApiClient {
         }
     }
 
-    const val BASE_URL = "http://localhost:8080"
+    val BASE_URL = getBaseUrl()
 }

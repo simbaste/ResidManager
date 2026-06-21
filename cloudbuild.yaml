@@ -1,0 +1,10 @@
+steps:
+  # Étape unique : On demande à Cloud Build de construire l'image Docker
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'europe-west1-docker.pkg.dev/$PROJECT_ID/residmanager-repo/residmanager-api', '.']
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+
+images:
+  - 'europe-west1-docker.pkg.dev/$PROJECT_ID/residmanager-repo/residmanager-api'

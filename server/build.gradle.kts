@@ -33,3 +33,18 @@ dependencies {
     testImplementation(libs.ktor.serverTestHost)
     testImplementation(libs.kotlin.testJunit)
 }
+
+// Dans /server/build.gradle.kts
+
+tasks.withType<Copy>().configureEach {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+tasks.withType<Jar>().configureEach {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+// C'est cette tâche spécifique requise par le Dockerfile qui refusait les doublons :
+tasks.named<Sync>("installDist") {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
