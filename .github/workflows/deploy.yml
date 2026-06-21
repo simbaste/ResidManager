@@ -129,5 +129,9 @@ jobs:
         run: npm install -g firebase-tools
 
       - name: Deploy to Firebase Hosting
+        # On injecte la clé GCP existante directement pour authentifier Firebase
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
         run: |
-          firebase deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}"
+          # On ajoute le flag --project pour éviter l'erreur "Assertion failed"
+          firebase deploy --only hosting --project gen-lang-client-0297820049
