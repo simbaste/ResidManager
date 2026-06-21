@@ -84,7 +84,8 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           IMAGE_TAG="europe-west1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/residmanager-repo/residmanager-api:${{ github.sha }}"
-          docker build -t $IMAGE_TAG -f server/Dockerfile server
+          # CHANGEMENT ICI : On passe "server/Dockerfile" mais on met "." à la fin pour le contexte racine
+          docker build -t $IMAGE_TAG -f server/Dockerfile .
           docker push $IMAGE_TAG
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
