@@ -8,7 +8,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 
 interface MemberRepository {
-    suspend fun fetchMembers(token: String, residenceId: String): Result<List<ResidenceMemberSummary>>
+    suspend fun fetchMembers(token: String, residenceId: String): Result<List<ResidenceMemberSummaryDto>>
     suspend fun inviteMember(token: String, residenceId: String, email: String, role: String): Result<Unit>
     suspend fun updateMemberStatus(token: String, residenceId: String, targetUserId: String, status: String, role: String?): Result<Unit>
 }
@@ -16,7 +16,7 @@ interface MemberRepository {
 class MemberRepositoryImpl(
     private val httpClient: HttpClient
 ) : MemberRepository {
-    override suspend fun fetchMembers(token: String, residenceId: String): Result<List<ResidenceMemberSummary>> {
+    override suspend fun fetchMembers(token: String, residenceId: String): Result<List<ResidenceMemberSummaryDto>> {
         return try {
             val response = httpClient.get("${ApiClient.BASE_URL}/api/residences/$residenceId/members") {
                 header(HttpHeaders.Authorization, "Bearer $token")

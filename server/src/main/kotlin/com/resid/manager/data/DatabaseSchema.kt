@@ -46,8 +46,8 @@ object Residences : UUIDTable("residences") {
 object ResidenceMembers : Table("residence_members") {
     val userId = reference("user_id", Users, onDelete = ReferenceOption.CASCADE)
     val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE)
-    val role = varchar("role", 20) // OWNER, ADMIN, MANAGER, STAFF, TENANT
-    val status = varchar("status", 20) // PENDING_APPROVAL, INVITED, ACCEPTED
+    val roleDto = enumerationByName("role", ENUM_NAME_COLUMN_LENGTH, Role::class)
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, InvitationStatus::class)
     val createdAt = datetime("created_at")
     override val primaryKey = PrimaryKey(userId, residenceId)
 }
@@ -60,7 +60,7 @@ object Logements : UUIDTable("logements") {
     val nominalRent = double("nominal_rent")
     val serviceCharges = double("service_charges")
     val initialElectricityIndex = double("initial_electricity_index")
-    val status = varchar("status", 20).default("AVAILABLE") // AVAILABLE, OCCUPIED, RESERVED
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, UnitStatus::class).default(UnitStatus.AVAILABLE)
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
 }
@@ -69,10 +69,10 @@ object Baux : UUIDTable("baux") {
     val logementId = reference("logement_id", Logements, onDelete = ReferenceOption.RESTRICT)
     val tenantId = reference("tenant_id", Users, onDelete = ReferenceOption.RESTRICT)
     val durationMonths = integer("duration_months")
-    val paymentFrequency = varchar("payment_frequency", 20) // MONTHLY, ANNUAL
+    val paymentFrequencyDto = enumerationByName("payment_frequency", ENUM_NAME_COLUMN_LENGTH, PaymentFrequency::class)
     val depositAmount = double("deposit_amount")
-    val depositStatus = varchar("deposit_status", 20).default("PENDING") // PENDING, PAID
-    val status = varchar("status", 20).default("PENDING_PAYMENT") // PENDING_PAYMENT, PARTIALLY_PAID, PENDING_SIGNATURE, ACTIVE, TERMINATED
+    val depositStatusDto = enumerationByName("deposit_status", ENUM_NAME_COLUMN_LENGTH, DepositStatus::class).default(DepositStatus.PENDING)
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, LeaseStatus::class).default(LeaseStatus.PENDING_PAYMENT) // PENDING_PAYMENT, PARTIALLY_PAID, PENDING_SIGNATURE, ACTIVE, TERMINATED
     val startDate = date("start_date")
     val endDate = date("end_date")
     val advanceMonths = integer("advance_months").default(1)
@@ -87,7 +87,7 @@ object ElectricityStatements : UUIDTable("electricity_statements") {
     val newIndex = double("new_index")
     val kWhPriceApplied = double("kwh_price_applied")
     val amountDue = double("amount_due")
-    val status = varchar("status", 20).default("UNPAID") // UNPAID, PAID
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, ElectricityStatus::class).default(ElectricityStatus.UNPAID)
     val statementDate = date("statement_date")
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
@@ -107,8 +107,8 @@ object Tickets : UUIDTable("tickets") {
     val categoryId = reference("category_id", TicketCategories, onDelete = ReferenceOption.RESTRICT)
     val title = varchar("title", 255)
     val description = text("description")
-    val urgency = varchar("urgency", 20) // LOW, MEDIUM, CRITICAL
-    val status = varchar("status", 20).default("OPEN") // OPEN, IN_PROGRESS, CLOSED
+    val urgency = enumerationByName("urgency", ENUM_NAME_COLUMN_LENGTH, TicketUrgency::class)
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, TicketStatus::class).default(TicketStatus.OPEN)
     val interventionCost = double("intervention_cost").default(0.0)
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
@@ -116,11 +116,11 @@ object Tickets : UUIDTable("tickets") {
 
 object FinancialTransactions : UUIDTable("financial_transactions") {
     val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE)
-    val type = varchar("type", 10) // INCOME, EXPENSE
-    val category = varchar("category", 50) // Rent, Electricity, Maintenance, Cleaning, etc.
+    val type = enumerationByName("type", ENUM_NAME_COLUMN_LENGTH, TransactionType::class)
+    val category = enumerationByName("category", ENUM_NAME_COLUMN_LENGTH, TransactionCategory::class)
     val amount = double("amount")
     val description = text("description")
-    val relatedEntityType = varchar("related_entity_type", 50).nullable() // BAIL, ELECTRICITY_STATEMENT, TICKET
+    val relatedEntityType = enumerationByName("related_entity_type", ENUM_NAME_COLUMN_LENGTH, EntityType::class).nullable()
     val relatedEntityId = uuid("related_entity_id").nullable()
     val transactionDate = date("transaction_date")
     val createdAt = datetime("created_at")
@@ -212,9 +212,9 @@ class Lease(id: EntityID<UUID>) : UUIDEntity(id) {
     var logement by Logement referencedOn Baux.logementId
     var tenant by User referencedOn Baux.tenantId
     var durationMonths by Baux.durationMonths
-    var paymentFrequency by Baux.paymentFrequency
+    var paymentFrequency by Baux.paymentFrequencyDto
     var depositAmount by Baux.depositAmount
-    var depositStatus by Baux.depositStatus
+    var depositStatus by Baux.depositStatusDto
     var status by Baux.status
     var startDate by Baux.startDate
     var endDate by Baux.endDate

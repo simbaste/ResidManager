@@ -4,9 +4,31 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class UserRole {
+    OWNER,
     ADMIN,
-    RESIDENCE_MANAGER,
+    MANAGER,
+    STAFF,
     TENANT
+}
+
+fun UserRole.convert(): RoleDto {
+    return when (this) {
+        UserRole.OWNER -> RoleDto.OWNER
+        UserRole.ADMIN -> RoleDto.ADMIN
+        UserRole.MANAGER -> RoleDto.MANAGER
+        UserRole.STAFF -> RoleDto.STAFF
+        UserRole.TENANT -> RoleDto.TENANT
+    }
+}
+
+fun RoleDto.convert(): UserRole {
+    return when (this) {
+        RoleDto.OWNER -> UserRole.OWNER
+        RoleDto.ADMIN -> UserRole.ADMIN
+        RoleDto.MANAGER -> UserRole.MANAGER
+        RoleDto.STAFF -> UserRole.STAFF
+        RoleDto.TENANT -> UserRole.TENANT
+    }
 }
 
 @Serializable

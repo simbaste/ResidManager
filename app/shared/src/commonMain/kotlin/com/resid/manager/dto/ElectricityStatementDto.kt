@@ -3,7 +3,7 @@ package com.resid.manager.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class StatementStatus {
+enum class ElectricityStatusDto {
     UNPAID,
     PAID
 }
@@ -17,7 +17,7 @@ data class ElectricityStatementDto(
     val kWhPriceApplied: Double,
     val amountDue: Double, // (newIndex - previousIndex) * kWhPriceApplied
     val statementDate: String,
-    val status: StatementStatus,
+    val status: ElectricityStatusDto,
     val createdAt: String,
     val updatedAt: String
 )
@@ -40,5 +40,5 @@ data class ElectricityStatementCreateRequest(
 
 @Serializable
 data class ElectricityStatementUpdateRequest(
-    val status: StatementStatus? = null
+    val status: ElectricityStatusDto? = null
 )

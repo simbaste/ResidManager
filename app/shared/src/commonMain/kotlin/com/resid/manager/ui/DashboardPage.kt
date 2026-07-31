@@ -2,7 +2,6 @@ package com.resid.manager.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -17,14 +16,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import com.resid.manager.dto.UserRole
 import com.resid.manager.dto.DashboardDataDto
 import com.resid.manager.network.ApiClient
 import com.resid.manager.viewmodel.LoginViewModel
 import io.ktor.client.request.*
 import io.ktor.client.call.body
 import io.ktor.http.HttpHeaders
-import kotlinx.coroutines.launch
 
 @Composable
 fun DashboardPage(viewModel: LoginViewModel) {
@@ -344,7 +341,7 @@ fun DashboardPage(viewModel: LoginViewModel) {
                         }
 
                         Button(
-                            onClick = { viewModel.setShowCreateLogementDialog(true) },
+                            onClick = { viewModel.setShowCreateUnitDialog(true) },
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f).height(48.dp)
                         ) {

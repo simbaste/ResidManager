@@ -3,36 +3,48 @@ package com.resid.manager.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class LeaseStatus {
+enum class LeaseStatusDto {
     PENDING_PAYMENT,
     DOWN_PAYMENT_PAID,
+    PARTIALLY_PAID,
     PENDING_SIGNATURE,
     SIGNED_ACTIVE,
     TERMINATED
 }
 
 @Serializable
+enum class LeaseCategory {
+    DEPOSIT,
+    RENT
+}
+
+@Serializable
 data class LeasePaymentDto(
     val id: String,
-    val category: String, // "CAUTION" or "LOYER"
+    val category: LeaseCategory,
     val amount: Double,
     val description: String,
     val transactionDate: String
 )
 
 @Serializable
+enum class PaymentFrequencyDto {
+    MONTHLY, ANNUAL
+}
+
+@Serializable
 data class LeaseDto(
     val id: String,
-    val logementId: String,
+    val unitId: String,
     val tenantId: String,
     val startDate: String, // ISO-8601 Date
     val endDate: String,   // ISO-8601 Date
     val depositAmount: Double,
     val monthlyRentAtSign: Double,
-    val status: LeaseStatus,
+    val status: LeaseStatusDto,
     val createdAt: String,
     val updatedAt: String,
-    val paymentFrequency: String = "MONTHLY",
+    val paymentFrequencyDto: PaymentFrequencyDto = PaymentFrequencyDto.MONTHLY,
     val advanceMonths: Int = 1,
     val payments: List<LeasePaymentDto> = emptyList()
 )
@@ -65,11 +77,15 @@ data class LeaseUpdateRequest(
     val endDate: String? = null,
     val depositAmount: Double? = null,
     val monthlyRentAtSign: Double? = null,
-    val status: LeaseStatus? = null
+    val status: LeaseStatusDto? = null
 )
+
+enum class TransactionCategoryDto {
+    RENT, DEPOSIT, LEASE_PAYMENT, ELECTRICITY, MAINTENANCE, CLEANING, FUEL, SECURITY, TAXES, OTHER
+}
 
 @Serializable
 data class LeasePaymentRequest(
     val amountPaid: Double,
-    val category: String // "CAUTION" or "LOYER"
+    val category: TransactionCategoryDto
 )

@@ -2,8 +2,6 @@ package com.resid.manager.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,7 +17,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import com.resid.manager.dto.LogementDto
+import com.resid.manager.dto.UnitDto
+import com.resid.manager.dto.UnitStatusDto
 import com.resid.manager.dto.UserRole
 import com.resid.manager.viewmodel.LoginViewModel
 
@@ -27,20 +26,20 @@ import com.resid.manager.viewmodel.LoginViewModel
 fun LogementsPage(viewModel: LoginViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val activeResidence = uiState.selectedResidenceContext
-    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.RESIDENCE_MANAGER)
+    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
 
     var showDeleteConfirmationId by remember { mutableStateOf<String?>(null) }
-    var editingLogement by remember { mutableStateOf<LogementDto?>(null) }
-    var selectedLogementForDetail by remember { mutableStateOf<LogementDto?>(null) }
+    var editingLogement by remember { mutableStateOf<UnitDto?>(null) }
+    var selectedLogementForDetail by remember { mutableStateOf<UnitDto?>(null) }
     var showAssignLeaseWizardByLogementId by remember { mutableStateOf<String?>(null) }
 
     if (selectedLogementForDetail != null) {
         val logement = selectedLogementForDetail!!
         
         // Lookup active lease for this logement
-        val activeLease = uiState.leases.firstOrNull { it.logementId == logement.id }
+        val activeLease = uiState.leases.firstOrNull { it.unitId == logement.id }
         val activeTenant = activeLease?.let { lease -> uiState.members.firstOrNull { it.userId == lease.tenantId } }
-        val isAvailable = logement.status == "AVAILABLE"
+        val isAvailable = logement.status == UnitStatusDto.AVAILABLE
 
         Column(
             modifier = Modifier
@@ -216,10 +215,10 @@ fun LogementsPage(viewModel: LoginViewModel) {
                                 color = MaterialTheme.colorScheme.outline
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                if (logement.equipements.isEmpty()) {
+                                if (logement.equipments.isEmpty()) {
                                     Text("Aucun équipement renseigné", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                 } else {
-                                    logement.equipements.forEach { eq ->
+                                    logement.equipments.forEach { eq ->
                                         val icon = when (eq.key) {
                                             "WIFI" -> Icons.Default.Share
                                             "CLIM" -> Icons.Default.Settings
@@ -520,7 +519,7 @@ fun LogementsPage(viewModel: LoginViewModel) {
                     
                     if (isAuthorized) {
                         Button(
-                            onClick = { viewModel.setShowCreateLogementDialog(true) },
+                            onClick = { viewModel.setShowCreateUnitDialog(true) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948)),
                             shape = RoundedCornerShape(12.dp)
                         ) {
@@ -543,8 +542,8 @@ fun LogementsPage(viewModel: LoginViewModel) {
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     val total = uiState.logements.size
-                    val available = uiState.logements.count { it.status == "AVAILABLE" }
-                    val occupied = uiState.logements.count { it.status == "OCCUPIED" }
+                    val available = uiState.logements.count { it.status == UnitStatusDto.AVAILABLE }
+                    val occupied = uiState.logements.count { it.status == UnitStatusDto.OCCUPIED }
 
                     BentoMiniStatCard(title = "Total Unités", value = total.toString().padStart(2, '0'), borderColor = Color(0xFF8E9193), modifier = Modifier.weight(1f))
                     BentoMiniStatCard(title = "Disponibles", value = available.toString().padStart(2, '0'), borderColor = Color(0xFF006948), modifier = Modifier.weight(1f))
@@ -567,7 +566,7 @@ fun LogementsPage(viewModel: LoginViewModel) {
             if (isAuthorized) {
                 item {
                     Card(
-                        onClick = { viewModel.setShowCreateLogementDialog(true) },
+                        onClick = { viewModel.setShowCreateUnitDialog(true) },
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFF006948).copy(alpha = 0.04f)),
                         border = BorderStroke(1.dp, Color(0xFF006948).copy(alpha = 0.2f)),
@@ -655,7 +654,7 @@ fun LogementsPage(viewModel: LoginViewModel) {
                     nominalRent = rent,
                     serviceCharges = charges,
                     initialElectricityIndex = initialIndex,
-                    equipements = uiState.availableEquipements.filter { equipementIds.contains(it.id) }
+                    equipments = uiState.availableEquipements.filter { equipementIds.contains(it.id) }
                 )
             }
         )
@@ -711,12 +710,12 @@ fun BentoMiniStatCard(
 
 @Composable
 fun LogementCard(
-    logement: LogementDto,
+    logement: UnitDto,
     isAuthorized: Boolean,
     onDetailClick: () -> Unit,
     onEditClick: () -> Unit
 ) {
-    val isAvailable = logement.status == "AVAILABLE"
+    val isAvailable = logement.status == UnitStatusDto.AVAILABLE
     val badgeBg = if (isAvailable) Color(0xFFE6F7F0) else Color(0xFFFDE8E8)
     val badgeColor = if (isAvailable) Color(0xFF006948) else Color(0xFFBA1A1A)
     val badgeText = if (isAvailable) "✓ AVAILABLE (Libre)" else "👤 OCCUPIED"

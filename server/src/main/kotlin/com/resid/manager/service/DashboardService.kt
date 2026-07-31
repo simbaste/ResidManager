@@ -52,7 +52,7 @@ object DashboardService {
                 .select(FinancialTransactions.amount.sum())
                 .where { 
                     (FinancialTransactions.residenceId eq residenceId) and 
-                    (FinancialTransactions.type eq "INCOME") and 
+                    (FinancialTransactions.type eq TransactionType.INCOME) and
                     (FinancialTransactions.transactionDate.between(startDate, endDate)) 
                 }
                 .map { it[FinancialTransactions.amount.sum()] }
@@ -63,7 +63,7 @@ object DashboardService {
                 .select(FinancialTransactions.amount.sum())
                 .where { 
                     (FinancialTransactions.residenceId eq residenceId) and 
-                    (FinancialTransactions.type eq "EXPENSE") and 
+                    (FinancialTransactions.type eq TransactionType.EXPENSE) and
                     (FinancialTransactions.transactionDate.between(startDate, endDate)) 
                 }
                 .map { it[FinancialTransactions.amount.sum()] }
@@ -79,7 +79,7 @@ object DashboardService {
 
             val occupiedUnitsCount = Logements
                 .select(Logements.id)
-                .where { (Logements.residenceId eq residenceId) and (Logements.status eq "OCCUPIED") }
+                .where { (Logements.residenceId eq residenceId) and (Logements.status eq UnitStatus.OCCUPIED) }
                 .count()
 
             val occupancyRate = if (totalUnitsCount > 0) {
@@ -90,7 +90,7 @@ object DashboardService {
             val bauxList = Lease.all().filter { it.logement.residence.id.value == residenceId }
             val totalRentAmountGenerated = bauxList.sumOf { it.logement.nominalRent }
             val unpaidRentAmount = bauxList.filter { 
-                it.status == "PENDING_PAYMENT" || it.status == "DOWN_PAYMENT_PAID" 
+                it.status == LeaseStatus.PENDING_PAYMENT || it.status == LeaseStatus.DOWN_PAYMENT_PAID
             }.sumOf { it.logement.nominalRent }
 
             val delinquencyRate = if (totalRentAmountGenerated > 0.0) {

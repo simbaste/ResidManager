@@ -272,13 +272,13 @@ fun AssociatedPropertyCard(
 ) {
     val role = residence.userRoleInResidence
     val badgeColor = when (role) {
-        UserRole.ADMIN -> MaterialTheme.colorScheme.primaryContainer
-        UserRole.RESIDENCE_MANAGER -> MaterialTheme.colorScheme.tertiaryContainer
+        UserRole.ADMIN, UserRole.OWNER -> MaterialTheme.colorScheme.primaryContainer
+        UserRole.MANAGER, UserRole.STAFF -> MaterialTheme.colorScheme.tertiaryContainer
         UserRole.TENANT -> MaterialTheme.colorScheme.secondaryContainer
     }
     val badgeContentColor = when (role) {
-        UserRole.ADMIN -> MaterialTheme.colorScheme.onPrimaryContainer
-        UserRole.RESIDENCE_MANAGER -> MaterialTheme.colorScheme.onTertiaryContainer
+        UserRole.ADMIN, UserRole.OWNER -> MaterialTheme.colorScheme.onPrimaryContainer
+        UserRole.MANAGER, UserRole.STAFF -> MaterialTheme.colorScheme.onTertiaryContainer
         UserRole.TENANT -> MaterialTheme.colorScheme.onSecondaryContainer
     }
 

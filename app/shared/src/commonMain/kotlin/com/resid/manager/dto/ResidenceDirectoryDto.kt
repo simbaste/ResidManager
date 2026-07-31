@@ -14,12 +14,21 @@ data class ResidenceSummaryItem(
 )
 
 @Serializable
+enum class RoleDto {
+    OWNER,
+    ADMIN,
+    MANAGER,
+    STAFF,
+    TENANT
+}
+
+@Serializable
 data class AssociatedResidenceItem(
     val id: String,
     val name: String,
     val address: String,
     val photoUrl: String?,
-    val role: String, // ADMIN, MANAGER, STAFF, TENANT
+    val roleDto: RoleDto,
     val totalUnits: Int,
     val currencySymbol: String = "FCFA",
     val currencyCode: String = "XOF"

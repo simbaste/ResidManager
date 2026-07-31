@@ -1,0 +1,221 @@
+package com.resid.manager.data
+
+import com.resid.manager.dto.ElectricityStatusDto
+import com.resid.manager.dto.EntityTypeDto
+import com.resid.manager.dto.InvitationStatusDto
+import com.resid.manager.dto.LeaseStatusDto
+import com.resid.manager.dto.PaymentFrequencyDto
+import com.resid.manager.dto.RoleDto
+import com.resid.manager.dto.TicketStatusDto
+import com.resid.manager.dto.TicketUrgencyDto
+import com.resid.manager.dto.TransactionCategoryDto
+import com.resid.manager.dto.TransactionTypeDto
+import com.resid.manager.dto.UnitStatusDto
+
+const val ENUM_NAME_COLUMN_LENGTH = 10
+
+enum class Role {
+    OWNER, ADMIN, MANAGER, STAFF, TENANT
+}
+
+fun Role.convert(): RoleDto {
+    return when (this) {
+        Role.OWNER -> RoleDto.OWNER
+        Role.ADMIN -> RoleDto.ADMIN
+        Role.MANAGER -> RoleDto.MANAGER
+        Role.STAFF -> RoleDto.STAFF
+        Role.TENANT -> RoleDto.TENANT
+    }
+}
+
+fun Role.isOwner(): Boolean {
+    return this == Role.OWNER
+}
+
+fun Role.isAdmin(): Boolean {
+    return this == Role.OWNER || this == Role.ADMIN
+}
+
+fun Role.isManager(): Boolean {
+    return this == Role.OWNER || this == Role.ADMIN || this == Role.MANAGER
+}
+
+enum class InvitationStatus {
+    PENDING_APPROVAL, INVITED, ACCEPTED
+}
+
+fun InvitationStatus.convert(): InvitationStatusDto {
+    return when (this) {
+        InvitationStatus.PENDING_APPROVAL -> InvitationStatusDto.PENDING_APPROVAL
+        InvitationStatus.INVITED -> InvitationStatusDto.INVITED
+        InvitationStatus.ACCEPTED -> InvitationStatusDto.ACCEPTED
+    }
+}
+
+enum class UnitStatus {
+    AVAILABLE, OCCUPIED, RESERVED
+}
+
+fun UnitStatus.convert(): UnitStatusDto {
+    return when (this) {
+        UnitStatus.AVAILABLE -> UnitStatusDto.AVAILABLE
+        UnitStatus.OCCUPIED -> UnitStatusDto.OCCUPIED
+        UnitStatus.RESERVED -> UnitStatusDto.RESERVED
+    }
+}
+
+enum class PaymentFrequency {
+    MONTHLY, ANNUAL
+}
+
+fun PaymentFrequency.convert(): PaymentFrequencyDto {
+    return when (this) {
+        PaymentFrequency.MONTHLY -> PaymentFrequencyDto.MONTHLY
+        PaymentFrequency.ANNUAL -> PaymentFrequencyDto.ANNUAL
+    }
+}
+
+enum class DepositStatus {
+    PENDING, PAID
+}
+
+enum class LeaseStatus {
+    PENDING_PAYMENT, DOWN_PAYMENT_PAID, PARTIALLY_PAID, PENDING_SIGNATURE, SIGNED_ACTIVE, TERMINATED
+}
+
+fun LeaseStatus.convert(): LeaseStatusDto {
+    return when (this) {
+        LeaseStatus.PENDING_PAYMENT -> LeaseStatusDto.PENDING_PAYMENT
+        LeaseStatus.DOWN_PAYMENT_PAID -> LeaseStatusDto.DOWN_PAYMENT_PAID
+        LeaseStatus.PARTIALLY_PAID -> LeaseStatusDto.PARTIALLY_PAID
+        LeaseStatus.PENDING_SIGNATURE -> LeaseStatusDto.PENDING_SIGNATURE
+        LeaseStatus.SIGNED_ACTIVE -> LeaseStatusDto.SIGNED_ACTIVE
+        LeaseStatus.TERMINATED -> LeaseStatusDto.TERMINATED
+    }
+}
+
+fun LeaseStatusDto.convert(): LeaseStatus {
+    return when (this) {
+        LeaseStatusDto.PENDING_PAYMENT -> LeaseStatus.PENDING_PAYMENT
+        LeaseStatusDto.DOWN_PAYMENT_PAID -> LeaseStatus.DOWN_PAYMENT_PAID
+        LeaseStatusDto.PARTIALLY_PAID -> LeaseStatus.PARTIALLY_PAID
+        LeaseStatusDto.PENDING_SIGNATURE -> LeaseStatus.PENDING_SIGNATURE
+        LeaseStatusDto.SIGNED_ACTIVE -> LeaseStatus.SIGNED_ACTIVE
+        LeaseStatusDto.TERMINATED -> LeaseStatus.TERMINATED
+    }
+}
+
+enum class ElectricityStatus {
+    UNPAID, PAID
+}
+
+fun ElectricityStatus.convert(): ElectricityStatusDto {
+    return when (this) {
+        ElectricityStatus.UNPAID -> ElectricityStatusDto.UNPAID
+        ElectricityStatus.PAID -> ElectricityStatusDto.PAID
+    }
+}
+
+fun ElectricityStatusDto.convert(): ElectricityStatus {
+    return when (this) {
+        ElectricityStatusDto.UNPAID -> ElectricityStatus.UNPAID
+        ElectricityStatusDto.PAID -> ElectricityStatus.PAID
+    }
+}
+
+enum class TicketUrgency {
+    LOW, MEDIUM, CRITICAL
+}
+
+fun TicketUrgency.convert(): TicketUrgencyDto {
+    return when (this) {
+        TicketUrgency.LOW -> TicketUrgencyDto.LOW
+        TicketUrgency.MEDIUM -> TicketUrgencyDto.MEDIUM
+        TicketUrgency.CRITICAL -> TicketUrgencyDto.CRITICAL
+    }
+}
+
+fun TicketUrgencyDto.convert(): TicketUrgency {
+    return when (this) {
+        TicketUrgencyDto.LOW -> TicketUrgency.LOW
+        TicketUrgencyDto.MEDIUM -> TicketUrgency.MEDIUM
+        TicketUrgencyDto.CRITICAL -> TicketUrgency.CRITICAL
+    }
+}
+
+enum class TicketStatus {
+    OPEN, IN_PROGRESS, CLOSED
+}
+
+fun TicketStatus.convert(): TicketStatusDto {
+    return when (this) {
+        TicketStatus.OPEN -> TicketStatusDto.OPEN
+        TicketStatus.IN_PROGRESS -> TicketStatusDto.IN_PROGRESS
+        TicketStatus.CLOSED -> TicketStatusDto.CLOSED
+    }
+}
+
+fun TicketStatusDto.convert(): TicketStatus {
+    return when (this) {
+        TicketStatusDto.OPEN -> TicketStatus.OPEN
+        TicketStatusDto.IN_PROGRESS -> TicketStatus.IN_PROGRESS
+        TicketStatusDto.CLOSED -> TicketStatus.CLOSED
+    }
+}
+
+enum class TransactionType {
+    INCOME, EXPENSE
+}
+
+fun TransactionType.convert(): TransactionTypeDto {
+    return when (this) {
+        TransactionType.INCOME -> TransactionTypeDto.INCOME
+        TransactionType.EXPENSE -> TransactionTypeDto.EXPENSE
+    }
+}
+
+enum class TransactionCategory {
+    RENT, DEPOSIT, LEASE_PAYMENT, ELECTRICITY, MAINTENANCE, CLEANING, FUEL, SECURITY, TAXES, OTHER
+}
+
+fun TransactionCategory.convert(): TransactionCategoryDto {
+    return when (this) {
+        TransactionCategory.RENT -> TransactionCategoryDto.RENT
+        TransactionCategory.DEPOSIT -> TransactionCategoryDto.DEPOSIT
+        TransactionCategory.LEASE_PAYMENT -> TransactionCategoryDto.LEASE_PAYMENT
+        TransactionCategory.ELECTRICITY -> TransactionCategoryDto.ELECTRICITY
+        TransactionCategory.MAINTENANCE -> TransactionCategoryDto.MAINTENANCE
+        TransactionCategory.CLEANING -> TransactionCategoryDto.CLEANING
+        TransactionCategory.FUEL -> TransactionCategoryDto.FUEL
+        TransactionCategory.SECURITY -> TransactionCategoryDto.SECURITY
+        TransactionCategory.TAXES -> TransactionCategoryDto.TAXES
+        TransactionCategory.OTHER -> TransactionCategoryDto.OTHER
+    }
+}
+
+fun TransactionCategoryDto.convert(): TransactionCategory {
+    return when (this) {
+        TransactionCategoryDto.RENT -> TransactionCategory.RENT
+        TransactionCategoryDto.DEPOSIT -> TransactionCategory.DEPOSIT
+        TransactionCategoryDto.LEASE_PAYMENT -> TransactionCategory.LEASE_PAYMENT
+        TransactionCategoryDto.ELECTRICITY -> TransactionCategory.ELECTRICITY
+        TransactionCategoryDto.MAINTENANCE -> TransactionCategory.MAINTENANCE
+        TransactionCategoryDto.CLEANING -> TransactionCategory.CLEANING
+        TransactionCategoryDto.FUEL -> TransactionCategory.FUEL
+        TransactionCategoryDto.SECURITY -> TransactionCategory.SECURITY
+        TransactionCategoryDto.TAXES -> TransactionCategory.TAXES
+        TransactionCategoryDto.OTHER -> TransactionCategory.OTHER
+    }
+}
+
+enum class EntityType {
+    BAIL, ELECTRICITY_STATEMENT, TICKET
+}
+
+fun EntityType.convert(): EntityTypeDto {
+    return when (this) {
+        EntityType.BAIL -> EntityTypeDto.BAIL
+        EntityType.ELECTRICITY_STATEMENT -> EntityTypeDto.ELECTRICITY_STATEMENT
+        EntityType.TICKET -> EntityTypeDto.TICKET
+    }
+}

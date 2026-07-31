@@ -6,16 +6,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import com.resid.manager.dto.*
@@ -32,7 +29,7 @@ import kotlinx.coroutines.launch
 fun MembersPage(viewModel: LoginViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val activeResidence = uiState.selectedResidenceContext
-    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.RESIDENCE_MANAGER)
+    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
 
     var sortBy by remember { mutableStateOf("name") }
     var sortAscending by remember { mutableStateOf(true) }
@@ -56,8 +53,8 @@ fun MembersPage(viewModel: LoginViewModel) {
         val list = uiState.members
         when (sortBy) {
             "name" -> if (sortAscending) list.sortedBy { "${it.firstName} ${it.lastName}".lowercase() } else list.sortedByDescending { "${it.firstName} ${it.lastName}".lowercase() }
-            "role" -> if (sortAscending) list.sortedBy { it.role.lowercase() } else list.sortedByDescending { it.role.lowercase() }
-            "status" -> if (sortAscending) list.sortedBy { it.status.lowercase() } else list.sortedByDescending { it.status.lowercase() }
+            "role" -> if (sortAscending) list.sortedBy { it.roleDto.name.lowercase() } else list.sortedByDescending { it.roleDto.name.lowercase() }
+            "status" -> if (sortAscending) list.sortedBy { it.status.name.lowercase() } else list.sortedByDescending { it.status.name.lowercase() }
             else -> list
         }
     }
@@ -327,11 +324,11 @@ fun MembersPage(viewModel: LoginViewModel) {
                                     modifier = Modifier.weight(2.5f),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    val (roleBg, roleColor) = when (member.role) {
-                                        "OWNER" -> Pair(Color(0xFFA7F3D0), Color(0xFF065F46)) // Light emerald, dark emerald
-                                        "ADMIN" -> Pair(Color(0xFFA7F3D0), Color(0xFF065F46))
-                                        "TENANT" -> Pair(Color(0xFFE0E7FF), Color(0xFF3730A3)) // Light indigo, dark indigo
-                                        "MANAGER" -> Pair(Color(0xFFFEE2E2), Color(0xFF991B1B)) // Light red, dark red
+                                    val (roleBg, roleColor) = when (member.roleDto) {
+                                        RoleDto.OWNER -> Pair(Color(0xFFA7F3D0), Color(0xFF065F46)) // Light emerald, dark emerald
+                                        RoleDto.ADMIN -> Pair(Color(0xFFA7F3D0), Color(0xFF065F46))
+                                        RoleDto.TENANT -> Pair(Color(0xFFE0E7FF), Color(0xFF3730A3)) // Light indigo, dark indigo
+                                        RoleDto.MANAGER -> Pair(Color(0xFFFEE2E2), Color(0xFF991B1B)) // Light red, dark red
                                         else -> Pair(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
                                     
@@ -343,7 +340,7 @@ fun MembersPage(viewModel: LoginViewModel) {
                                     ) {
                                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                             Text(
-                                                text = member.role,
+                                                text = member.roleDto.name,
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = roleColor,
                                                 modifier = Modifier.padding(horizontal = 10.dp)
@@ -358,7 +355,7 @@ fun MembersPage(viewModel: LoginViewModel) {
                                     contentAlignment = Alignment.Center
                                 ) {
                                     val (statusBg, statusColor) = when (member.status) {
-                                        "ACCEPTED" -> Pair(Color(0xFFD1FAE5), Color(0xFF065F46)) // Light green, dark green
+                                        InvitationStatusDto.ACCEPTED -> Pair(Color(0xFFD1FAE5), Color(0xFF065F46)) // Light green, dark green
                                         else -> Pair(Color(0xFFFEE2E2), Color(0xFF991B1B)) // Light red, dark red
                                     }
 
@@ -370,7 +367,7 @@ fun MembersPage(viewModel: LoginViewModel) {
                                     ) {
                                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                             Text(
-                                                text = member.status,
+                                                text = member.status.name,
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = statusColor,
                                                 modifier = Modifier.padding(horizontal = 8.dp)

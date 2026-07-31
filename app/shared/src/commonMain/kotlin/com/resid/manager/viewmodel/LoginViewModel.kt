@@ -10,8 +10,6 @@ import com.resid.manager.validation.AuthValidator
 import com.resid.manager.network.ApiClient
 import io.ktor.client.request.*
 import io.ktor.client.call.body
-import io.ktor.http.contentType
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 enum class AuthScreen {
@@ -54,7 +52,7 @@ data class LoginUiState(
     val showJoinResidenceDialog: Boolean = false,
     
     // Logements/Units state
-    val logements: List<LogementDto> = emptyList(),
+    val logements: List<UnitDto> = emptyList(),
     val showCreateLogementDialog: Boolean = false,
 
     // Real-time debounced search states for JoinResidence
@@ -66,7 +64,7 @@ data class LoginUiState(
     val leases: List<LeaseDto> = emptyList(),
 
     // Members list state
-    val members: List<ResidenceMemberSummary> = emptyList(),
+    val members: List<ResidenceMemberSummaryDto> = emptyList(),
 
     // Dark/Light theme state
     val darkMode: Boolean = false,
@@ -75,7 +73,7 @@ data class LoginUiState(
     val language: String = "fr",
 
     // Predefined equipments list
-    val availableEquipements: List<EquipementDto> = emptyList()
+    val availableEquipements: List<EquipmentDto> = emptyList()
 )
 
 sealed interface LoginIntent {
@@ -95,7 +93,7 @@ sealed interface LoginIntent {
     
     data class CreateLease(val logementId: String, val request: LeaseCreateRequest, val onSuccess: () -> Unit) : LoginIntent
     data class RecordLeasePayment(val leaseId: String, val amount: Double, val category: String, val onResult: (Result<LeaseDto>) -> Unit) : LoginIntent
-    data class UpdateLeaseStatus(val leaseId: String, val status: LeaseStatus, val onResult: (Result<LeaseDto>) -> Unit) : LoginIntent
+    data class UpdateLeaseStatus(val leaseId: String, val status: LeaseStatusDto, val onResult: (Result<LeaseDto>) -> Unit) : LoginIntent
     
     data class SearchResidences(val query: String) : LoginIntent
     data class NavigateToAppScreen(val screen: AppScreen) : LoginIntent
@@ -170,7 +168,7 @@ class LoginViewModel(
             is LoginIntent.NavigateToAppScreen -> navigateToAppScreen(intent.screen)
             is LoginIntent.SetShowCreateResidenceDialog -> setShowCreateResidenceDialog(intent.show)
             is LoginIntent.SetShowJoinResidenceDialog -> setShowJoinResidenceDialog(intent.show)
-            is LoginIntent.SetShowCreateLogementDialog -> setShowCreateLogementDialog(intent.show)
+            is LoginIntent.SetShowCreateLogementDialog -> setShowCreateUnitDialog(intent.show)
             is LoginIntent.ToggleTheme -> toggleTheme()
         }
     }
@@ -188,7 +186,7 @@ class LoginViewModel(
             try {
                 val response = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/equipements")
                 if (response.status == io.ktor.http.HttpStatusCode.OK) {
-                    val list = response.body<List<EquipementDto>>()
+                    val list = response.body<List<EquipmentDto>>()
                     updateState { it.copy(availableEquipements = list) }
                 }
             } catch (e: Exception) {}
@@ -237,7 +235,7 @@ class LoginViewModel(
             ) 
         }
     }
-    fun setShowCreateLogementDialog(show: Boolean) {
+    fun setShowCreateUnitDialog(show: Boolean) {
         updateState { it.copy(showCreateLogementDialog = show, errorMessage = null) }
     }
 
@@ -263,16 +261,11 @@ class LoginViewModel(
                             )
                         }
                         val associatedContexts = directory.associatedResidences.map {
-                            val roleEnum = try {
-                                UserRole.valueOf(it.role)
-                            } catch (e: Exception) {
-                                UserRole.TENANT
-                            }
                             ResidenceContext(
                                 residenceId = it.id,
                                 residenceName = it.name,
                                 residenceAddress = it.address,
-                                userRoleInResidence = roleEnum,
+                                userRoleInResidence = it.roleDto.convert(),
                                 totalUnits = it.totalUnits,
                                 currencySymbol = it.currencySymbol,
                                 currencyCode = it.currencyCode
@@ -585,7 +578,7 @@ class LoginViewModel(
         }
     }
 
-    fun updateLeaseStatus(leaseId: String, status: LeaseStatus, onResult: (Result<LeaseDto>) -> Unit) {
+    fun updateLeaseStatus(leaseId: String, status: LeaseStatusDto, onResult: (Result<LeaseDto>) -> Unit) {
         val token = uiState.value.jwtToken ?: return
         updateState { it.copy(isLoading = true, errorMessage = null) }
 

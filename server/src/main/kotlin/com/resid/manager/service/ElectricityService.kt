@@ -2,7 +2,7 @@ package com.resid.manager.service
 
 import com.resid.manager.data.*
 import com.resid.manager.dto.ElectricityStatementDto
-import com.resid.manager.dto.StatementStatus
+import com.resid.manager.dto.ElectricityStatusDto
 import org.jetbrains.exposed.sql.SortOrder
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -51,7 +51,7 @@ object ElectricityService {
             this.newIndex = newIndex
             this.kWhPriceApplied = kWhPriceApplied
             this.amountDue = amount
-            this.status = "UNPAID"
+            this.status = ElectricityStatus.UNPAID
             this.statementDate = parsedDate
             this.createdAt = LocalDateTime.now()
             this.updatedAt = LocalDateTime.now()
@@ -61,11 +61,11 @@ object ElectricityService {
         // 4. Insertion automatique de l'écriture correspondante dans la table FinancialTransactions
         FinancialTransaction.new {
             this.residence = dbLogement.residence
-            this.type = "INCOME"
-            this.category = "Electricity"
+            this.type = TransactionType.INCOME
+            this.category = TransactionCategory.ELECTRICITY
             this.amount = amount
             this.description = "Facture d'électricité relevé logement ${dbLogement.name} ($oldIndex -> $newIndex)"
-            this.relatedEntityType = "ELECTRICITY_STATEMENT"
+            this.relatedEntityType = EntityType.ELECTRICITY_STATEMENT
             this.relatedEntityId = statement.id.value
             this.transactionDate = LocalDate.now()
             this.createdAt = LocalDateTime.now()
@@ -80,7 +80,7 @@ object ElectricityService {
             kWhPriceApplied = statement.kWhPriceApplied,
             amountDue = statement.amountDue,
             statementDate = statement.statementDate.toString(),
-            status = StatementStatus.UNPAID,
+            status = ElectricityStatusDto.UNPAID,
             createdAt = statement.createdAt.toString(),
             updatedAt = statement.updatedAt.toString()
             )

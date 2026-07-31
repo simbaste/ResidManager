@@ -29,15 +29,15 @@ import kotlinx.coroutines.launch
 fun LeasesPage(viewModel: LoginViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val activeResidence = uiState.selectedResidenceContext
-    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.RESIDENCE_MANAGER)
+    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
 
     var showWizard by remember { mutableStateOf(false) }
     var selectedLeaseForDetail by remember { mutableStateOf<LeaseDto?>(null) }
 
     if (selectedLeaseForDetail != null) {
         val lease = selectedLeaseForDetail!!
-        val matchedLogement = uiState.logements.firstOrNull { it.id == lease.logementId }
-        val matchedLogementName = matchedLogement?.name ?: "Logement ${lease.logementId.take(5)}"
+        val matchedLogement = uiState.logements.firstOrNull { it.id == lease.unitId }
+        val matchedLogementName = matchedLogement?.name ?: "Logement ${lease.unitId.take(5)}"
         
         var paymentAmountText by remember { mutableStateOf("") }
         var localError by remember { mutableStateOf<String?>(null) }
@@ -74,9 +74,9 @@ fun LeasesPage(viewModel: LoginViewModel) {
 
                 // Header status badge
                 val (badgeBg, badgeColor, badgeText) = when (lease.status) {
-                    LeaseStatus.SIGNED_ACTIVE -> Triple(Color(0xFFE6F7F0), Color(0xFF006948), "ACTIF / LOGEMENT OCCUPÉ")
-                    LeaseStatus.PENDING_SIGNATURE -> Triple(Color(0xFFE0E7FF), Color(0xFF1E3A8A), "ATTENTE SIGNATURE")
-                    LeaseStatus.DOWN_PAYMENT_PAID -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "ACOMPTE ENREGISTRÉ (PARTIAL)")
+                    LeaseStatusDto.SIGNED_ACTIVE -> Triple(Color(0xFFE6F7F0), Color(0xFF006948), "ACTIF / LOGEMENT OCCUPÉ")
+                    LeaseStatusDto.PENDING_SIGNATURE -> Triple(Color(0xFFE0E7FF), Color(0xFF1E3A8A), "ATTENTE SIGNATURE")
+                    LeaseStatusDto.DOWN_PAYMENT_PAID -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "ACOMPTE ENREGISTRÉ (PARTIAL)")
                     else -> Triple(Color(0xFFFDE8E8), Color(0xFFBA1A1A), "ATTENTE DE VERSEMENT")
                 }
 
@@ -164,14 +164,14 @@ fun LeasesPage(viewModel: LoginViewModel) {
                                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                                 Card(
                                                     colors = CardDefaults.cardColors(
-                                                        containerColor = if (pay.category == "CAUTION") Color(0xFFFEF3C7) else Color(0xFFE0E7FF)
+                                                        containerColor = if (pay.category == LeaseCategory.DEPOSIT) Color(0xFFFEF3C7) else Color(0xFFE0E7FF)
                                                     ),
                                                     shape = RoundedCornerShape(4.dp)
                                                 ) {
                                                     Text(
-                                                        text = pay.category, 
+                                                        text = pay.category.name,
                                                         style = MaterialTheme.typography.labelSmall, 
-                                                        color = if (pay.category == "CAUTION") Color(0xFFD97706) else Color(0xFF1E3A8A),
+                                                        color = if (pay.category == LeaseCategory.DEPOSIT) Color(0xFFD97706) else Color(0xFF1E3A8A),
                                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                                     )
                                                 }
@@ -199,23 +199,23 @@ fun LeasesPage(viewModel: LoginViewModel) {
                         Text("Actions d'Administration", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         HorizontalDivider()
 
-                        val isTerminated = lease.status == LeaseStatus.TERMINATED
-                        val isLocked = lease.status == LeaseStatus.SIGNED_ACTIVE
+                        val isTerminated = lease.status == LeaseStatusDto.TERMINATED
+                        val isLocked = lease.status == LeaseStatusDto.SIGNED_ACTIVE
                         val isCautionExempt = lease.depositAmount == 0.0
 
-                        val isAnnual = lease.paymentFrequency == "ANNUAL"
+                        val isAnnual = lease.paymentFrequencyDto == PaymentFrequencyDto.ANNUAL
                         val rentMonthsRequired = if (isAnnual) 12 else lease.advanceMonths
                         val totalRequiredRent = rentMonthsRequired * lease.monthlyRentAtSign
 
-                        val totalPaidCaution = lease.payments.filter { it.category == "CAUTION" }.sumOf { it.amount }
-                        val totalPaidRent = lease.payments.filter { it.category == "LOYER" }.sumOf { it.amount }
+                        val totalPaidCaution = lease.payments.filter { it.category == LeaseCategory.DEPOSIT }.sumOf { it.amount }
+                        val totalPaidRent = lease.payments.filter { it.category == LeaseCategory.RENT }.sumOf { it.amount }
 
                         val remainingCaution = maxOf(0.0, lease.depositAmount - totalPaidCaution)
                         val remainingRent = maxOf(0.0, totalRequiredRent - totalPaidRent)
                         val totalRemaining = remainingCaution + remainingRent
 
-                        val isFullyPaid = lease.status == LeaseStatus.PENDING_SIGNATURE || lease.status == LeaseStatus.SIGNED_ACTIVE || lease.status == LeaseStatus.TERMINATED || totalRemaining <= 0.0
-                        val isReadyToSign = lease.status == LeaseStatus.PENDING_SIGNATURE || totalRemaining <= 0.0
+                        val isFullyPaid = lease.status == LeaseStatusDto.PENDING_SIGNATURE || lease.status == LeaseStatusDto.SIGNED_ACTIVE || lease.status == LeaseStatusDto.TERMINATED || totalRemaining <= 0.0
+                        val isReadyToSign = lease.status == LeaseStatusDto.PENDING_SIGNATURE || totalRemaining <= 0.0
 
                         // Display contract locked or current state progress
                         if (isTerminated) {
@@ -389,7 +389,7 @@ fun LeasesPage(viewModel: LoginViewModel) {
                                 )
                                 Button(
                                     onClick = {
-                                        viewModel.updateLeaseStatus(lease.id, LeaseStatus.SIGNED_ACTIVE) { res ->
+                                        viewModel.updateLeaseStatus(lease.id, LeaseStatusDto.SIGNED_ACTIVE) { res ->
                                             res.onSuccess {
                                                 selectedLeaseForDetail = it
                                                 localError = null
@@ -423,7 +423,7 @@ fun LeasesPage(viewModel: LoginViewModel) {
                 confirmButton = {
                     Button(
                         onClick = {
-                            viewModel.updateLeaseStatus(lease.id, LeaseStatus.TERMINATED) { res ->
+                            viewModel.updateLeaseStatus(lease.id, LeaseStatusDto.TERMINATED) { res ->
                                 res.onSuccess {
                                     selectedLeaseForDetail = it
                                     localError = null
@@ -453,8 +453,8 @@ fun LeasesPage(viewModel: LoginViewModel) {
         val filteredLeases = remember(uiState.leases, activeFilter) {
             val list = uiState.leases
             when (activeFilter) {
-                "ACTIVE" -> list.filter { it.status == LeaseStatus.SIGNED_ACTIVE }
-                "PENDING" -> list.filter { it.status == LeaseStatus.PENDING_PAYMENT || it.status == LeaseStatus.PENDING_SIGNATURE || it.status == LeaseStatus.DOWN_PAYMENT_PAID }
+                "ACTIVE" -> list.filter { it.status == LeaseStatusDto.SIGNED_ACTIVE }
+                "PENDING" -> list.filter { it.status == LeaseStatusDto.PENDING_PAYMENT || it.status == LeaseStatusDto.PENDING_SIGNATURE || it.status == LeaseStatusDto.DOWN_PAYMENT_PAID }
                 else -> list
             }
         }
@@ -536,17 +536,17 @@ fun LeasesPage(viewModel: LoginViewModel) {
                 }
             } else {
                 items(filteredLeases) { lease ->
-                    val matchedLogement = uiState.logements.firstOrNull { it.id == lease.logementId }?.name ?: "Logement ${lease.logementId.take(5)}"
+                    val matchedLogement = uiState.logements.firstOrNull { it.id == lease.unitId }?.name ?: "Logement ${lease.unitId.take(5)}"
                     val matchedTenant = uiState.members.firstOrNull { it.userId == lease.tenantId }
                     val tenantName = matchedTenant?.let { "${it.firstName} ${it.lastName}" } ?: "Inconnu"
 
                     // Custom colors based on lease status
                     val (badgeBg, badgeColor, badgeText) = when (lease.status) {
-                        LeaseStatus.SIGNED_ACTIVE -> Triple(Color(0xFFE0E7FF), Color(0xFF1E3A8A), "EN COURS")
-                        LeaseStatus.PENDING_SIGNATURE -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "EN ATTENTE SIGNATURE")
-                        LeaseStatus.PENDING_PAYMENT -> Triple(Color(0xFFFDE8E8), Color(0xFFBA1A1A), "EN ATTENTE PAIEMENT")
-                        LeaseStatus.DOWN_PAYMENT_PAID -> Triple(Color(0xFFE6F7F0), Color(0xFF006948), "DOWN_PAYMENT_PAID")
-                        LeaseStatus.TERMINATED -> Triple(Color(0xFFF1F5F9), Color(0xFF475569), "TERMINÉ")
+                        LeaseStatusDto.SIGNED_ACTIVE -> Triple(Color(0xFFE0E7FF), Color(0xFF1E3A8A), "EN COURS")
+                        LeaseStatusDto.PENDING_SIGNATURE -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "EN ATTENTE SIGNATURE")
+                        LeaseStatusDto.PENDING_PAYMENT -> Triple(Color(0xFFFDE8E8), Color(0xFFBA1A1A), "EN ATTENTE PAIEMENT")
+                        LeaseStatusDto.DOWN_PAYMENT_PAID, LeaseStatusDto.PARTIALLY_PAID -> Triple(Color(0xFFE6F7F0), Color(0xFF006948), "ACOMPTE ENREGISTRÉ")
+                        LeaseStatusDto.TERMINATED -> Triple(Color(0xFFF1F5F9), Color(0xFF475569), "TERMINÉ")
                     }
 
                     Card(
@@ -833,7 +833,7 @@ fun LeaseWizardDialog(
                     WizardStep.UNIT -> {
                         Text("Étape 2 sur 4 : Sélection du Logement", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         
-                        val availableLogements = uiState.logements.filter { it.status == "AVAILABLE" }
+                        val availableLogements = uiState.logements.filter { it.status == UnitStatusDto.AVAILABLE }
 
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             if (availableLogements.isEmpty()) {

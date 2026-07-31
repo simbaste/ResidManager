@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 fun ProfilePage(viewModel: LoginViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val activeResidence = uiState.selectedResidenceContext
-    val isManagement = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.RESIDENCE_MANAGER)
+    val isManagement = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
 
     var activeTab by remember { mutableStateOf(0) } // 0: Profil, 1: Configuration Résidence
 

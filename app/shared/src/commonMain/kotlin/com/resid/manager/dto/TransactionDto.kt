@@ -3,16 +3,12 @@ package com.resid.manager.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class TransactionType {
-    RENT_REVENUE,
-    ELECTRICITY_REVENUE,
-    OPERATIONAL_EXPENSE,
-    MAINTENANCE_EXPENSE,
-    OTHER
+enum class TransactionTypeDto {
+    INCOME, EXPENSE
 }
 
 @Serializable
-enum class TransactionStatus {
+enum class TransactionStatusDto {
     UNPAID,
     PAID,
     CANCELLED
@@ -24,11 +20,11 @@ data class TransactionDto(
     val residenceId: String,
     val logementId: String?,
     val leaseId: String?,
-    val type: TransactionType,
+    val type: TransactionTypeDto,
     val amount: Double,
     val description: String,
     val transactionDate: String,
-    val status: TransactionStatus,
+    val status: TransactionStatusDto,
     val createdAt: String,
     val updatedAt: String
 )
@@ -38,9 +34,9 @@ data class TransactionCreateRequest(
     val residenceId: String,
     val logementId: String?,
     val leaseId: String?,
-    val type: TransactionType,
+    val type: TransactionTypeDto,
     val amount: Double,
     val description: String,
     val transactionDate: String,
-    val status: TransactionStatus = TransactionStatus.UNPAID
+    val status: TransactionStatusDto = TransactionStatusDto.UNPAID
 )

@@ -15,7 +15,7 @@ object TicketService {
         categoryId: UUID,
         title: String,
         description: String,
-        urgency: TicketUrgency
+        urgency: TicketUrgencyDto
     ): TicketDto {
         // 1. Role validation
         val dbLogement = Logement.findById(logementId) ?: throw Exception("Logement introuvable.")
@@ -24,15 +24,15 @@ object TicketService {
         
         // Find role in residence members
         val memberRole = ResidenceMembers
-            .select(ResidenceMembers.role)
+            .select(ResidenceMembers.roleDto)
             .where { 
                 (ResidenceMembers.userId eq creatorId) and 
                 (ResidenceMembers.residenceId eq dbLogement.residence.id.value) 
             }
-            .map { it[ResidenceMembers.role] }
+            .map { it[ResidenceMembers.roleDto] }
             .firstOrNull() ?: throw Exception("Accès interdit : vous ne faites pas partie de cette résidence.")
 
-        val isAuthorized = when (memberRole.uppercase()) {
+        val isAuthorized = when (memberRole.name.uppercase()) {
             "OWNER", "ADMIN", "MANAGER", "STAFF" -> true
             "TENANT" -> {
                 // Tenant is only allowed if they have an active lease on this logement
@@ -41,7 +41,7 @@ object TicketService {
                     .where {
                         (Baux.logementId eq logementId) and 
                         (Baux.tenantId eq creatorId) and 
-                        (Baux.status eq "SIGNED_ACTIVE")
+                        (Baux.status eq LeaseStatus.SIGNED_ACTIVE)
                     }
                     .count()
                 activeLeaseCount > 0
@@ -60,8 +60,8 @@ object TicketService {
             this.category = dbCategory
             this.title = title
             this.description = description
-            this.urgency = urgency.name
-            this.status = "OPEN"
+            this.urgency = urgency.convert()
+            this.status = TicketStatus.OPEN
             this.interventionCost = 0.0
             this.createdAt = LocalDateTime.now()
             this.updatedAt = LocalDateTime.now()
@@ -81,7 +81,7 @@ object TicketService {
             title = ticket.title,
             description = ticket.description,
             urgency = urgency,
-            status = TicketStatus.OPEN,
+            status = TicketStatusDto.OPEN,
             interventionCost = ticket.interventionCost,
             createdAt = ticket.createdAt.toString(),
             updatedAt = ticket.updatedAt.toString()
@@ -90,35 +90,35 @@ object TicketService {
 
     fun updateTicketStatus(
         ticketId: UUID,
-        newStatus: TicketStatus,
+        newStatus: TicketStatusDto,
         cost: Double?,
         comment: String?,
         updaterUserId: UUID
     ): TicketDto {
         val ticket = Ticket.findById(ticketId) ?: throw Exception("Ticket de maintenance introuvable.")
-        val previousStatus = TicketStatus.valueOf(ticket.status)
+        val previousStatus = ticket.status.convert()
 
         // Validate state transition flow: OPEN -> IN_PROGRESS -> CLOSED
-        if (newStatus == TicketStatus.IN_PROGRESS && previousStatus != TicketStatus.OPEN) {
+        if (newStatus == TicketStatusDto.IN_PROGRESS && previousStatus != TicketStatusDto.OPEN) {
             throw IllegalArgumentException("Transition impossible : un ticket ne peut passer à IN_PROGRESS que s'il est au statut OPEN.")
         }
-        if (newStatus == TicketStatus.CLOSED && previousStatus != TicketStatus.IN_PROGRESS) {
+        if (newStatus == TicketStatusDto.CLOSED && previousStatus != TicketStatusDto.IN_PROGRESS) {
             throw IllegalArgumentException("Transition impossible : un ticket ne peut passer à CLOSED que s'il est au statut IN_PROGRESS.")
         }
 
         // Role check for transition to CLOSED
         val memberRole = ResidenceMembers
-            .select(ResidenceMembers.role)
+            .select(ResidenceMembers.roleDto)
             .where { 
                 (ResidenceMembers.userId eq updaterUserId) and 
                 (ResidenceMembers.residenceId eq ticket.logement.residence.id.value) 
             }
-            .map { it[ResidenceMembers.role] }
+            .map { it[ResidenceMembers.roleDto] }
             .firstOrNull() ?: throw Exception("Accès interdit : membre introuvable.")
 
-        if (newStatus == TicketStatus.CLOSED) {
-            val isAllowedToClose = when (memberRole.uppercase()) {
-                "MANAGER", "ADMIN", "OWNER" -> true
+        if (newStatus == TicketStatusDto.CLOSED) {
+            val isAllowedToClose = when (memberRole) {
+                Role.MANAGER, Role.ADMIN, Role.OWNER -> true
                 else -> false
             }
 
@@ -138,12 +138,12 @@ object TicketService {
 
             FinancialTransaction.new {
                 this.residence = ticket.logement.residence
-                this.type = "EXPENSE"
-                this.category = "Maintenance"
+                this.type = TransactionType.EXPENSE
+                this.category = TransactionCategory.MAINTENANCE
                 this.amount = cost
                 this.description = "Frais de maintenance - Ticket #${ticket.title} (Status: ${newStatus.name}) " + 
                     if (!comment.isNullOrBlank()) "- $comment" else ""
-                this.relatedEntityType = "TICKET"
+                this.relatedEntityType = EntityType.TICKET
                 this.relatedEntityId = ticket.id.value
                 this.transactionDate = LocalDate.now()
                 this.createdAt = LocalDateTime.now()
@@ -151,7 +151,7 @@ object TicketService {
             }
         }
 
-        ticket.status = newStatus.name
+        ticket.status = newStatus.convert()
         ticket.updatedAt = LocalDateTime.now()
         ticket.flush()
 
@@ -167,7 +167,7 @@ object TicketService {
             ),
             title = ticket.title,
             description = ticket.description,
-            urgency = TicketUrgency.valueOf(ticket.urgency),
+            urgency = ticket.urgency.convert(),
             status = newStatus,
             interventionCost = ticket.interventionCost,
             createdAt = ticket.createdAt.toString(),

@@ -1,18 +1,15 @@
 package com.resid.manager.ui
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.resid.manager.dto.LogementDto
+import com.resid.manager.dto.UnitDto
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceSummaryItem
 import com.resid.manager.viewmodel.LoginViewModel
@@ -294,7 +291,7 @@ fun CreateLogementDialog(
 @Composable
 fun EditLogementDialog(
     viewModel: LoginViewModel,
-    logement: LogementDto,
+    logement: UnitDto,
     onDismiss: () -> Unit,
     onSubmit: (String, String, String, Double, Double, Double, List<String>) -> Unit
 ) {
@@ -305,7 +302,7 @@ fun EditLogementDialog(
     var nominalRent by remember { mutableStateOf(logement.nominalRent.toString()) }
     var serviceCharges by remember { mutableStateOf(logement.serviceCharges.toString()) }
     var initialElectricityIndex by remember { mutableStateOf(logement.initialElectricityIndex.toString()) }
-    var selectedEquipements by remember { mutableStateOf(logement.equipements.map { it.id }.toSet()) }
+    var selectedEquipements by remember { mutableStateOf(logement.equipments.map { it.id }.toSet()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,

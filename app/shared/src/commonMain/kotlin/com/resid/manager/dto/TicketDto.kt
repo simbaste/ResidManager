@@ -3,7 +3,7 @@ package com.resid.manager.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class TicketStatus {
+enum class TicketStatusDto {
     OPEN,
     IN_PROGRESS,
     CLOSED
@@ -18,7 +18,7 @@ data class TicketCategoryDto(
 )
 
 @Serializable
-enum class TicketUrgency {
+enum class TicketUrgencyDto {
     LOW,
     MEDIUM,
     CRITICAL
@@ -32,8 +32,8 @@ data class TicketDto(
     val category: TicketCategoryDto,
     val title: String,
     val description: String,
-    val urgency: TicketUrgency,
-    val status: TicketStatus,
+    val urgency: TicketUrgencyDto,
+    val status: TicketStatusDto,
     val interventionCost: Double,
     val createdAt: String,
     val updatedAt: String
@@ -45,12 +45,12 @@ data class TicketCreateRequest(
     val categoryId: String, // foreign key id of selected category
     val title: String,
     val description: String,
-    val urgency: TicketUrgency
+    val urgency: TicketUrgencyDto
 )
 
 @Serializable
 data class TicketUpdateRequest(
-    val status: TicketStatus? = null,
+    val status: TicketStatusDto? = null,
     val interventionCost: Double? = null,
     val comment: String? = null
 )

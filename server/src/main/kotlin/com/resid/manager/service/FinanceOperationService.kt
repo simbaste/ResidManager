@@ -11,7 +11,7 @@ object FinanceOperationService {
 
     fun recordExpense(
         residenceId: UUID,
-        category: String,
+        categoryName: String,
         amount: Double,
         description: String,
         date: LocalDate
@@ -21,7 +21,10 @@ object FinanceOperationService {
             throw IllegalArgumentException("Le montant doit être strictement supérieur à 0.")
         }
 
-        val validCategories = listOf("Cleaning", "Fuel", "Security", "Maintenance", "Taxes", "Other")
+        val category = TransactionCategory.valueOf(categoryName)
+        val validCategories = listOf(TransactionCategory.CLEANING, TransactionCategory.FUEL,
+            TransactionCategory.SECURITY, TransactionCategory.MAINTENANCE, TransactionCategory.TAXES,
+            TransactionCategory.OTHER)
         if (!validCategories.contains(category)) {
             throw IllegalArgumentException("Catégorie invalide. Choix possibles : $validCategories")
         }
@@ -31,7 +34,7 @@ object FinanceOperationService {
         // 2. Insertion
         val tx = FinancialTransaction.new {
             this.residence = dbResidence
-            this.type = "EXPENSE"
+            this.type = TransactionType.EXPENSE
             this.category = category
             this.amount = amount
             this.description = description
@@ -46,11 +49,11 @@ object FinanceOperationService {
         return FinanceTransactionDto(
             id = tx.id.value.toString(),
             residenceId = tx.residence.id.value.toString(),
-            type = tx.type,
-            category = tx.category,
+            type = tx.type.convert(),
+            category = tx.category.convert(),
             amount = tx.amount,
             description = tx.description,
-            relatedEntityType = tx.relatedEntityType,
+            relatedEntityType = tx.relatedEntityType?.convert(),
             relatedEntityId = tx.relatedEntityId?.toString(),
             transactionDate = tx.transactionDate.toString(),
             createdAt = tx.createdAt.toString()
@@ -69,14 +72,14 @@ object FinanceOperationService {
             .where { FinancialTransactions.residenceId eq residenceId }
 
         // Filter by flow type (INCOME or EXPENSE)
-        typeParam?.ifBlank { null }?.let { type ->
-            if (type.uppercase() == "INCOME" || type.uppercase() == "EXPENSE") {
-                query = query.andWhere { FinancialTransactions.type eq type.uppercase() }
+        typeParam?.ifBlank { null }?.let { TransactionType.valueOf(it.uppercase()) }?.let { type ->
+            if (type == TransactionType.INCOME || type == TransactionType.EXPENSE) {
+                query = query.andWhere { FinancialTransactions.type eq type }
             }
         }
 
         // Filter by category
-        categoryParam?.ifBlank { null }?.let { cat ->
+        categoryParam?.ifBlank { null }?.let { TransactionCategory.valueOf(it.uppercase()) }?.let { cat ->
             query = query.andWhere { FinancialTransactions.category eq cat }
         }
 
@@ -99,11 +102,11 @@ object FinanceOperationService {
             FinanceTransactionDto(
                 id = row[FinancialTransactions.id].value.toString(),
                 residenceId = row[FinancialTransactions.residenceId].value.toString(),
-                type = row[FinancialTransactions.type],
-                category = row[FinancialTransactions.category],
+                type = row[FinancialTransactions.type].convert(),
+                category = row[FinancialTransactions.category].convert(),
                 amount = row[FinancialTransactions.amount],
                 description = row[FinancialTransactions.description],
-                relatedEntityType = row[FinancialTransactions.relatedEntityType],
+                relatedEntityType = row[FinancialTransactions.relatedEntityType]?.convert(),
                 relatedEntityId = row[FinancialTransactions.relatedEntityId]?.toString(),
                 transactionDate = row[FinancialTransactions.transactionDate].toString(),
                 createdAt = row[FinancialTransactions.createdAt].toString()

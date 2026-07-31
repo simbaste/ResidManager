@@ -124,7 +124,7 @@ fun Application.configureAppRoutes() {
             try {
                 val list = transaction {
                     Equipement.all().map {
-                        EquipementDto(id = it.id.value.toString(), key = it.key, label = it.label)
+                        EquipmentDto(id = it.id.value.toString(), key = it.key, label = it.label)
                     }
                 }
                 call.respond(HttpStatusCode.OK, list)
@@ -163,7 +163,7 @@ fun Application.configureAppRoutes() {
                             kWhPriceApplied = it.kWhPriceApplied,
                             amountDue = it.amountDue,
                             statementDate = it.statementDate.toString(),
-                            status = if (it.status == "PAID") StatementStatus.PAID else StatementStatus.UNPAID,
+                            status = it.status.convert(),
                             createdAt = it.createdAt.toString(),
                             updatedAt = it.updatedAt.toString()
                         )
@@ -281,11 +281,11 @@ fun Application.configureAppRoutes() {
                     val directoryDto = transaction {
                         // 1. Query owned residences (where role is m.role = 'OWNER')
                         val ownedList = Residence.all().filter { res ->
-                            ResidenceMembers.select(ResidenceMembers.role).where {
+                            ResidenceMembers.select(ResidenceMembers.roleDto).where {
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and
                                 (ResidenceMembers.residenceId eq res.id.value) and
-                                (ResidenceMembers.role eq "OWNER") and
-                                (ResidenceMembers.status eq "ACCEPTED")
+                                (ResidenceMembers.roleDto eq Role.OWNER) and
+                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }.count() > 0
                         }.map { res ->
                             val totalUnits = Logement.find { Logements.residenceId eq res.id.value }.count()
@@ -302,17 +302,17 @@ fun Application.configureAppRoutes() {
 
                         // 2. Query associated residences (where role is not m.role = 'OWNER')
                         val associatedList = Residence.all().filter { res ->
-                            ResidenceMembers.select(ResidenceMembers.role).where {
+                            ResidenceMembers.select(ResidenceMembers.roleDto).where {
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and
                                 (ResidenceMembers.residenceId eq res.id.value) and
-                                (ResidenceMembers.role neq "OWNER") and
-                                (ResidenceMembers.status eq "ACCEPTED")
+                                (ResidenceMembers.roleDto neq Role.OWNER) and
+                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }.count() > 0
                         }.map { res ->
-                            val roleStr = ResidenceMembers.select(ResidenceMembers.role).where {
+                            val role = ResidenceMembers.select(ResidenceMembers.roleDto).where {
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and
                                 (ResidenceMembers.residenceId eq res.id.value)
-                            }.map { it[ResidenceMembers.role] }.first()
+                            }.map { it[ResidenceMembers.roleDto] }.first()
                             
                             val totalUnits = Logement.find { Logements.residenceId eq res.id.value }.count()
                             AssociatedResidenceItem(
@@ -320,7 +320,7 @@ fun Application.configureAppRoutes() {
                                 name = res.name,
                                 address = res.address,
                                 photoUrl = res.photoUrl,
-                                role = roleStr,
+                                roleDto = role.convert(),
                                 totalUnits = totalUnits.toInt(),
                                 currencySymbol = res.currency.symbol,
                                 currencyCode = res.currency.code
@@ -369,8 +369,8 @@ fun Application.configureAppRoutes() {
                         ResidenceMembers.insert {
                             it[ResidenceMembers.userId] = UUID.fromString(userId)
                             it[ResidenceMembers.residenceId] = r.id.value
-                            it[ResidenceMembers.role] = "OWNER"
-                            it[ResidenceMembers.status] = "ACCEPTED"
+                            it[ResidenceMembers.roleDto] = Role.OWNER
+                            it[ResidenceMembers.status] = InvitationStatus.ACCEPTED
                             it[ResidenceMembers.createdAt] = LocalDateTime.now()
                         }
                         r
@@ -405,16 +405,16 @@ fun Application.configureAppRoutes() {
                     // 1. Verify that the caller is the OWNER of this residence
                     val userRole = transaction {
                         ResidenceMembers
-                            .select(ResidenceMembers.role)
+                            .select(ResidenceMembers.roleDto)
                             .where { 
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and 
                                 (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq "ACCEPTED") 
+                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }
-                            .singleOrNull()?.get(ResidenceMembers.role)
+                            .singleOrNull()?.get(ResidenceMembers.roleDto)
                     }
 
-                    if (userRole == null || userRole != "OWNER") {
+                    if (userRole?.isOwner() != true) {
                         call.respond(
                             HttpStatusCode.Forbidden, 
                             ErrorResponse("Accès interdit: Seuls les propriétaires de cette résidence (OWNER) peuvent la supprimer.")
@@ -481,16 +481,16 @@ fun Application.configureAppRoutes() {
                     // Check if sender is OWNER or ADMIN
                     val userRole = transaction {
                         ResidenceMembers
-                            .select(ResidenceMembers.role)
+                            .select(ResidenceMembers.roleDto)
                             .where { 
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and 
                                 (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq "ACCEPTED") 
+                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }
-                            .singleOrNull()?.get(ResidenceMembers.role)
+                            .singleOrNull()?.get(ResidenceMembers.roleDto)
                     }
 
-                    if (userRole == null || (userRole != "OWNER" && userRole != "ADMIN")) {
+                    if (userRole?.isAdmin() != true) {
                         call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit: Seuls les propriétaires et administrateurs peuvent modifier cette résidence."))
                         return@put
                     }
@@ -584,8 +584,8 @@ fun Application.configureAppRoutes() {
                         ResidenceMembers.insert {
                             it[ResidenceMembers.userId] = UUID.fromString(userId)
                             it[ResidenceMembers.residenceId] = UUID.fromString(residenceId)
-                            it[ResidenceMembers.role] = "TENANT"
-                            it[ResidenceMembers.status] = "PENDING_APPROVAL"
+                            it[ResidenceMembers.roleDto] = Role.TENANT
+                            it[ResidenceMembers.status] = InvitationStatus.PENDING_APPROVAL
                             it[ResidenceMembers.createdAt] = LocalDateTime.now()
                         }
                     }
@@ -608,16 +608,16 @@ fun Application.configureAppRoutes() {
                     // Check if sender is OWNER or ADMIN
                     val userRole = transaction {
                         ResidenceMembers
-                            .select(ResidenceMembers.role)
+                            .select(ResidenceMembers.roleDto)
                             .where { 
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and 
                                 (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq "ACCEPTED") 
+                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }
-                            .singleOrNull()?.get(ResidenceMembers.role)
+                            .singleOrNull()?.get(ResidenceMembers.roleDto)
                     }
 
-                    if (userRole == null || (userRole != "OWNER" && userRole != "ADMIN")) {
+                    if (userRole?.isAdmin() != true) {
                         call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit: Seuls les propriétaires et administrateurs peuvent inviter des membres."))
                         return@post
                     }
@@ -639,8 +639,8 @@ fun Application.configureAppRoutes() {
                         ResidenceMembers.insert {
                             it[ResidenceMembers.userId] = invitedUser.id.value
                             it[ResidenceMembers.residenceId] = UUID.fromString(residenceId)
-                            it[ResidenceMembers.role] = request.role
-                            it[ResidenceMembers.status] = "INVITED"
+                            it[ResidenceMembers.roleDto] = Role.valueOf(request.role)
+                            it[ResidenceMembers.status] = InvitationStatus.INVITED
                             it[ResidenceMembers.createdAt] = LocalDateTime.now()
                         }
                     }
@@ -665,16 +665,16 @@ fun Application.configureAppRoutes() {
                     // Check if sender is OWNER or ADMIN
                     val userRole = transaction {
                         ResidenceMembers
-                            .select(ResidenceMembers.role)
+                            .select(ResidenceMembers.roleDto)
                             .where { 
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and 
                                 (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq "ACCEPTED") 
+                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }
-                            .singleOrNull()?.get(ResidenceMembers.role)
+                            .singleOrNull()?.get(ResidenceMembers.roleDto)
                     }
 
-                    if (userRole == null || (userRole != "OWNER" && userRole != "ADMIN")) {
+                    if (userRole?.isAdmin() != true) {
                         call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit: Seuls les propriétaires et administrateurs peuvent accepter/modifier les membres."))
                         return@post
                     }
@@ -686,10 +686,10 @@ fun Application.configureAppRoutes() {
                             (ResidenceMembers.userId eq UUID.fromString(targetUserId)) and 
                             (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) 
                         }) {
-                            it[status] = request.status
+                            it[status] = InvitationStatus.valueOf(request.status)
                             val newRole = request.role
                             if (newRole != null) {
-                                it[role] = newRole
+                                it[roleDto] = Role.valueOf(newRole)
                             }
                         }
                     }
@@ -716,7 +716,7 @@ fun Application.configureAppRoutes() {
                     // 1. Fetch the target member's current status and role
                     val existingMember = transaction {
                         ResidenceMembers
-                            .select(ResidenceMembers.status, ResidenceMembers.role)
+                            .select(ResidenceMembers.status, ResidenceMembers.roleDto)
                             .where { 
                                 (ResidenceMembers.userId eq UUID.fromString(targetUserId)) and 
                                 (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) 
@@ -743,7 +743,7 @@ fun Application.configureAppRoutes() {
                             (ResidenceMembers.userId eq UUID.fromString(targetUserId)) and 
                             (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) 
                         }) {
-                            it[status] = request.status
+                            it[status] = InvitationStatus.valueOf(request.status)
                         }
                     }
 
@@ -770,13 +770,13 @@ fun Application.configureAppRoutes() {
                     val users = transaction {
                         if (residenceId.isNotBlank()) {
                             (Users innerJoin ResidenceMembers)
-                                .select(Users.id, Users.firstName, Users.lastName, Users.email, ResidenceMembers.role)
+                                .select(Users.id, Users.firstName, Users.lastName, Users.email, ResidenceMembers.roleDto)
                                 .where {
                                     ((Users.email like "%$query%") or
                                         (Users.firstName like "%$query%") or
                                         (Users.lastName like "%$query%")) and
                                      ((ResidenceMembers.residenceId eq UUID.fromString(residenceId)) or
-                                        (ResidenceMembers.role like  role))
+                                        (ResidenceMembers.roleDto eq Role.valueOf(role)))
                                 }
                                 .withDistinct()
                                 .map { row ->
@@ -784,7 +784,7 @@ fun Application.configureAppRoutes() {
                                         id = row[Users.id].value.toString(),
                                         email = row[Users.email],
                                         name = "${row[Users.firstName]} ${row[Users.lastName]}",
-                                        role = row[ResidenceMembers.role]
+                                        roleDto = row[ResidenceMembers.roleDto].convert()
                                     )
                                 }
                         } else {
@@ -824,7 +824,7 @@ fun Application.configureAppRoutes() {
                             .where { 
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and 
                                 (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq "ACCEPTED") 
+                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }
                             .empty()
                     }
@@ -843,19 +843,19 @@ fun Application.configureAppRoutes() {
                                 Users.lastName,
                                 Users.email,
                                 Users.phone,
-                                ResidenceMembers.role,
+                                ResidenceMembers.roleDto,
                                 ResidenceMembers.status
                             )
                             .where { ResidenceMembers.residenceId eq UUID.fromString(residenceId) }
                             .map { row ->
-                                ResidenceMemberSummary(
+                                ResidenceMemberSummaryDto(
                                     userId = row[Users.id].value.toString(),
                                     firstName = row[Users.firstName],
                                     lastName = row[Users.lastName],
                                     email = row[Users.email],
                                     phone = row[Users.phone],
-                                    role = row[ResidenceMembers.role],
-                                    status = row[ResidenceMembers.status]
+                                    roleDto = row[ResidenceMembers.roleDto].convert(),
+                                    status = row[ResidenceMembers.status].convert()
                                 )
                             }
                     }
@@ -878,9 +878,14 @@ fun Application.configureAppRoutes() {
                 try {
                     // Check if member exists in residence_members
                     val isMember = transaction {
-                        exec("SELECT 1 FROM residence_members WHERE user_id = '$userId'::uuid AND residence_id = '$residenceId'::uuid AND status = 'ACCEPTED'") { rs ->
-                            rs.next()
-                        } ?: false
+                        !ResidenceMembers
+                            .select(ResidenceMembers.userId)
+                            .where {
+                                (ResidenceMembers.userId eq UUID.fromString(userId)) and
+                                ((ResidenceMembers.residenceId) eq UUID.fromString(residenceId)) and
+                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
+                            }
+                            .empty()
                     }
 
                     if (!isMember) {
@@ -890,7 +895,7 @@ fun Application.configureAppRoutes() {
 
                     val list = transaction {
                         Logement.find { Logements.residenceId eq UUID.fromString(residenceId) }.map {
-                            LogementDto(
+                            UnitDto(
                                 id = it.id.value.toString(),
                                 residenceId = it.residence.id.value.toString(),
                                 name = it.name,
@@ -899,9 +904,9 @@ fun Application.configureAppRoutes() {
                                 nominalRent = it.nominalRent,
                                 serviceCharges = it.serviceCharges,
                                 initialElectricityIndex = it.initialElectricityIndex,
-                                status = it.status,
-                                equipements = it.equipements.map { eq ->
-                                    EquipementDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
+                                status = it.status.convert(),
+                                equipments = it.equipements.map { eq ->
+                                    EquipmentDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
                                 }
                             )
                         }
@@ -925,12 +930,17 @@ fun Application.configureAppRoutes() {
                 try {
                     // Verify if calling user has ADMIN or RESIDENCE_MANAGER role inside residence_members
                     val userRole = transaction {
-                        exec("SELECT role FROM residence_members WHERE user_id = '$userId'::uuid AND residence_id = '$residenceId'::uuid AND status = 'ACCEPTED'") { rs ->
-                            if (rs.next()) rs.getString(1) else null
-                        }
+                        ResidenceMembers
+                            .select(ResidenceMembers.roleDto)
+                            .where {
+                                (ResidenceMembers.userId eq UUID.fromString(userId)) and
+                                        (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and
+                                        (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
+                            }
+                            .singleOrNull()?.get(ResidenceMembers.roleDto)
                     }
 
-                    if (userRole == null || (userRole != "OWNER" && userRole != "ADMIN" && userRole != "RESIDENCE_MANAGER")) {
+                    if (userRole?.isManager() != true) {
                         call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit : Seuls les administrateurs et gestionnaires de cette résidence peuvent ajouter des logements."))
                         return@post
                     }
@@ -960,7 +970,7 @@ fun Application.configureAppRoutes() {
                             initialElectricityIndex = request.initialElectricityIndex
                             createdAt = LocalDateTime.now()
                             updatedAt = LocalDateTime.now()
-                            status = "AVAILABLE" // Forced initial business state
+                            status = UnitStatus.AVAILABLE // Forced initial business state
                         }
 
                         // Attach selected equipments
@@ -973,7 +983,7 @@ fun Application.configureAppRoutes() {
 
                         newLogement.flush()
 
-                        LogementDto(
+                        UnitDto(
                             id = newLogement.id.value.toString(),
                             residenceId = newLogement.residence.id.value.toString(),
                             name = newLogement.name,
@@ -982,9 +992,9 @@ fun Application.configureAppRoutes() {
                             nominalRent = newLogement.nominalRent,
                             serviceCharges = newLogement.serviceCharges,
                             initialElectricityIndex = newLogement.initialElectricityIndex,
-                            status = newLogement.status,
-                            equipements = newLogement.equipements.map { eq ->
-                                EquipementDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
+                            status = newLogement.status.convert(),
+                            equipments = newLogement.equipements.map { eq ->
+                                EquipmentDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
                             }
                         )
                     }
@@ -1009,16 +1019,16 @@ fun Application.configureAppRoutes() {
                     // Check user roles: OWNER, ADMIN, RESIDENCE_MANAGER
                     val userRole = transaction {
                         ResidenceMembers
-                            .select(ResidenceMembers.role)
+                            .select(ResidenceMembers.roleDto)
                             .where { 
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and 
                                 (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq "ACCEPTED") 
+                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }
-                            .singleOrNull()?.get(ResidenceMembers.role)
+                            .singleOrNull()?.get(ResidenceMembers.roleDto)
                     }
 
-                    if (userRole == null || (userRole != "OWNER" && userRole != "ADMIN" && userRole != "RESIDENCE_MANAGER")) {
+                    if (userRole?.isManager() != true) {
                         call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit : Seuls les administrateurs et gestionnaires peuvent supprimer des logements."))
                         return@delete
                     }
@@ -1048,16 +1058,16 @@ fun Application.configureAppRoutes() {
                     // Check user roles: OWNER, ADMIN, RESIDENCE_MANAGER
                     val userRole = transaction {
                         ResidenceMembers
-                            .select(ResidenceMembers.role)
+                            .select(ResidenceMembers.roleDto)
                             .where { 
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and 
                                 (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq "ACCEPTED") 
+                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }
-                            .singleOrNull()?.get(ResidenceMembers.role)
+                            .singleOrNull()?.get(ResidenceMembers.roleDto)
                     }
 
-                    if (userRole == null || (userRole != "OWNER" && userRole != "ADMIN" && userRole != "RESIDENCE_MANAGER")) {
+                    if (userRole?.isManager() != true) {
                         call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit : Seuls les administrateurs et gestionnaires peuvent modifier des logements."))
                         return@put
                     }
@@ -1093,7 +1103,7 @@ fun Application.configureAppRoutes() {
 
                         dbLogement.flush()
 
-                        LogementDto(
+                        UnitDto(
                             id = dbLogement.id.value.toString(),
                             residenceId = dbLogement.residence.id.value.toString(),
                             name = dbLogement.name,
@@ -1102,9 +1112,9 @@ fun Application.configureAppRoutes() {
                             nominalRent = dbLogement.nominalRent,
                             serviceCharges = dbLogement.serviceCharges,
                             initialElectricityIndex = dbLogement.initialElectricityIndex,
-                            status = dbLogement.status,
-                            equipements = dbLogement.equipements.map { eq ->
-                                EquipementDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
+                            status = dbLogement.status.convert(),
+                            equipments = dbLogement.equipements.map { eq ->
+                                EquipmentDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
                             }
                         )
                     }
@@ -1133,7 +1143,7 @@ fun Application.configureAppRoutes() {
                         val dbLogement = Logement.findById(UUID.fromString(logementId)) 
                             ?: throw Exception("Logement introuvable.")
                         
-                        if (dbLogement.status != "AVAILABLE") {
+                        if (dbLogement.status != UnitStatus.AVAILABLE) {
                             throw Exception("Ce logement n'est plus disponible pour une location.")
                         }
 
@@ -1165,8 +1175,8 @@ fun Application.configureAppRoutes() {
                                 ResidenceMembers.insert {
                                     it[userId] = newUser.id.value
                                     it[residenceId] = dbLogement.residence.id.value
-                                    it[role] = "TENANT"
-                                    it[status] = "ACCEPTED"
+                                    it[roleDto] = Role.TENANT
+                                    it[status] = InvitationStatus.ACCEPTED
                                     it[createdAt] = LocalDateTime.now()
                                 }
                                 newUser
@@ -1180,7 +1190,7 @@ fun Application.configureAppRoutes() {
                             .select(Baux.id)
                             .where { 
                                 (Baux.tenantId eq dbTenant.id.value) and 
-                                (Baux.status neq "TERMINATED") 
+                                (Baux.status neq LeaseStatus.TERMINATED)
                             }
                             .count() > 0
 
@@ -1189,7 +1199,8 @@ fun Application.configureAppRoutes() {
                         }
 
                         // 4. Calculate Total Requirement and Initial Status based on Advanced Payments
-                        val isMonthly = request.paymentFrequency == "MONTHLY"
+                        val paymentFrequencyDto = PaymentFrequency.valueOf(request.paymentFrequency)
+                        val isMonthly = paymentFrequencyDto == PaymentFrequency.MONTHLY
                         val rentAndCharges = dbLogement.nominalRent + dbLogement.serviceCharges
                         val advanceMonths = if (isMonthly) 1 else (request.advanceMonths ?: 12)
                         
@@ -1197,12 +1208,12 @@ fun Application.configureAppRoutes() {
                         val totalRequiredToPay = request.depositAmount + requiredFirstRent
                         val initialPayment = request.advancePaymentAmount ?: 0.0
 
-                        val initialStatusStr = if (initialPayment >= totalRequiredToPay) {
-                            "PENDING_SIGNATURE"
+                        val initialStatus = if (initialPayment >= totalRequiredToPay) {
+                            LeaseStatus.PENDING_SIGNATURE
                         } else if (initialPayment > 0.0) {
-                            "DOWN_PAYMENT_PAID"
+                            LeaseStatus.DOWN_PAYMENT_PAID
                         } else {
-                            "PENDING_PAYMENT"
+                            LeaseStatus.PENDING_PAYMENT
                         }
 
                         // Create Lease record
@@ -1210,10 +1221,10 @@ fun Application.configureAppRoutes() {
                             this.logement = dbLogement
                             this.tenant = dbTenant
                             this.durationMonths = if (duration <= 0) 12 else duration
-                            this.paymentFrequency = request.paymentFrequency
+                            this.paymentFrequency = paymentFrequencyDto
                             this.depositAmount = request.depositAmount
-                            this.depositStatus = if (initialPayment >= request.depositAmount) "PAID" else "PENDING"
-                            this.status = initialStatusStr
+                            this.depositStatus = if (initialPayment >= request.depositAmount) DepositStatus.PAID else DepositStatus.PENDING
+                            this.status = initialStatus
                             this.startDate = parsedStart
                             this.endDate = parsedEnd
                             this.advanceMonths = advanceMonths
@@ -1223,7 +1234,7 @@ fun Application.configureAppRoutes() {
                         }
 
                         // 5. Update logement status to OCCUPIED
-                        dbLogement.status = "OCCUPIED"
+                        dbLogement.status = UnitStatus.OCCUPIED
                         dbLogement.flush()
                         newLease.flush()
 
@@ -1235,11 +1246,11 @@ fun Application.configureAppRoutes() {
                             if (paidCaution > 0.0) {
                                 FinancialTransaction.new {
                                     this.residence = dbLogement.residence
-                                    this.type = "INCOME"
-                                    this.category = "Deposit"
+                                    this.type = TransactionType.INCOME
+                                    this.category = TransactionCategory.DEPOSIT
                                     this.amount = paidCaution
                                     this.description = "Acompte caution à la signature pour le logement ${dbLogement.name}"
-                                    this.relatedEntityType = "BAIL"
+                                    this.relatedEntityType = EntityType.BAIL
                                     this.relatedEntityId = newLease.id.value
                                     this.transactionDate = LocalDate.now()
                                     this.createdAt = LocalDateTime.now()
@@ -1250,11 +1261,11 @@ fun Application.configureAppRoutes() {
                             if (paidRent > 0.0) {
                                 FinancialTransaction.new {
                                     this.residence = dbLogement.residence
-                                    this.type = "INCOME"
-                                    this.category = "Rent"
+                                    this.type = TransactionType.INCOME
+                                    this.category = TransactionCategory.RENT
                                     this.amount = paidRent
                                     this.description = "Acompte loyer d'avance à la signature pour le logement ${dbLogement.name}"
-                                    this.relatedEntityType = "BAIL"
+                                    this.relatedEntityType = EntityType.BAIL
                                     this.relatedEntityId = newLease.id.value
                                     this.transactionDate = LocalDate.now()
                                     this.createdAt = LocalDateTime.now()
@@ -1263,24 +1274,18 @@ fun Application.configureAppRoutes() {
                             }
                         }
 
-                        val leaseStatusEnum = try {
-                            LeaseStatus.valueOf(initialStatusStr)
-                        } catch (e: Exception) {
-                            LeaseStatus.PENDING_PAYMENT
-                        }
-
                         LeaseDto(
                             id = newLease.id.value.toString(),
-                            logementId = newLease.logement.id.value.toString(),
+                            unitId = newLease.logement.id.value.toString(),
                             tenantId = newLease.tenant.id.value.toString(),
                             startDate = newLease.startDate.toString(),
                             endDate = newLease.endDate.toString(),
                             depositAmount = newLease.depositAmount,
                             monthlyRentAtSign = request.monthlyRentAtSign,
-                            status = leaseStatusEnum,
+                            status = initialStatus.convert(),
                             createdAt = newLease.createdAt.toString(),
                             updatedAt = newLease.updatedAt.toString(),
-                            paymentFrequency = newLease.paymentFrequency,
+                            paymentFrequencyDto = newLease.paymentFrequency.convert(),
                             advanceMonths = newLease.advanceMonths
                         )
                     }
@@ -1308,7 +1313,7 @@ fun Application.configureAppRoutes() {
                             .where { 
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and 
                                 (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq "ACCEPTED") 
+                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }
                             .empty()
                     }
@@ -1322,12 +1327,12 @@ fun Application.configureAppRoutes() {
                         // Find baux for all logements in this residence
                         Lease.all().filter { it.logement.residence.id.value == UUID.fromString(residenceId) }.map { lease ->
                             val previousPayments = FinancialTransaction.find { 
-                                (FinancialTransactions.relatedEntityType eq "BAIL") and 
+                                (FinancialTransactions.relatedEntityType eq EntityType.BAIL) and
                                 (FinancialTransactions.relatedEntityId eq lease.id.value) 
                             }.map { tx ->
                                 LeasePaymentDto(
                                     id = tx.id.value.toString(),
-                                    category = if (tx.category == "Deposit") "CAUTION" else "LOYER",
+                                    category = if (tx.category == TransactionCategory.DEPOSIT) LeaseCategory.DEPOSIT else LeaseCategory.RENT,
                                     amount = tx.amount,
                                     description = tx.description,
                                     transactionDate = tx.transactionDate.toString()
@@ -1335,20 +1340,16 @@ fun Application.configureAppRoutes() {
                             }
                             LeaseDto(
                                 id = lease.id.value.toString(),
-                                logementId = lease.logement.id.value.toString(),
+                                unitId = lease.logement.id.value.toString(),
                                 tenantId = lease.tenant.id.value.toString(),
                                 startDate = lease.startDate.toString(),
                                 endDate = lease.endDate.toString(),
                                 depositAmount = lease.depositAmount,
                                 monthlyRentAtSign = lease.logement.nominalRent,
-                                status = try {
-                                    LeaseStatus.valueOf(lease.status)
-                                } catch (e: Exception) {
-                                    LeaseStatus.PENDING_PAYMENT
-                                },
+                                status = lease.status.convert(),
                                 createdAt = lease.createdAt.toString(),
                                 updatedAt = lease.updatedAt.toString(),
-                                paymentFrequency = lease.paymentFrequency,
+                                paymentFrequencyDto = lease.paymentFrequency.convert(),
                                 advanceMonths = lease.advanceMonths,
                                 payments = previousPayments
                             )
@@ -1371,6 +1372,9 @@ fun Application.configureAppRoutes() {
                 try {
                     val request = call.receive<LeasePaymentRequest>()
 
+                    if (request.category !in listOf(TransactionCategoryDto.DEPOSIT,
+                            TransactionCategoryDto.RENT)) throw Exception("Catégorie de paiement invalide pour cette opération.")
+
                     val updatedLeaseDto = transaction {
                         // 1. Fetch lease record
                         val dbLease = Lease.findById(UUID.fromString(leaseId)) 
@@ -1378,41 +1382,41 @@ fun Application.configureAppRoutes() {
 
                         // 2. Fetch all previous caution (Deposit) payments registered
                         val previousPaidCaution = FinancialTransaction.find { 
-                            (FinancialTransactions.relatedEntityType eq "BAIL") and 
+                            (FinancialTransactions.relatedEntityType eq EntityType.BAIL) and
                             (FinancialTransactions.relatedEntityId eq UUID.fromString(leaseId)) and 
-                            (FinancialTransactions.type eq "INCOME") and
-                            (FinancialTransactions.category eq "Deposit")
+                            (FinancialTransactions.type eq TransactionType.INCOME) and
+                            (FinancialTransactions.category eq TransactionCategory.DEPOSIT)
                         }.sumOf { it.amount }
 
                         // 3. Fetch all previous rent payments registered
                         val previousPaidRent = FinancialTransaction.find { 
-                            (FinancialTransactions.relatedEntityType eq "BAIL") and 
+                            (FinancialTransactions.relatedEntityType eq EntityType.BAIL) and
                             (FinancialTransactions.relatedEntityId eq UUID.fromString(leaseId)) and 
-                            (FinancialTransactions.type eq "INCOME") and
-                            ((FinancialTransactions.category eq "Rent") or (FinancialTransactions.category eq "Lease Payment"))
+                            (FinancialTransactions.type eq TransactionType.INCOME) and
+                            ((FinancialTransactions.category eq TransactionCategory.RENT) or (FinancialTransactions.category eq TransactionCategory.LEASE_PAYMENT))
                         }.sumOf { it.amount }
 
                         // 4. Incorporate the new incoming payment
-                        val totalPaidCaution = previousPaidCaution + if (request.category == "CAUTION") request.amountPaid else 0.0
-                        val totalPaidRent = previousPaidRent + if (request.category == "LOYER") request.amountPaid else 0.0
+                        val totalPaidCaution = previousPaidCaution + if (request.category == TransactionCategoryDto.DEPOSIT) request.amountPaid else 0.0
+                        val totalPaidRent = previousPaidRent + if (request.category == TransactionCategoryDto.RENT) request.amountPaid else 0.0
 
                         // 5. Calculate required amounts
                         val requiredCaution = dbLease.depositAmount
                         val requiredRent = dbLease.advanceMonths * (dbLease.logement.nominalRent + dbLease.logement.serviceCharges)
 
                         // 6. Determine status update based on dual ledger
-                        val newStatusStr = if (totalPaidCaution >= requiredCaution && totalPaidRent >= requiredRent) {
-                            "PENDING_SIGNATURE"
+                        val newStatus = if (totalPaidCaution >= requiredCaution && totalPaidRent >= requiredRent) {
+                            LeaseStatus.PENDING_SIGNATURE
                         } else if (totalPaidCaution > 0.0 || totalPaidRent > 0.0) {
-                            "DOWN_PAYMENT_PAID"
+                            LeaseStatus.DOWN_PAYMENT_PAID
                         } else {
-                            "PENDING_PAYMENT"
+                            LeaseStatus.PENDING_PAYMENT
                         }
 
                         // Map status back to the database record
-                        dbLease.status = newStatusStr
+                        dbLease.status = newStatus
                         if (totalPaidCaution >= requiredCaution) {
-                            dbLease.depositStatus = "PAID"
+                            dbLease.depositStatus = DepositStatus.PAID
                         }
                         dbLease.updatedAt = LocalDateTime.now()
                         dbLease.flush()
@@ -1420,34 +1424,28 @@ fun Application.configureAppRoutes() {
                         // 7. Generate financial transaction entry
                         FinancialTransaction.new {
                             this.residence = dbLease.logement.residence
-                            this.type = "INCOME"
-                            this.category = if (request.category == "CAUTION") "Deposit" else "Rent"
+                            this.type = TransactionType.INCOME
+                            this.category = request.category.convert()
                             this.amount = request.amountPaid
-                            this.description = if (request.category == "CAUTION") {
+                            this.description = if (request.category == TransactionCategoryDto.DEPOSIT) {
                                 "Versement partiel caution pour le logement ${dbLease.logement.name}"
                             } else {
                                 "Versement partiel loyer pour le logement ${dbLease.logement.name}"
                             }
-                            this.relatedEntityType = "BAIL"
+                            this.relatedEntityType = EntityType.BAIL
                             this.relatedEntityId = UUID.fromString(leaseId)
                             this.transactionDate = LocalDate.now()
                             this.createdAt = LocalDateTime.now()
                             this.updatedAt = LocalDateTime.now()
                         }
 
-                        val leaseStatusEnum = try {
-                            LeaseStatus.valueOf(newStatusStr)
-                        } catch (e: Exception) {
-                            LeaseStatus.PENDING_PAYMENT
-                        }
-
                         val previousPayments = FinancialTransaction.find { 
-                            (FinancialTransactions.relatedEntityType eq "BAIL") and 
+                            (FinancialTransactions.relatedEntityType eq EntityType.BAIL) and
                             (FinancialTransactions.relatedEntityId eq dbLease.id.value) 
                         }.map { tx ->
                             LeasePaymentDto(
                                 id = tx.id.value.toString(),
-                                category = if (tx.category == "Deposit") "CAUTION" else "LOYER",
+                                category = if (tx.category == TransactionCategory.DEPOSIT) LeaseCategory.DEPOSIT else LeaseCategory.RENT,
                                 amount = tx.amount,
                                 description = tx.description,
                                 transactionDate = tx.transactionDate.toString()
@@ -1456,16 +1454,16 @@ fun Application.configureAppRoutes() {
 
                         LeaseDto(
                             id = dbLease.id.value.toString(),
-                            logementId = dbLease.logement.id.value.toString(),
+                            unitId = dbLease.logement.id.value.toString(),
                             tenantId = dbLease.tenant.id.value.toString(),
                             startDate = dbLease.startDate.toString(),
                             endDate = dbLease.endDate.toString(),
                             depositAmount = dbLease.depositAmount,
                             monthlyRentAtSign = dbLease.logement.nominalRent,
-                            status = leaseStatusEnum,
+                            status = newStatus.convert(),
                             createdAt = dbLease.createdAt.toString(),
                             updatedAt = dbLease.updatedAt.toString(),
-                            paymentFrequency = dbLease.paymentFrequency,
+                            paymentFrequencyDto = dbLease.paymentFrequency.convert(),
                             advanceMonths = dbLease.advanceMonths,
                             payments = previousPayments
                         )
@@ -1490,9 +1488,9 @@ fun Application.configureAppRoutes() {
                             ?: throw Exception("Contrat de bail introuvable.")
 
                         request.status?.let { 
-                            dbLease.status = it.name 
-                            if (it == LeaseStatus.TERMINATED) {
-                                dbLease.logement.status = "AVAILABLE"
+                            dbLease.status = it.convert()
+                            if (it == LeaseStatusDto.TERMINATED) {
+                                dbLease.logement.status = UnitStatus.AVAILABLE
                                 dbLease.logement.flush()
                             }
                         }
@@ -1500,12 +1498,12 @@ fun Application.configureAppRoutes() {
                         dbLease.flush()
 
                         val previousPayments = FinancialTransaction.find { 
-                            (FinancialTransactions.relatedEntityType eq "BAIL") and 
+                            (FinancialTransactions.relatedEntityType eq EntityType.BAIL) and
                             (FinancialTransactions.relatedEntityId eq dbLease.id.value) 
                         }.map { tx ->
                             LeasePaymentDto(
                                 id = tx.id.value.toString(),
-                                category = if (tx.category == "Deposit") "CAUTION" else "LOYER",
+                                category = if (tx.category == TransactionCategory.DEPOSIT) LeaseCategory.DEPOSIT else LeaseCategory.RENT,
                                 amount = tx.amount,
                                 description = tx.description,
                                 transactionDate = tx.transactionDate.toString()
@@ -1514,20 +1512,16 @@ fun Application.configureAppRoutes() {
 
                         LeaseDto(
                             id = dbLease.id.value.toString(),
-                            logementId = dbLease.logement.id.value.toString(),
+                            unitId = dbLease.logement.id.value.toString(),
                             tenantId = dbLease.tenant.id.value.toString(),
                             startDate = dbLease.startDate.toString(),
                             endDate = dbLease.endDate.toString(),
                             depositAmount = dbLease.depositAmount,
                             monthlyRentAtSign = dbLease.logement.nominalRent,
-                            status = try {
-                                LeaseStatus.valueOf(dbLease.status)
-                            } catch (e: Exception) {
-                                LeaseStatus.PENDING_PAYMENT
-                            },
+                            status = dbLease.status.convert(),
                             createdAt = dbLease.createdAt.toString(),
                             updatedAt = dbLease.updatedAt.toString(),
-                            paymentFrequency = dbLease.paymentFrequency,
+                            paymentFrequencyDto = dbLease.paymentFrequency.convert(),
                             advanceMonths = dbLease.advanceMonths,
                             payments = previousPayments
                         )
@@ -1550,18 +1544,18 @@ fun Application.configureAppRoutes() {
                         val stmt = ElectricityStatement.findById(UUID.fromString(statementId))
                             ?: throw Exception("Relevé d'électricité introuvable.")
 
-                        stmt.status = request.status?.name ?: "PAID"
+                        stmt.status = request.status?.convert() ?: ElectricityStatus.PAID
                         stmt.updatedAt = LocalDateTime.now()
                         stmt.flush()
 
                         // Update description of original Financial Transaction to reflect payment
                         val tx = FinancialTransaction.find { 
-                            (FinancialTransactions.relatedEntityType eq "ELECTRICITY_STATEMENT") and 
+                            (FinancialTransactions.relatedEntityType eq EntityType.ELECTRICITY_STATEMENT) and
                             (FinancialTransactions.relatedEntityId eq stmt.id.value) 
                         }.firstOrNull()
 
-                        if (tx != null && !tx.description.startsWith("[PAYÉ]")) {
-                            tx.description = "[PAYÉ] " + tx.description
+                        if (tx != null && !tx.description.startsWith("[PAID]")) {
+                            tx.description = "[PAID] " + tx.description
                             tx.updatedAt = LocalDateTime.now()
                             tx.flush()
                         }
@@ -1574,7 +1568,7 @@ fun Application.configureAppRoutes() {
                             kWhPriceApplied = stmt.kWhPriceApplied,
                             amountDue = stmt.amountDue,
                             statementDate = stmt.statementDate.toString(),
-                            status = if (stmt.status == "PAID") StatementStatus.PAID else StatementStatus.UNPAID,
+                            status = stmt.status.convert(),
                             createdAt = stmt.createdAt.toString(),
                             updatedAt = stmt.updatedAt.toString()
                         )
@@ -1634,7 +1628,8 @@ fun Application.configureAppRoutes() {
                         var filtered = list
 
                         statusParam?.ifBlank { null }?.let { status ->
-                            filtered = filtered.filter { it.status.uppercase() == status.uppercase() }
+                            val statusEnum = ElectricityStatus.valueOf(status)
+                            filtered = filtered.filter { it.status == statusEnum }
                         }
 
                         logementParam?.ifBlank { null }?.let { logId ->
@@ -1648,7 +1643,7 @@ fun Application.configureAppRoutes() {
                         tenantParam?.ifBlank { null }?.let { tenantName ->
                             filtered = filtered.filter { stmt ->
                                 val activeLease = Lease.find { 
-                                    (Baux.logementId eq stmt.logement.id) and (Baux.status eq "SIGNED_ACTIVE") 
+                                    (Baux.logementId eq stmt.logement.id) and (Baux.status eq LeaseStatus.SIGNED_ACTIVE)
                                 }.firstOrNull()
                                 val tenant = activeLease?.tenant
                                 val fullName = "${tenant?.firstName} ${tenant?.lastName}"
@@ -1665,7 +1660,7 @@ fun Application.configureAppRoutes() {
                                 kWhPriceApplied = it.kWhPriceApplied,
                                 amountDue = it.amountDue,
                                 statementDate = it.statementDate.toString(),
-                                status = if (it.status == "PAID") StatementStatus.PAID else StatementStatus.UNPAID,
+                                status = it.status.convert(),
                                 createdAt = it.createdAt.toString(),
                                 updatedAt = it.updatedAt.toString()
                             )
@@ -1802,8 +1797,8 @@ fun Application.configureAppRoutes() {
                                 ),
                                 title = it.title,
                                 description = it.description,
-                                urgency = TicketUrgency.valueOf(it.urgency),
-                                status = TicketStatus.valueOf(it.status),
+                                urgency = it.urgency.convert(),
+                                status = it.status.convert(),
                                 interventionCost = it.interventionCost,
                                 createdAt = it.createdAt.toString(),
                                 updatedAt = it.updatedAt.toString()
@@ -1899,7 +1894,7 @@ fun Application.configureAppRoutes() {
                     val created = transaction {
                         FinanceOperationService.recordExpense(
                             residenceId = UUID.fromString(residenceId),
-                            category = request.category,
+                            categoryName = request.category,
                             amount = request.amount,
                             description = request.description,
                             date = LocalDate.parse(request.transactionDate)
@@ -1919,10 +1914,14 @@ fun Application.configureAppRoutes() {
 
                 // Context Guard & Middleware: verify user role inside residence_members
                 val userRole = transaction {
-                    // Query role in residence_members
-                    exec("SELECT role FROM residence_members WHERE user_id = '$userId'::uuid AND residence_id = '$residenceId'::uuid AND status = 'ACCEPTED'") { rs ->
-                        if (rs.next()) rs.getString(1) else null
-                    }
+                    ResidenceMembers
+                        .select(ResidenceMembers.roleDto)
+                        .where {
+                            (ResidenceMembers.userId eq UUID.fromString(userId)) and
+                            (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and
+                            (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
+                        }
+                        .singleOrNull()?.get(ResidenceMembers.roleDto)
                 }
 
                 if (userRole == null) {

@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
 fun FinancesPage(viewModel: LoginViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val activeResidence = uiState.selectedResidenceContext
-    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.RESIDENCE_MANAGER)
+    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
 
     var transactions by remember { mutableStateOf<List<FinanceTransactionDto>>(emptyList()) }
     var isLoadingList by remember { mutableStateOf(false) }
@@ -324,7 +324,7 @@ fun FinancesPage(viewModel: LoginViewModel) {
 
                         Column(modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())) {
                             transactions.forEach { tx ->
-                                val isIncome = tx.type == "INCOME"
+                                val isIncome = tx.type == TransactionTypeDto.INCOME
                                 
                                 Row(
                                     modifier = Modifier
@@ -336,16 +336,16 @@ fun FinancesPage(viewModel: LoginViewModel) {
                                     Text(tx.transactionDate, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                                     Text(
                                         text = when (tx.category) {
-                                            "Cleaning" -> "Nettoyage"
-                                            "Fuel" -> "Carburant"
-                                            "Security" -> "Sécurité"
-                                            "Maintenance" -> "Maintenance"
-                                            "Taxes" -> "Impôts"
-                                            "Deposit" -> "Caution Recue"
-                                            "Rent" -> "Loyer Recu"
-                                            "Electricity" -> "Électricité"
-                                            else -> tx.category
-                                        }, 
+                                            TransactionCategoryDto.CLEANING -> "Nettoyage"
+                                            TransactionCategoryDto.FUEL -> "Carburant"
+                                            TransactionCategoryDto.SECURITY -> "Sécurité"
+                                            TransactionCategoryDto.MAINTENANCE -> "Maintenance"
+                                            TransactionCategoryDto.TAXES -> "Impôts"
+                                            TransactionCategoryDto.DEPOSIT -> "Caution Recue"
+                                            TransactionCategoryDto.RENT -> "Loyer Recu"
+                                            TransactionCategoryDto.ELECTRICITY -> "Électricité"
+                                            else -> tx.category.name
+                                        },
                                         style = MaterialTheme.typography.bodyMedium, 
                                         modifier = Modifier.weight(1f)
                                     )
@@ -362,7 +362,7 @@ fun FinancesPage(viewModel: LoginViewModel) {
                                                 colors = CardDefaults.cardColors(containerColor = Color(0xFFE0E7FF)),
                                                 shape = RoundedCornerShape(4.dp),
                                                 modifier = Modifier.clickable {
-                                                    traceabilityDialogPayload = tx.relatedEntityType to tx.relatedEntityId
+                                                    traceabilityDialogPayload = tx.relatedEntityType.name to tx.relatedEntityId
                                                 }
                                             ) {
                                                 Text(

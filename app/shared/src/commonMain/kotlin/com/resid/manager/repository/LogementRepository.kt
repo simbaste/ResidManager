@@ -2,7 +2,7 @@ package com.resid.manager.repository
 
 import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.dto.LogementCreateRequest
-import com.resid.manager.dto.LogementDto
+import com.resid.manager.dto.UnitDto
 import com.resid.manager.network.ApiClient
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -10,23 +10,23 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 
 interface LogementRepository {
-    suspend fun fetchLogements(token: String, residenceId: String): Result<List<LogementDto>>
-    suspend fun createLogement(token: String, residenceId: String, request: LogementCreateRequest): Result<LogementDto>
+    suspend fun fetchLogements(token: String, residenceId: String): Result<List<UnitDto>>
+    suspend fun createLogement(token: String, residenceId: String, request: LogementCreateRequest): Result<UnitDto>
     suspend fun deleteLogement(token: String, residenceId: String, logementId: String): Result<Unit>
-    suspend fun updateLogement(token: String, residenceId: String, logementId: String, request: LogementCreateRequest): Result<LogementDto>
+    suspend fun updateLogement(token: String, residenceId: String, logementId: String, request: LogementCreateRequest): Result<UnitDto>
 }
 
 class LogementRepositoryImpl(
     private val httpClient: HttpClient
 ) : LogementRepository {
-    override suspend fun fetchLogements(token: String, residenceId: String): Result<List<LogementDto>> {
+    override suspend fun fetchLogements(token: String, residenceId: String): Result<List<UnitDto>> {
         return try {
             val response = httpClient.get("${ApiClient.BASE_URL}/api/residences/$residenceId/logements") {
                 header(HttpHeaders.Authorization, "Bearer $token")
             }
 
             if (response.status == HttpStatusCode.OK) {
-                Result.success(response.body<List<LogementDto>>())
+                Result.success(response.body<List<UnitDto>>())
             } else {
                 val errorBody = response.body<ErrorResponse>()
                 Result.failure(Exception(errorBody.message))
@@ -40,7 +40,7 @@ class LogementRepositoryImpl(
         token: String,
         residenceId: String,
         request: LogementCreateRequest
-    ): Result<LogementDto> {
+    ): Result<UnitDto> {
         return try {
             val response = httpClient.post("${ApiClient.BASE_URL}/api/residences/$residenceId/logements") {
                 contentType(ContentType.Application.Json)
@@ -49,7 +49,7 @@ class LogementRepositoryImpl(
             }
 
             if (response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) {
-                Result.success(response.body<LogementDto>())
+                Result.success(response.body<UnitDto>())
             } else {
                 val errorBody = response.body<ErrorResponse>()
                 Result.failure(Exception(errorBody.message))
@@ -81,7 +81,7 @@ class LogementRepositoryImpl(
         residenceId: String,
         logementId: String,
         request: LogementCreateRequest
-    ): Result<LogementDto> {
+    ): Result<UnitDto> {
         return try {
             val response = httpClient.put("${ApiClient.BASE_URL}/api/residences/$residenceId/logements/$logementId") {
                 contentType(ContentType.Application.Json)
@@ -90,7 +90,7 @@ class LogementRepositoryImpl(
             }
 
             if (response.status == HttpStatusCode.OK) {
-                Result.success(response.body<LogementDto>())
+                Result.success(response.body<UnitDto>())
             } else {
                 val errorBody = response.body<ErrorResponse>()
                 Result.failure(Exception(errorBody.message))

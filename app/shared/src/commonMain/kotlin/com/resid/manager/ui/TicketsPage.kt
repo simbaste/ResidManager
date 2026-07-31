@@ -1,7 +1,6 @@
 package com.resid.manager.ui
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
@@ -13,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
@@ -32,7 +30,7 @@ import kotlinx.coroutines.launch
 fun TicketsPage(viewModel: LoginViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val activeResidence = uiState.selectedResidenceContext
-    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.RESIDENCE_MANAGER)
+    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
 
     var tickets by remember { mutableStateOf<List<TicketDto>>(emptyList()) }
     var categoriesList by remember { mutableStateOf<List<TicketCategoryDto>>(emptyList()) }
@@ -47,7 +45,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
     var showCreateDialog by remember { mutableStateOf(false) }
     var formLogementId by remember { mutableStateOf("") }
     var formCategoryId by remember { mutableStateOf("") }
-    var formUrgency by remember { mutableStateOf(TicketUrgency.MEDIUM) }
+    var formUrgency by remember { mutableStateOf(TicketUrgencyDto.MEDIUM) }
     var formTitle by remember { mutableStateOf("") }
     var formDescription by remember { mutableStateOf("") }
     var formError by remember { mutableStateOf<String?>(null) }
@@ -252,15 +250,15 @@ fun TicketsPage(viewModel: LoginViewModel) {
                     val matchedLogementName = matchedLogement?.name ?: "Logement ${ticket.logementId.take(5)}"
                     
                     val (statusColor, statusBg) = when (ticket.status) {
-                        TicketStatus.OPEN -> Color(0xFFBA1A1A) to Color(0xFFFDE8E8)
-                        TicketStatus.IN_PROGRESS -> Color(0xFFD97706) to Color(0xFFFEF3C7)
-                        TicketStatus.CLOSED -> Color(0xFF006948) to Color(0xFFE6F7F0)
+                        TicketStatusDto.OPEN -> Color(0xFFBA1A1A) to Color(0xFFFDE8E8)
+                        TicketStatusDto.IN_PROGRESS -> Color(0xFFD97706) to Color(0xFFFEF3C7)
+                        TicketStatusDto.CLOSED -> Color(0xFF006948) to Color(0xFFE6F7F0)
                     }
 
                     val (urgencyColor, urgencyBg) = when (ticket.urgency) {
-                        TicketUrgency.LOW -> Color(0xFF475569) to Color(0xFFF1F5F9)
-                        TicketUrgency.MEDIUM -> Color(0xFFD97706) to Color(0xFFFEF3C7)
-                        TicketUrgency.CRITICAL -> Color(0xFFBA1A1A) to Color(0xFFFDE8E8)
+                        TicketUrgencyDto.LOW -> Color(0xFF475569) to Color(0xFFF1F5F9)
+                        TicketUrgencyDto.MEDIUM -> Color(0xFFD97706) to Color(0xFFFEF3C7)
+                        TicketUrgencyDto.CRITICAL -> Color(0xFFBA1A1A) to Color(0xFFFDE8E8)
                     }
 
                     Card(
@@ -311,7 +309,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
 
-                            if (ticket.status == TicketStatus.CLOSED || ticket.interventionCost > 0.0) {
+                            if (ticket.status == TicketStatusDto.CLOSED || ticket.interventionCost > 0.0) {
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -324,14 +322,14 @@ fun TicketsPage(viewModel: LoginViewModel) {
                             }
 
                             // State machine actions
-                            if (ticket.status != TicketStatus.CLOSED && isAuthorized) {
+                            if (ticket.status != TicketStatusDto.CLOSED && isAuthorized) {
                                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.End,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    if (ticket.status == TicketStatus.OPEN) {
+                                    if (ticket.status == TicketStatusDto.OPEN) {
                                         Button(
                                             onClick = {
                                                 formInterventionCostText = "0.0"
@@ -345,7 +343,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
                                                 Text("Prendre en charge")
                                             }
                                         }
-                                    } else if (ticket.status == TicketStatus.IN_PROGRESS) {
+                                    } else if (ticket.status == TicketStatusDto.IN_PROGRESS) {
                                         Button(
                                             onClick = {
                                                 formInterventionCostText = "0.0"
@@ -482,7 +480,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        TicketUrgency.entries.forEach { urg ->
+                        TicketUrgencyDto.entries.forEach { urg ->
                             val isSelected = formUrgency == urg
                             FilterChip(
                                 selected = isSelected,
@@ -637,7 +635,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
                         coroutineScope.launch {
                             try {
                                 val req = TicketUpdateRequest(
-                                    status = TicketStatus.IN_PROGRESS, 
+                                    status = TicketStatusDto.IN_PROGRESS,
                                     interventionCost = cost,
                                     comment = formCommentText.ifBlank { null }
                                 )
@@ -744,7 +742,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
                         coroutineScope.launch {
                             try {
                                 val req = TicketUpdateRequest(
-                                    status = TicketStatus.CLOSED, 
+                                    status = TicketStatusDto.CLOSED,
                                     interventionCost = cost,
                                     comment = formCommentText.ifBlank { null }
                                 )

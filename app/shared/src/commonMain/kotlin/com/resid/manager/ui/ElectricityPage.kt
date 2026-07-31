@@ -1,7 +1,6 @@
 package com.resid.manager.ui
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
@@ -12,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalUriHandler
@@ -32,7 +30,7 @@ import kotlinx.coroutines.launch
 fun ElectricityPage(viewModel: LoginViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val activeResidence = uiState.selectedResidenceContext
-    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.RESIDENCE_MANAGER)
+    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
 
     var statements by remember { mutableStateOf<List<ElectricityStatementDto>>(emptyList()) }
     var isLoadingList by remember { mutableStateOf(false) }
@@ -91,8 +89,8 @@ fun ElectricityPage(viewModel: LoginViewModel) {
         statements.filter { stmt ->
             // 1. Status Filter
             val matchStatus = when (statusFilter) {
-                "PAID" -> stmt.status == StatementStatus.PAID
-                "UNPAID" -> stmt.status == StatementStatus.UNPAID
+                "PAID" -> stmt.status == ElectricityStatusDto.PAID
+                "UNPAID" -> stmt.status == ElectricityStatusDto.UNPAID
                 else -> true
             }
 
@@ -107,7 +105,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
 
             // 4. Tenant Name Filter (join via active lease)
             val matchTenant = if (tenantFilterText.isNotEmpty()) {
-                val activeLease = uiState.leases.firstOrNull { it.logementId == stmt.logementId && it.status == LeaseStatus.SIGNED_ACTIVE }
+                val activeLease = uiState.leases.firstOrNull { it.unitId == stmt.logementId && it.status == LeaseStatusDto.SIGNED_ACTIVE }
                 val tenant = activeLease?.let { lease -> uiState.members.firstOrNull { it.userId == lease.tenantId } }
                 val fullName = "${tenant?.firstName ?: ""} ${tenant?.lastName ?: ""}"
                 fullName.contains(tenantFilterText, ignoreCase = true)
@@ -277,14 +275,14 @@ fun ElectricityPage(viewModel: LoginViewModel) {
 
                                 Card(
                                     colors = CardDefaults.cardColors(
-                                        containerColor = if (stmt.status == StatementStatus.PAID) Color(0xFFE6F7F0) else Color(0xFFFDE8E8)
+                                        containerColor = if (stmt.status == ElectricityStatusDto.PAID) Color(0xFFE6F7F0) else Color(0xFFFDE8E8)
                                     ),
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
                                     Text(
-                                        text = if (stmt.status == StatementStatus.PAID) "PAYÉ" else "IMPAYÉ",
+                                        text = if (stmt.status == ElectricityStatusDto.PAID) "PAYÉ" else "IMPAYÉ",
                                         style = MaterialTheme.typography.labelSmall,
-                                        color = if (stmt.status == StatementStatus.PAID) Color(0xFF006948) else Color(0xFFBA1A1A),
+                                        color = if (stmt.status == ElectricityStatusDto.PAID) Color(0xFF006948) else Color(0xFFBA1A1A),
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
@@ -327,7 +325,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                                     Text("${stmt.amountDue} $currencySymbol", style = MaterialTheme.typography.titleLarge, color = Color(0xFF006948))
                                 }
 
-                                if (stmt.status == StatementStatus.UNPAID && isAuthorized) {
+                                if (stmt.status == ElectricityStatusDto.UNPAID && isAuthorized) {
                                     Button(
                                         onClick = { showPaymentConfirmationForStatement = stmt },
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948)),
@@ -594,7 +592,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                     onClick = {
                         coroutineScope.launch {
                             try {
-                                val req = ElectricityStatementUpdateRequest(status = StatementStatus.PAID)
+                                val req = ElectricityStatementUpdateRequest(status = ElectricityStatusDto.PAID)
                                 val resp = ApiClient.httpClient.put("${ApiClient.BASE_URL}/api/electricity/statements/${stmt.id}/status") {
                                     contentType(ContentType.Application.Json)
                                     header(HttpHeaders.Authorization, "Bearer ${uiState.jwtToken}")
