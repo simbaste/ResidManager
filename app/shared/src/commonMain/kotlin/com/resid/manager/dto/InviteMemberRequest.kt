@@ -5,5 +5,5 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class InviteMemberRequest(
     val email: String,
-    val role: String // ADMIN, MANAGER, STAFF, TENANT
+    val role: RoleDto // ADMIN, MANAGER, STAFF, TENANT
 )

@@ -26,9 +26,8 @@ object Users : UUIDTable("users") {
 }
 
 object Currencies : UUIDTable("currencies") {
-    val code = varchar("code", 3).uniqueIndex()
-    val symbol = varchar("symbol", 10)
-    val label = varchar("label", 100)
+    val code = enumerationByName("code", 10, CurrencyCode::class)
+    val symbol = enumerationByName("symbol", 10, CurrencySymbol::class)
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
 }
@@ -46,9 +45,20 @@ object Residences : UUIDTable("residences") {
 object ResidenceMembers : Table("residence_members") {
     val userId = reference("user_id", Users, onDelete = ReferenceOption.CASCADE)
     val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE)
-    val roleDto = enumerationByName("role", ENUM_NAME_COLUMN_LENGTH, Role::class)
+    val role = enumerationByName("role", ENUM_NAME_COLUMN_LENGTH, Role::class)
     val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, InvitationStatus::class)
     val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
+    override val primaryKey = PrimaryKey(userId, residenceId)
+}
+
+object ResidenceApplications: Table("residence_applications") {
+    val userId = reference("user_id", Users, onDelete = ReferenceOption.CASCADE)
+    val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE)
+    val role = enumerationByName("role", ENUM_NAME_COLUMN_LENGTH, Role::class)
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, ApplicationStatus::class)
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
     override val primaryKey = PrimaryKey(userId, residenceId)
 }
 
@@ -163,7 +173,6 @@ class CurrencyEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 
     var code by Currencies.code
     var symbol by Currencies.symbol
-    var label by Currencies.label
     var createdAt by Currencies.createdAt
     var updatedAt by Currencies.updatedAt
 }

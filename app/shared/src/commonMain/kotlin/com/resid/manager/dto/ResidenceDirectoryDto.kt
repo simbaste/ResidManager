@@ -3,14 +3,27 @@ package com.resid.manager.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class ResidenceSummaryItem(
+enum class CurrencyCodeDto {
+    XOF,
+    EUR,
+    USD
+}
+
+@Serializable
+enum class CurrencySymbolDto(val label: String) {
+    FRANC_CFA("FCFA"),
+    EURO("Euro"),
+    DOLLAR_US("US Dollar")
+}
+@Serializable
+data class ResidenceSummaryItemDto(
     val id: String,
     val name: String,
     val address: String,
     val photoUrl: String?,
     val totalUnits: Int,
-    val currencySymbol: String = "FCFA",
-    val currencyCode: String = "XOF"
+    val currencySymbol: CurrencySymbolDto = CurrencySymbolDto.FRANC_CFA,
+    val currencyCode: CurrencyCodeDto = CurrencyCodeDto.XOF,
 )
 
 @Serializable
@@ -30,12 +43,12 @@ data class AssociatedResidenceItem(
     val photoUrl: String?,
     val roleDto: RoleDto,
     val totalUnits: Int,
-    val currencySymbol: String = "FCFA",
-    val currencyCode: String = "XOF"
+    val currencySymbol: CurrencySymbolDto = CurrencySymbolDto.FRANC_CFA,
+    val currencyCode: CurrencyCodeDto = CurrencyCodeDto.XOF
 )
 
 @Serializable
 data class ResidenceDirectoryDTO(
-    val ownedResidences: List<ResidenceSummaryItem>,
+    val ownedResidences: List<ResidenceSummaryItemDto>,
     val associatedResidences: List<AssociatedResidenceItem>
 )

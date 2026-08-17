@@ -3,6 +3,7 @@ package com.resid.manager.service
 import com.resid.manager.data.*
 import com.resid.manager.dto.FinanceTransactionDto
 import org.jetbrains.exposed.sql.*
+import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
@@ -41,8 +42,8 @@ object FinanceOperationService {
             this.relatedEntityType = null
             this.relatedEntityId = null
             this.transactionDate = date
-            this.createdAt = LocalDateTime.now()
-            this.updatedAt = LocalDateTime.now()
+            this.createdAt = LocalDateTime.now(Clock.systemUTC())
+            this.updatedAt = LocalDateTime.now(Clock.systemUTC())
         }
         tx.flush()
 

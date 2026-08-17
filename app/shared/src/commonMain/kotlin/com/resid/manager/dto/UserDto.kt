@@ -11,7 +11,7 @@ enum class UserRole {
     TENANT
 }
 
-fun UserRole.convert(): RoleDto {
+fun UserRole.toUserRole(): RoleDto {
     return when (this) {
         UserRole.OWNER -> RoleDto.OWNER
         UserRole.ADMIN -> RoleDto.ADMIN
@@ -21,7 +21,7 @@ fun UserRole.convert(): RoleDto {
     }
 }
 
-fun RoleDto.convert(): UserRole {
+fun RoleDto.toUserRole(): UserRole {
     return when (this) {
         RoleDto.OWNER -> UserRole.OWNER
         RoleDto.ADMIN -> UserRole.ADMIN

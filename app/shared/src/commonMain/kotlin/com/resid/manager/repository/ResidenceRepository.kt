@@ -3,7 +3,7 @@ package com.resid.manager.repository
 import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.dto.ResidenceCreateRequest
 import com.resid.manager.dto.ResidenceDirectoryDTO
-import com.resid.manager.dto.ResidenceSummaryItem
+import com.resid.manager.dto.ResidenceSummaryItemDto
 import com.resid.manager.network.ApiClient
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -12,9 +12,9 @@ import io.ktor.http.*
 
 interface ResidenceRepository {
     suspend fun fetchResidences(token: String): Result<ResidenceDirectoryDTO>
-    suspend fun createResidence(token: String, request: ResidenceCreateRequest): Result<ResidenceSummaryItem>
-    suspend fun searchResidences(token: String, name: String): Result<List<ResidenceSummaryItem>>
-    suspend fun updateResidence(token: String, residenceId: String, request: ResidenceCreateRequest): Result<ResidenceSummaryItem>
+    suspend fun createResidence(token: String, request: ResidenceCreateRequest): Result<ResidenceSummaryItemDto>
+    suspend fun searchResidences(token: String, name: String): Result<List<ResidenceSummaryItemDto>>
+    suspend fun updateResidence(token: String, residenceId: String, request: ResidenceCreateRequest): Result<ResidenceSummaryItemDto>
     suspend fun deleteResidence(token: String, residenceId: String): Result<Unit>
 }
 
@@ -38,7 +38,7 @@ class ResidenceRepositoryImpl(
         }
     }
 
-    override suspend fun createResidence(token: String, request: ResidenceCreateRequest): Result<ResidenceSummaryItem> {
+    override suspend fun createResidence(token: String, request: ResidenceCreateRequest): Result<ResidenceSummaryItemDto> {
         return try {
             val response = httpClient.post("${ApiClient.BASE_URL}/api/residences") {
                 contentType(ContentType.Application.Json)
@@ -47,7 +47,7 @@ class ResidenceRepositoryImpl(
             }
 
             if (response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) {
-                Result.success(response.body<ResidenceSummaryItem>())
+                Result.success(response.body<ResidenceSummaryItemDto>())
             } else {
                 val errorBody = response.body<ErrorResponse>()
                 Result.failure(Exception(errorBody.message))
@@ -57,7 +57,7 @@ class ResidenceRepositoryImpl(
         }
     }
 
-    override suspend fun searchResidences(token: String, name: String): Result<List<ResidenceSummaryItem>> {
+    override suspend fun searchResidences(token: String, name: String): Result<List<ResidenceSummaryItemDto>> {
         return try {
             val response = httpClient.get("${ApiClient.BASE_URL}/api/residences/search") {
                 header(HttpHeaders.Authorization, "Bearer $token")
@@ -65,7 +65,7 @@ class ResidenceRepositoryImpl(
             }
 
             if (response.status == HttpStatusCode.OK) {
-                Result.success(response.body<List<ResidenceSummaryItem>>())
+                Result.success(response.body<List<ResidenceSummaryItemDto>>())
             } else {
                 val errorBody = response.body<ErrorResponse>()
                 Result.failure(Exception(errorBody.message))
@@ -79,7 +79,7 @@ class ResidenceRepositoryImpl(
         token: String,
         residenceId: String,
         request: ResidenceCreateRequest
-    ): Result<ResidenceSummaryItem> {
+    ): Result<ResidenceSummaryItemDto> {
         return try {
             val response = httpClient.put("${ApiClient.BASE_URL}/api/residences/$residenceId") {
                 contentType(ContentType.Application.Json)
@@ -88,7 +88,7 @@ class ResidenceRepositoryImpl(
             }
 
             if (response.status == HttpStatusCode.OK) {
-                Result.success(response.body<ResidenceSummaryItem>())
+                Result.success(response.body<ResidenceSummaryItemDto>())
             } else {
                 val errorBody = response.body<ErrorResponse>()
                 Result.failure(Exception(errorBody.message))

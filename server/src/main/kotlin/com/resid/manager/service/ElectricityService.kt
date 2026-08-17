@@ -4,6 +4,7 @@ import com.resid.manager.data.*
 import com.resid.manager.dto.ElectricityStatementDto
 import com.resid.manager.dto.ElectricityStatusDto
 import org.jetbrains.exposed.sql.SortOrder
+import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
@@ -53,8 +54,8 @@ object ElectricityService {
             this.amountDue = amount
             this.status = ElectricityStatus.UNPAID
             this.statementDate = parsedDate
-            this.createdAt = LocalDateTime.now()
-            this.updatedAt = LocalDateTime.now()
+            this.createdAt = LocalDateTime.now(Clock.systemUTC())
+            this.updatedAt = LocalDateTime.now(Clock.systemUTC())
         }
         statement.flush()
 
@@ -68,8 +69,8 @@ object ElectricityService {
             this.relatedEntityType = EntityType.ELECTRICITY_STATEMENT
             this.relatedEntityId = statement.id.value
             this.transactionDate = LocalDate.now()
-            this.createdAt = LocalDateTime.now()
-            this.updatedAt = LocalDateTime.now()
+            this.createdAt = LocalDateTime.now(Clock.systemUTC())
+            this.updatedAt = LocalDateTime.now(Clock.systemUTC())
         }
 
         return ElectricityStatementDto(

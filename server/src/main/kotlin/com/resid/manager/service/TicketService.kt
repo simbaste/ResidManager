@@ -3,6 +3,7 @@ package com.resid.manager.service
 import com.resid.manager.data.*
 import com.resid.manager.dto.*
 import org.jetbrains.exposed.sql.and
+import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
@@ -24,12 +25,12 @@ object TicketService {
         
         // Find role in residence members
         val memberRole = ResidenceMembers
-            .select(ResidenceMembers.roleDto)
+            .select(ResidenceMembers.role)
             .where { 
                 (ResidenceMembers.userId eq creatorId) and 
                 (ResidenceMembers.residenceId eq dbLogement.residence.id.value) 
             }
-            .map { it[ResidenceMembers.roleDto] }
+            .map { it[ResidenceMembers.role] }
             .firstOrNull() ?: throw Exception("Accès interdit : vous ne faites pas partie de cette résidence.")
 
         val isAuthorized = when (memberRole.name.uppercase()) {
@@ -63,8 +64,8 @@ object TicketService {
             this.urgency = urgency.convert()
             this.status = TicketStatus.OPEN
             this.interventionCost = 0.0
-            this.createdAt = LocalDateTime.now()
-            this.updatedAt = LocalDateTime.now()
+            this.createdAt = LocalDateTime.now(Clock.systemUTC())
+            this.updatedAt = LocalDateTime.now(Clock.systemUTC())
         }
         ticket.flush()
 
@@ -108,12 +109,12 @@ object TicketService {
 
         // Role check for transition to CLOSED
         val memberRole = ResidenceMembers
-            .select(ResidenceMembers.roleDto)
+            .select(ResidenceMembers.role)
             .where { 
                 (ResidenceMembers.userId eq updaterUserId) and 
                 (ResidenceMembers.residenceId eq ticket.logement.residence.id.value) 
             }
-            .map { it[ResidenceMembers.roleDto] }
+            .map { it[ResidenceMembers.role] }
             .firstOrNull() ?: throw Exception("Accès interdit : membre introuvable.")
 
         if (newStatus == TicketStatusDto.CLOSED) {
@@ -129,12 +130,12 @@ object TicketService {
 
         // Append optional comment
         if (!comment.isNullOrBlank()) {
-            ticket.description = ticket.description + "\n\n[Suivi - ${newStatus.name}] : $comment"
+            ticket.description += "\n\n[Suivi - ${newStatus.name}] : $comment"
         }
 
         // Process optional cost and generate Financial Transaction Expense if cost > 0
         if (cost != null && cost > 0.0) {
-            ticket.interventionCost = ticket.interventionCost + cost
+            ticket.interventionCost += cost
 
             FinancialTransaction.new {
                 this.residence = ticket.logement.residence
@@ -145,14 +146,14 @@ object TicketService {
                     if (!comment.isNullOrBlank()) "- $comment" else ""
                 this.relatedEntityType = EntityType.TICKET
                 this.relatedEntityId = ticket.id.value
-                this.transactionDate = LocalDate.now()
-                this.createdAt = LocalDateTime.now()
-                this.updatedAt = LocalDateTime.now()
+                this.transactionDate = LocalDate.now(Clock.systemUTC())
+                this.createdAt = LocalDateTime.now(Clock.systemUTC())
+                this.updatedAt = LocalDateTime.now(Clock.systemUTC())
             }
         }
 
         ticket.status = newStatus.convert()
-        ticket.updatedAt = LocalDateTime.now()
+        ticket.updatedAt = LocalDateTime.now(Clock.systemUTC())
         ticket.flush()
 
         return TicketDto(

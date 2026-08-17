@@ -57,7 +57,7 @@ data class LoginUiState(
 
     // Real-time debounced search states for JoinResidence
     val searchQuery: String = "",
-    val searchResults: List<ResidenceSummaryItem> = emptyList(),
+    val searchResults: List<ResidenceSummaryItemDto> = emptyList(),
     val isSearching: Boolean = false,
 
     // Leases state
@@ -256,8 +256,8 @@ class LoginViewModel(
                                 residenceAddress = it.address,
                                 userRoleInResidence = UserRole.ADMIN,
                                 totalUnits = it.totalUnits,
-                                currencySymbol = it.currencySymbol,
-                                currencyCode = it.currencyCode
+                                currencySymbol = it.currencySymbol.label,
+                                currencyCode = it.currencyCode.name
                             )
                         }
                         val associatedContexts = directory.associatedResidences.map {
@@ -265,10 +265,10 @@ class LoginViewModel(
                                 residenceId = it.id,
                                 residenceName = it.name,
                                 residenceAddress = it.address,
-                                userRoleInResidence = it.roleDto.convert(),
+                                userRoleInResidence = it.roleDto.toUserRole(),
                                 totalUnits = it.totalUnits,
-                                currencySymbol = it.currencySymbol,
-                                currencyCode = it.currencyCode
+                                currencySymbol = it.currencySymbol.label,
+                                currencyCode = it.currencyCode.name
                             )
                         }
                         
@@ -366,7 +366,8 @@ class LoginViewModel(
 
         viewModelScope.launch {
             try {
-                residenceRepository.createResidence(token, ResidenceCreateRequest(name, address, defaultCurrency, kWhPrice))
+                residenceRepository.createResidence(token, ResidenceCreateRequest(name, address,
+                    CurrencyCodeDto.valueOf(defaultCurrency), kWhPrice))
                     .onSuccess {
                         fetchResidences()
                         updateState { it.copy(isLoading = false, showCreateResidenceDialog = false, errorMessage = null) }
@@ -408,7 +409,8 @@ class LoginViewModel(
 
         viewModelScope.launch {
             try {
-                residenceRepository.updateResidence(token, residenceId, ResidenceCreateRequest(name, address, "XOF", kWhPrice))
+                residenceRepository.updateResidence(token, residenceId, ResidenceCreateRequest(name, address,
+                    CurrencyCodeDto.XOF, kWhPrice))
                     .onSuccess {
                         fetchResidences()
                         updateState { it.copy(isLoading = false, errorMessage = null) }

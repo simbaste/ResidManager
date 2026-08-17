@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.UnitDto
 import com.resid.manager.dto.ResidenceContext
-import com.resid.manager.dto.ResidenceSummaryItem
+import com.resid.manager.dto.ResidenceSummaryItemDto
 import com.resid.manager.viewmodel.LoginViewModel
 
 @Composable
@@ -127,7 +127,7 @@ fun JoinResidenceDialog(
     onSubmit: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var selectedItem by remember { mutableStateOf<ResidenceSummaryItem?>(null) }
+    var selectedItem by remember { mutableStateOf<ResidenceSummaryItemDto?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,

@@ -1,11 +1,9 @@
 package com.resid.manager.routes
 
 import at.favre.lib.crypto.bcrypt.BCrypt
-import com.resid.manager.auth.JwtConfig
 import com.resid.manager.data.*
 import com.resid.manager.dto.*
 import com.resid.manager.service.ElectricityService
-import com.resid.manager.service.PdfService
 import com.resid.manager.service.TicketService
 import com.resid.manager.service.DashboardService
 import com.resid.manager.service.FinanceOperationService
@@ -20,102 +18,13 @@ import io.ktor.server.routing.*
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
 fun Application.configureAppRoutes() {
     routing {
-        // -----------------------------------------------------------------
-        // SECTION 1: PUBLIC ROUTES
-        // -----------------------------------------------------------------
-        
-        // POST /api/auth/register : Generic account creation
-        post("/api/auth/register") {
-            try {
-                val request = call.receive<RegisterRequest>()
-
-                // 1. Validate inputs via Shared Logic
-                val validation = AuthValidator.validateRegister(
-                    firstName = request.firstName,
-                    lastName = request.lastName,
-                    email = request.email,
-                    passwordPlain = request.passwordPlain
-                )
-
-                if (validation.isFailure) {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse(validation.exceptionOrNull()?.message ?: "Données d'inscription invalides.")
-                    )
-                    return@post
-                }
-
-                // 2. Check if user already exists
-                val alreadyExists = transaction {
-                    User.find { Users.email eq request.email }.count() > 0
-                }
-
-                if (alreadyExists) {
-                    call.respond(
-                        HttpStatusCode.Conflict,
-                        ErrorResponse("This email address is already registered. Try logging in instead.")
-                    )
-                    return@post
-                }
-
-                // 3. Hash password using BCrypt
-                val hashedPassword = BCrypt.withDefaults().hashToString(12, request.passwordPlain.toCharArray())
-
-                // Parse birthDate if provided
-                val parsedBirthDate = request.birthDate?.let {
-                    try {
-                        LocalDate.parse(it)
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
-
-                // 4. Save the new user record into DB
-                val newUser = transaction {
-                    User.new {
-                        email = request.email
-                        passwordHash = hashedPassword
-                        firstName = request.firstName
-                        lastName = request.lastName
-                        birthDate = parsedBirthDate
-                        phone = request.phone
-                        createdAt = LocalDateTime.now()
-                        updatedAt = LocalDateTime.now()
-                    }
-                }
-
-                // 5. Auto-authenticate by generating and returning a JWT token
-                val token = JwtConfig.generateToken(
-                    userId = newUser.id.value.toString(),
-                    email = newUser.email,
-                )
-
-                val userDto = UserDto(
-                    id = newUser.id.value.toString(),
-                    email = newUser.email,
-                    name = "${newUser.firstName} ${newUser.lastName}",
-                    phone = newUser.phone,
-                    birthDate = newUser.birthDate?.toString(),
-                    createdAt = newUser.createdAt.toString(),
-                    updatedAt = newUser.createdAt.toString()
-                )
-
-                call.respond(HttpStatusCode.Created, AuthResponse(token, userDto))
-
-            } catch (e: Exception) {
-                call.respond(
-                    HttpStatusCode.InternalServerError,
-                    ErrorResponse("Une erreur est survenue lors de l'inscription: ${e.message}")
-                )
-            }
-        }
-
         // -----------------------------------------------------------------
         // SECTION 2: SECURED ROUTES (JWT AUTHENTICATED)
         // -----------------------------------------------------------------
@@ -133,48 +42,6 @@ fun Application.configureAppRoutes() {
                     HttpStatusCode.InternalServerError,
                     ErrorResponse("Erreur lors de la récupération des équipements : ${e.message}")
                 )
-            }
-        }
-
-        // GET /api/residences/{id}/electricity/export-pdf : Generates the "Eco-Print" PDF (Publicly accessible for browser tabs printing)
-        get("/api/residences/{id}/electricity/export-pdf") {
-            val residenceId = call.parameters["id"] ?: ""
-            val statementIdsParam = call.request.queryParameters["ids"]
-
-            try {
-                val pdfBytes = transaction {
-                    val dbResidence = Residence.findById(UUID.fromString(residenceId))
-                        ?: throw Exception("Résidence introuvable.")
-
-                    val statementsToPrint = if (!statementIdsParam.isNullOrBlank()) {
-                        val uuids = statementIdsParam.split(",").map { UUID.fromString(it.trim()) }
-                        ElectricityStatement.all().filter { it.id.value in uuids }
-                    } else {
-                        ElectricityStatement.all()
-                            .filter { it.logement.residence.id.value == UUID.fromString(residenceId) }
-                            .sortedByDescending { it.statementDate }
-                            .take(4)
-                    }.map {
-                        ElectricityStatementDto(
-                            id = it.id.value.toString(),
-                            logementId = it.logement.id.value.toString(),
-                            previousIndex = it.oldIndex,
-                            newIndex = it.newIndex,
-                            kWhPriceApplied = it.kWhPriceApplied,
-                            amountDue = it.amountDue,
-                            statementDate = it.statementDate.toString(),
-                            status = it.status.convert(),
-                            createdAt = it.createdAt.toString(),
-                            updatedAt = it.updatedAt.toString()
-                        )
-                    }
-
-                    PdfService.generateEcoPrintPdf(statementsToPrint, dbResidence.name)
-                }
-
-                call.respondBytes(pdfBytes, ContentType.Application.Pdf)
-            } catch (e: Exception) {
-                call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Erreur lors de l'export PDF."))
             }
         }
 
@@ -272,495 +139,6 @@ fun Application.configureAppRoutes() {
                 }
             }
 
-            // GET /api/residences : List residences for the directory (Owned and Associated)
-            get("/api/residences") {
-                val principal = call.principal<JWTPrincipal>()
-                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
-
-                try {
-                    val directoryDto = transaction {
-                        // 1. Query owned residences (where role is m.role = 'OWNER')
-                        val ownedList = Residence.all().filter { res ->
-                            ResidenceMembers.select(ResidenceMembers.roleDto).where {
-                                (ResidenceMembers.userId eq UUID.fromString(userId)) and
-                                (ResidenceMembers.residenceId eq res.id.value) and
-                                (ResidenceMembers.roleDto eq Role.OWNER) and
-                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
-                            }.count() > 0
-                        }.map { res ->
-                            val totalUnits = Logement.find { Logements.residenceId eq res.id.value }.count()
-                            ResidenceSummaryItem(
-                                id = res.id.value.toString(),
-                                name = res.name,
-                                address = res.address,
-                                photoUrl = res.photoUrl,
-                                totalUnits = totalUnits.toInt(),
-                                currencySymbol = res.currency.symbol,
-                                currencyCode = res.currency.code
-                            )
-                        }
-
-                        // 2. Query associated residences (where role is not m.role = 'OWNER')
-                        val associatedList = Residence.all().filter { res ->
-                            ResidenceMembers.select(ResidenceMembers.roleDto).where {
-                                (ResidenceMembers.userId eq UUID.fromString(userId)) and
-                                (ResidenceMembers.residenceId eq res.id.value) and
-                                (ResidenceMembers.roleDto neq Role.OWNER) and
-                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
-                            }.count() > 0
-                        }.map { res ->
-                            val role = ResidenceMembers.select(ResidenceMembers.roleDto).where {
-                                (ResidenceMembers.userId eq UUID.fromString(userId)) and
-                                (ResidenceMembers.residenceId eq res.id.value)
-                            }.map { it[ResidenceMembers.roleDto] }.first()
-                            
-                            val totalUnits = Logement.find { Logements.residenceId eq res.id.value }.count()
-                            AssociatedResidenceItem(
-                                id = res.id.value.toString(),
-                                name = res.name,
-                                address = res.address,
-                                photoUrl = res.photoUrl,
-                                roleDto = role.convert(),
-                                totalUnits = totalUnits.toInt(),
-                                currencySymbol = res.currency.symbol,
-                                currencyCode = res.currency.code
-                            )
-                        }
-
-                        ResidenceDirectoryDTO(ownedResidences = ownedList, associatedResidences = associatedList)
-                    }
-
-                    call.respond(HttpStatusCode.OK, directoryDto)
-                } catch (e: Exception) {
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse("Erreur lors de la récupération de l'annuaire : ${e.message}")
-                    )
-                }
-            }
-
-            // POST /api/residences : Create a residence
-            post("/api/residences") {
-                val principal = call.principal<JWTPrincipal>()
-                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
-
-                try {
-                    val request = call.receive<ResidenceCreateRequest>()
-                    
-                    val newResidence = transaction {
-                        val selectedCurrency = CurrencyEntity.find { Currencies.code eq request.defaultCurrency.uppercase() }.firstOrNull()
-                            ?: CurrencyEntity.find { Currencies.code eq "XOF" }.first()
-
-                        // 1. Insert residence
-                        val r = Residence.new {
-                            name = request.name
-                            address = request.address
-                            photoUrl = null
-                            currency = selectedCurrency
-                            kWhPrice = request.kWhPrice
-                            createdAt = LocalDateTime.now()
-                            updatedAt = LocalDateTime.now()
-                        }
-                        
-                        // Force flush the residence insert to database to satisfy the foreign key constraint
-                        r.flush()
-                        
-                        // 2. Insert member record linking user to this residence as OWNER with ACCEPTED status
-                        ResidenceMembers.insert {
-                            it[ResidenceMembers.userId] = UUID.fromString(userId)
-                            it[ResidenceMembers.residenceId] = r.id.value
-                            it[ResidenceMembers.roleDto] = Role.OWNER
-                            it[ResidenceMembers.status] = InvitationStatus.ACCEPTED
-                            it[ResidenceMembers.createdAt] = LocalDateTime.now()
-                        }
-                        r
-                    }
-
-                    val summary = ResidenceSummaryItem(
-                        id = newResidence.id.value.toString(),
-                        name = newResidence.name,
-                        address = newResidence.address,
-                        photoUrl = newResidence.photoUrl,
-                        totalUnits = 0,
-                        currencySymbol = transaction { newResidence.currency.symbol },
-                        currencyCode = transaction { newResidence.currency.code }
-                    )
-
-                    call.respond(HttpStatusCode.Created, summary)
-                } catch (e: Exception) {
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse("Erreur lors de la création de la résidence : ${e.message}")
-                    )
-                }
-            }
-            
-            // DELETE /api/residences/{id} delete a residence
-            delete("/api/residences/{id}") {
-                val principal = call.principal<JWTPrincipal>()
-                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
-                val residenceId = call.parameters["id"] ?: ""
-
-                try {
-                    // 1. Verify that the caller is the OWNER of this residence
-                    val userRole = transaction {
-                        ResidenceMembers
-                            .select(ResidenceMembers.roleDto)
-                            .where { 
-                                (ResidenceMembers.userId eq UUID.fromString(userId)) and 
-                                (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
-                            }
-                            .singleOrNull()?.get(ResidenceMembers.roleDto)
-                    }
-
-                    if (userRole?.isOwner() != true) {
-                        call.respond(
-                            HttpStatusCode.Forbidden, 
-                            ErrorResponse("Accès interdit: Seuls les propriétaires de cette résidence (OWNER) peuvent la supprimer.")
-                        )
-                        return@delete
-                    }
-
-                    // 2. Perform the deletion inside a transaction using Exposed DSL
-                    transaction {
-                        Residences.deleteWhere { Residences.id eq UUID.fromString(residenceId) }
-                    }
-
-                    call.respond(HttpStatusCode.OK, mapOf("message" to "La résidence a été supprimée avec succès !"))
-                } catch (e: Exception) {
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse("Erreur lors de la suppression de la résidence : ${e.message}")
-                    )
-                }
-            }
-
-            // PUT /api/residences/{id}/currency : Update ONLY residence currency
-            put("/api/residences/{id}/currency") {
-                val residenceId = call.parameters["id"] ?: ""
-                try {
-                    val request = call.receive<Map<String, String>>()
-                    val code = request["currencyCode"] ?: throw Exception("Code devise manquant.")
-                    
-                    val updated = transaction {
-                        val dbResidence = Residence.findById(UUID.fromString(residenceId))
-                            ?: throw Exception("Résidence introuvable.")
-
-                        val selectedCurrency = CurrencyEntity.find { Currencies.code eq code.uppercase() }.firstOrNull()
-                            ?: throw Exception("Devise introuvable.")
-
-                        dbResidence.currency = selectedCurrency
-                        dbResidence.updatedAt = LocalDateTime.now()
-                        dbResidence.flush()
-
-                        val totalUnits = Logement.find { Logements.residenceId eq dbResidence.id.value }.count()
-                        ResidenceSummaryItem(
-                            id = dbResidence.id.value.toString(),
-                            name = dbResidence.name,
-                            address = dbResidence.address,
-                            photoUrl = dbResidence.photoUrl,
-                            totalUnits = totalUnits.toInt(),
-                            currencySymbol = dbResidence.currency.symbol,
-                            currencyCode = dbResidence.currency.code
-                        )
-                    }
-                    call.respond(HttpStatusCode.OK, updated)
-                } catch (e: Exception) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Erreur lors du changement de la devise."))
-                }
-            }
-
-            // PUT /api/residences/{id} : Update a residence
-            put("/api/residences/{id}") {
-                val principal = call.principal<JWTPrincipal>()
-                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
-                val residenceId = call.parameters["id"] ?: ""
-
-                try {
-                    // Check if sender is OWNER or ADMIN
-                    val userRole = transaction {
-                        ResidenceMembers
-                            .select(ResidenceMembers.roleDto)
-                            .where { 
-                                (ResidenceMembers.userId eq UUID.fromString(userId)) and 
-                                (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
-                            }
-                            .singleOrNull()?.get(ResidenceMembers.roleDto)
-                    }
-
-                    if (userRole?.isAdmin() != true) {
-                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit: Seuls les propriétaires et administrateurs peuvent modifier cette résidence."))
-                        return@put
-                    }
-
-                    val request = call.receive<ResidenceCreateRequest>()
-
-                    // Validation
-                    if (request.name.isBlank() || request.address.isBlank()) {
-                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("Veuillez remplir tous les champs obligatoires."))
-                        return@put
-                    }
-                    if (request.kWhPrice < 0.0) {
-                        call.respond(HttpStatusCode.BadRequest, ErrorResponse("Le prix du kWh doit être supérieur ou égal à 0."))
-                        return@put
-                    }
-
-                    val updatedSummary = transaction {
-                        val dbResidence = Residence.findById(UUID.fromString(residenceId)) ?: throw Exception("Résidence introuvable.")
-                        val selectedCurrency = CurrencyEntity.find { Currencies.code eq request.defaultCurrency.uppercase() }.firstOrNull()
-                            ?: CurrencyEntity.find { Currencies.code eq "XOF" }.first()
-
-                        dbResidence.name = request.name
-                        dbResidence.address = request.address
-                        dbResidence.currency = selectedCurrency
-                        dbResidence.kWhPrice = request.kWhPrice
-                        dbResidence.updatedAt = LocalDateTime.now()
-
-                        dbResidence.flush()
-
-                        val totalUnits = Logement.find { Logements.residenceId eq dbResidence.id.value }.count()
-
-                        ResidenceSummaryItem(
-                            id = dbResidence.id.value.toString(),
-                            name = dbResidence.name,
-                            address = dbResidence.address,
-                            photoUrl = dbResidence.photoUrl,
-                            totalUnits = totalUnits.toInt(),
-                            currencySymbol = dbResidence.currency.symbol,
-                            currencyCode = dbResidence.currency.code
-                        )
-                    }
-
-                    call.respond(HttpStatusCode.OK, updatedSummary)
-                } catch (e: Exception) {
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse("Erreur lors de la modification de la résidence : ${e.message}")
-                    )
-                }
-            }
-
-            // GET /api/residences/search?name=... : Search for a residence by name
-            get("/api/residences/search") {
-                val searchName = call.request.queryParameters["name"] ?: ""
-
-                try {
-                    val results = transaction {
-                        Residence.all().filter { 
-                            it.name.contains(searchName, ignoreCase = true) 
-                        }.map { res ->
-                            val totalUnits = Logement.find { Logements.residenceId eq res.id.value }.count()
-                            ResidenceSummaryItem(
-                                id = res.id.value.toString(),
-                                name = res.name,
-                                address = res.address,
-                                photoUrl = res.photoUrl,
-                                totalUnits = totalUnits.toInt(),
-                                currencySymbol = res.currency.symbol,
-                                currencyCode = res.currency.code
-                            )
-                        }
-                    }
-
-                    call.respond(HttpStatusCode.OK, results)
-                } catch (e: Exception) {
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse("Erreur lors de la recherche des résidences : ${e.message}")
-                    )
-                }
-            }
-
-            // POST /api/residences/{id}/join : Request to join a residence
-            post("/api/residences/{id}/join") {
-                val principal = call.principal<JWTPrincipal>()
-                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
-                val residenceId = call.parameters["id"] ?: ""
-
-                try {
-                    transaction {
-                        ResidenceMembers.insert {
-                            it[ResidenceMembers.userId] = UUID.fromString(userId)
-                            it[ResidenceMembers.residenceId] = UUID.fromString(residenceId)
-                            it[ResidenceMembers.roleDto] = Role.TENANT
-                            it[ResidenceMembers.status] = InvitationStatus.PENDING_APPROVAL
-                            it[ResidenceMembers.createdAt] = LocalDateTime.now()
-                        }
-                    }
-                    call.respond(HttpStatusCode.OK, mapOf("residenceId" to residenceId, "status" to "Demande envoyée"))
-                } catch (e: Exception) {
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse("Erreur lors de la demande d'adhésion : ${e.message}")
-                    )
-                }
-            }
-
-            // POST /api/residences/{id}/members/invite : Invite a user via email
-            post("/api/residences/{id}/members/invite") {
-                val principal = call.principal<JWTPrincipal>()
-                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
-                val residenceId = call.parameters["id"] ?: ""
-
-                try {
-                    // Check if sender is OWNER or ADMIN
-                    val userRole = transaction {
-                        ResidenceMembers
-                            .select(ResidenceMembers.roleDto)
-                            .where { 
-                                (ResidenceMembers.userId eq UUID.fromString(userId)) and 
-                                (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
-                            }
-                            .singleOrNull()?.get(ResidenceMembers.roleDto)
-                    }
-
-                    if (userRole?.isAdmin() != true) {
-                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit: Seuls les propriétaires et administrateurs peuvent inviter des membres."))
-                        return@post
-                    }
-
-                    val request = call.receive<InviteMemberRequest>()
-
-                    // Find invited user by email
-                    val invitedUser = transaction {
-                        User.find { Users.email eq request.email }.firstOrNull()
-                    }
-
-                    if (invitedUser == null) {
-                        call.respond(HttpStatusCode.NotFound, ErrorResponse("Utilisateur introuvable avec l'adresse email : ${request.email}"))
-                        return@post
-                    }
-
-                    // Insert into residence_members with status 'INVITED' and role
-                    transaction {
-                        ResidenceMembers.insert {
-                            it[ResidenceMembers.userId] = invitedUser.id.value
-                            it[ResidenceMembers.residenceId] = UUID.fromString(residenceId)
-                            it[ResidenceMembers.roleDto] = Role.valueOf(request.role)
-                            it[ResidenceMembers.status] = InvitationStatus.INVITED
-                            it[ResidenceMembers.createdAt] = LocalDateTime.now()
-                        }
-                    }
-
-                    call.respond(HttpStatusCode.OK, mapOf("residenceId" to residenceId, "status" to "Invitation envoyée"))
-                } catch (e: Exception) {
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse("Erreur lors de l'invitation : ${e.message}")
-                    )
-                }
-            }
-
-            // POST /api/residences/{id}/members/{user_id}/status : Accept/Refuse a member or request
-            post("/api/residences/{id}/members/{user_id}/status") {
-                val principal = call.principal<JWTPrincipal>()
-                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
-                val residenceId = call.parameters["id"] ?: ""
-                val targetUserId = call.parameters["user_id"] ?: ""
-
-                try {
-                    // Check if sender is OWNER or ADMIN
-                    val userRole = transaction {
-                        ResidenceMembers
-                            .select(ResidenceMembers.roleDto)
-                            .where { 
-                                (ResidenceMembers.userId eq UUID.fromString(userId)) and 
-                                (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
-                            }
-                            .singleOrNull()?.get(ResidenceMembers.roleDto)
-                    }
-
-                    if (userRole?.isAdmin() != true) {
-                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit: Seuls les propriétaires et administrateurs peuvent accepter/modifier les membres."))
-                        return@post
-                    }
-
-                    val request = call.receive<MemberStatusUpdateRequest>()
-
-                    transaction {
-                        ResidenceMembers.update({ 
-                            (ResidenceMembers.userId eq UUID.fromString(targetUserId)) and 
-                            (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) 
-                        }) {
-                            it[status] = InvitationStatus.valueOf(request.status)
-                            val newRole = request.role
-                            if (newRole != null) {
-                                it[roleDto] = Role.valueOf(newRole)
-                            }
-                        }
-                    }
-
-                    call.respond(HttpStatusCode.OK, mapOf("residenceId" to residenceId, "targetUserId" to targetUserId, "status" to "Statut mis à jour"))
-                } catch (e: Exception) {
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse("Erreur lors de la mise à jour du membre : ${e.message}")
-                    )
-                }
-            }
-            
-            // PUT /api/residences/{id}/members/{user_id}/status : Accept/Decline invitation or update status
-            put("/api/residences/{id}/members/{user_id}/status") {
-                val principal = call.principal<JWTPrincipal>()
-                val callerId = principal?.payload?.getClaim("userId")?.asString() ?: ""
-                val residenceId = call.parameters["id"] ?: ""
-                val targetUserId = call.parameters["user_id"] ?: ""
-
-                try {
-                    val request = call.receive<MemberStatusUpdateRequest>()
-
-                    // 1. Fetch the target member's current status and role
-                    val existingMember = transaction {
-                        ResidenceMembers
-                            .select(ResidenceMembers.status, ResidenceMembers.roleDto)
-                            .where { 
-                                (ResidenceMembers.userId eq UUID.fromString(targetUserId)) and 
-                                (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) 
-                            }
-                            .singleOrNull()
-                    }
-
-                    if (existingMember == null) {
-                        call.respond(HttpStatusCode.NotFound, ErrorResponse("Aucune invitation ou inscription trouvée pour cet utilisateur."))
-                        return@put
-                    }
-
-                    // 2. Validate permissions: Only OWNER, ADMIN, or the INVITED user themselves can modify it
-                    val isSelf = callerId == targetUserId
-
-                    if (!isSelf) {
-                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit : Seul l'utilisateur invité lui-même peut modifier le statut de cette invitation."))
-                        return@put
-                    }
-
-                    // 3. Perform update
-                    transaction {
-                        ResidenceMembers.update({ 
-                            (ResidenceMembers.userId eq UUID.fromString(targetUserId)) and 
-                            (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) 
-                        }) {
-                            it[status] = InvitationStatus.valueOf(request.status)
-                        }
-                    }
-
-                    call.respond(HttpStatusCode.OK, mapOf(
-                        "residenceId" to residenceId,
-                        "userId" to targetUserId,
-                        "status" to request.status,
-                        "message" to "Le statut de l'invitation a été mis à jour avec succès !"
-                    ))
-                } catch (e: Exception) {
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse("Erreur lors de la mise à jour de l'invitation : ${e.message}")
-                    )
-                }
-            }
-
             // GET /api/users/tenant/search?q=name Search User by his name or his residence role
             get("/api/users/search") {
                 val query = call.request.queryParameters["q"] ?: ""
@@ -770,13 +148,13 @@ fun Application.configureAppRoutes() {
                     val users = transaction {
                         if (residenceId.isNotBlank()) {
                             (Users innerJoin ResidenceMembers)
-                                .select(Users.id, Users.firstName, Users.lastName, Users.email, ResidenceMembers.roleDto)
+                                .select(Users.id, Users.firstName, Users.lastName, Users.email, ResidenceMembers.role)
                                 .where {
                                     ((Users.email like "%$query%") or
                                         (Users.firstName like "%$query%") or
                                         (Users.lastName like "%$query%")) and
                                      ((ResidenceMembers.residenceId eq UUID.fromString(residenceId)) or
-                                        (ResidenceMembers.roleDto eq Role.valueOf(role)))
+                                        (ResidenceMembers.role eq Role.valueOf(role)))
                                 }
                                 .withDistinct()
                                 .map { row ->
@@ -784,7 +162,7 @@ fun Application.configureAppRoutes() {
                                         id = row[Users.id].value.toString(),
                                         email = row[Users.email],
                                         name = "${row[Users.firstName]} ${row[Users.lastName]}",
-                                        roleDto = row[ResidenceMembers.roleDto].convert()
+                                        roleDto = row[ResidenceMembers.role].convert()
                                     )
                                 }
                         } else {
@@ -843,7 +221,7 @@ fun Application.configureAppRoutes() {
                                 Users.lastName,
                                 Users.email,
                                 Users.phone,
-                                ResidenceMembers.roleDto,
+                                ResidenceMembers.role,
                                 ResidenceMembers.status
                             )
                             .where { ResidenceMembers.residenceId eq UUID.fromString(residenceId) }
@@ -854,7 +232,7 @@ fun Application.configureAppRoutes() {
                                     lastName = row[Users.lastName],
                                     email = row[Users.email],
                                     phone = row[Users.phone],
-                                    roleDto = row[ResidenceMembers.roleDto].convert(),
+                                    roleDto = row[ResidenceMembers.role].convert(),
                                     status = row[ResidenceMembers.status].convert()
                                 )
                             }
@@ -931,13 +309,13 @@ fun Application.configureAppRoutes() {
                     // Verify if calling user has ADMIN or RESIDENCE_MANAGER role inside residence_members
                     val userRole = transaction {
                         ResidenceMembers
-                            .select(ResidenceMembers.roleDto)
+                            .select(ResidenceMembers.role)
                             .where {
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and
                                         (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and
                                         (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }
-                            .singleOrNull()?.get(ResidenceMembers.roleDto)
+                            .singleOrNull()?.get(ResidenceMembers.role)
                     }
 
                     if (userRole?.isManager() != true) {
@@ -968,8 +346,8 @@ fun Application.configureAppRoutes() {
                             nominalRent = request.nominalRent
                             serviceCharges = request.serviceCharges
                             initialElectricityIndex = request.initialElectricityIndex
-                            createdAt = LocalDateTime.now()
-                            updatedAt = LocalDateTime.now()
+                            createdAt = LocalDateTime.now(Clock.systemUTC())
+                            updatedAt = LocalDateTime.now(Clock.systemUTC())
                             status = UnitStatus.AVAILABLE // Forced initial business state
                         }
 
@@ -1019,13 +397,13 @@ fun Application.configureAppRoutes() {
                     // Check user roles: OWNER, ADMIN, RESIDENCE_MANAGER
                     val userRole = transaction {
                         ResidenceMembers
-                            .select(ResidenceMembers.roleDto)
+                            .select(ResidenceMembers.role)
                             .where { 
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and 
                                 (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
                                 (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }
-                            .singleOrNull()?.get(ResidenceMembers.roleDto)
+                            .singleOrNull()?.get(ResidenceMembers.role)
                     }
 
                     if (userRole?.isManager() != true) {
@@ -1058,13 +436,13 @@ fun Application.configureAppRoutes() {
                     // Check user roles: OWNER, ADMIN, RESIDENCE_MANAGER
                     val userRole = transaction {
                         ResidenceMembers
-                            .select(ResidenceMembers.roleDto)
+                            .select(ResidenceMembers.role)
                             .where { 
                                 (ResidenceMembers.userId eq UUID.fromString(userId)) and 
                                 (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
                                 (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                             }
-                            .singleOrNull()?.get(ResidenceMembers.roleDto)
+                            .singleOrNull()?.get(ResidenceMembers.role)
                     }
 
                     if (userRole?.isManager() != true) {
@@ -1093,7 +471,7 @@ fun Application.configureAppRoutes() {
                         dbLogement.nominalRent = request.nominalRent
                         dbLogement.serviceCharges = request.serviceCharges
                         dbLogement.initialElectricityIndex = request.initialElectricityIndex
-                        dbLogement.updatedAt = LocalDateTime.now()
+                        dbLogement.updatedAt = LocalDateTime.now(Clock.systemUTC())
 
                         // Update selected equipments
                         val selectedEq = request.equipementIds.mapNotNull { eqId ->
@@ -1166,8 +544,8 @@ fun Application.configureAppRoutes() {
                                     lastName = inline.lastName
                                     birthDate = null
                                     phone = inline.phone
-                                    createdAt = LocalDateTime.now()
-                                    updatedAt = LocalDateTime.now()
+                                    createdAt = LocalDateTime.now(Clock.systemUTC())
+                                    updatedAt = LocalDateTime.now(Clock.systemUTC())
                                 }
                                 newUser.flush()
 
@@ -1175,9 +553,9 @@ fun Application.configureAppRoutes() {
                                 ResidenceMembers.insert {
                                     it[userId] = newUser.id.value
                                     it[residenceId] = dbLogement.residence.id.value
-                                    it[roleDto] = Role.TENANT
+                                    it[role] = Role.TENANT
                                     it[status] = InvitationStatus.ACCEPTED
-                                    it[createdAt] = LocalDateTime.now()
+                                    it[createdAt] = LocalDateTime.now(Clock.systemUTC())
                                 }
                                 newUser
                             }
@@ -1229,8 +607,8 @@ fun Application.configureAppRoutes() {
                             this.endDate = parsedEnd
                             this.advanceMonths = advanceMonths
                             this.advancePaymentAmount = initialPayment
-                            this.createdAt = LocalDateTime.now()
-                            this.updatedAt = LocalDateTime.now()
+                            this.createdAt = LocalDateTime.now(Clock.systemUTC())
+                            this.updatedAt = LocalDateTime.now(Clock.systemUTC())
                         }
 
                         // 5. Update logement status to OCCUPIED
@@ -1253,8 +631,8 @@ fun Application.configureAppRoutes() {
                                     this.relatedEntityType = EntityType.BAIL
                                     this.relatedEntityId = newLease.id.value
                                     this.transactionDate = LocalDate.now()
-                                    this.createdAt = LocalDateTime.now()
-                                    this.updatedAt = LocalDateTime.now()
+                                    this.createdAt = LocalDateTime.now(Clock.systemUTC())
+                                    this.updatedAt = LocalDateTime.now(Clock.systemUTC())
                                 }
                             }
 
@@ -1268,8 +646,8 @@ fun Application.configureAppRoutes() {
                                     this.relatedEntityType = EntityType.BAIL
                                     this.relatedEntityId = newLease.id.value
                                     this.transactionDate = LocalDate.now()
-                                    this.createdAt = LocalDateTime.now()
-                                    this.updatedAt = LocalDateTime.now()
+                                    this.createdAt = LocalDateTime.now(Clock.systemUTC())
+                                    this.updatedAt = LocalDateTime.now(Clock.systemUTC())
                                 }
                             }
                         }
@@ -1418,7 +796,7 @@ fun Application.configureAppRoutes() {
                         if (totalPaidCaution >= requiredCaution) {
                             dbLease.depositStatus = DepositStatus.PAID
                         }
-                        dbLease.updatedAt = LocalDateTime.now()
+                        dbLease.updatedAt = LocalDateTime.now(Clock.systemUTC())
                         dbLease.flush()
 
                         // 7. Generate financial transaction entry
@@ -1435,8 +813,8 @@ fun Application.configureAppRoutes() {
                             this.relatedEntityType = EntityType.BAIL
                             this.relatedEntityId = UUID.fromString(leaseId)
                             this.transactionDate = LocalDate.now()
-                            this.createdAt = LocalDateTime.now()
-                            this.updatedAt = LocalDateTime.now()
+                            this.createdAt = LocalDateTime.now(Clock.systemUTC())
+                            this.updatedAt = LocalDateTime.now(Clock.systemUTC())
                         }
 
                         val previousPayments = FinancialTransaction.find { 
@@ -1494,7 +872,7 @@ fun Application.configureAppRoutes() {
                                 dbLease.logement.flush()
                             }
                         }
-                        dbLease.updatedAt = LocalDateTime.now()
+                        dbLease.updatedAt = LocalDateTime.now(Clock.systemUTC())
                         dbLease.flush()
 
                         val previousPayments = FinancialTransaction.find { 
@@ -1545,7 +923,7 @@ fun Application.configureAppRoutes() {
                             ?: throw Exception("Relevé d'électricité introuvable.")
 
                         stmt.status = request.status?.convert() ?: ElectricityStatus.PAID
-                        stmt.updatedAt = LocalDateTime.now()
+                        stmt.updatedAt = LocalDateTime.now(Clock.systemUTC())
                         stmt.flush()
 
                         // Update description of original Financial Transaction to reflect payment
@@ -1556,7 +934,7 @@ fun Application.configureAppRoutes() {
 
                         if (tx != null && !tx.description.startsWith("[PAID]")) {
                             tx.description = "[PAID] " + tx.description
-                            tx.updatedAt = LocalDateTime.now()
+                            tx.updatedAt = LocalDateTime.now(Clock.systemUTC())
                             tx.flush()
                         }
 
@@ -1673,8 +1051,6 @@ fun Application.configureAppRoutes() {
                 }
             }
 
-
-
             // GET /api/residences/{id}/ticket-categories : List all ticket categories (global and custom to residence)
             get("/api/residences/{id}/ticket-categories") {
                 val residenceId = call.parameters["id"] ?: ""
@@ -1714,8 +1090,8 @@ fun Application.configureAppRoutes() {
                             this.residence = dbResidence
                             this.key = request.key.uppercase()
                             this.label = request.label
-                            this.createdAt = LocalDateTime.now()
-                            this.updatedAt = LocalDateTime.now()
+                            this.createdAt = LocalDateTime.now(Clock.systemUTC())
+                            this.updatedAt = LocalDateTime.now(Clock.systemUTC())
                         }
                         entity.flush()
 
@@ -1742,7 +1118,7 @@ fun Application.configureAppRoutes() {
                             ?: throw Exception("Catégorie de ticket introuvable.")
 
                         entity.label = request.label
-                        entity.updatedAt = LocalDateTime.now()
+                        entity.updatedAt = LocalDateTime.now(Clock.systemUTC())
                         entity.flush()
 
                         TicketCategoryDto(
@@ -1915,13 +1291,13 @@ fun Application.configureAppRoutes() {
                 // Context Guard & Middleware: verify user role inside residence_members
                 val userRole = transaction {
                     ResidenceMembers
-                        .select(ResidenceMembers.roleDto)
+                        .select(ResidenceMembers.role)
                         .where {
                             (ResidenceMembers.userId eq UUID.fromString(userId)) and
                             (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and
                             (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
                         }
-                        .singleOrNull()?.get(ResidenceMembers.roleDto)
+                        .singleOrNull()?.get(ResidenceMembers.role)
                 }
 
                 if (userRole == null) {

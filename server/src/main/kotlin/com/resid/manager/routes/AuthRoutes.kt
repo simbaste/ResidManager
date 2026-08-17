@@ -7,6 +7,7 @@ import com.resid.manager.data.Users
 import com.resid.manager.dto.AuthRequest
 import com.resid.manager.dto.AuthResponse
 import com.resid.manager.dto.ErrorResponse
+import com.resid.manager.dto.RegisterRequest
 import com.resid.manager.dto.UserDto
 import com.resid.manager.validation.AuthValidator
 import io.ktor.http.*
@@ -15,6 +16,9 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.Clock
+import java.time.LocalDate
+import java.time.LocalDateTime
 
 fun Route.authRoutes() {
     route("/api/auth") {
@@ -81,6 +85,97 @@ fun Route.authRoutes() {
                 call.respond(
                     HttpStatusCode.InternalServerError,
                     ErrorResponse("Une erreur interne est survenue: ${e.localizedMessage}")
+                )
+            }
+        }
+
+
+        // -----------------------------------------------------------------
+        // SECTION 1: PUBLIC ROUTES
+        // -----------------------------------------------------------------
+
+        // POST /api/auth/register : Generic account creation
+        post("/api/auth/register") {
+            try {
+                val request = call.receive<RegisterRequest>()
+
+                // 1. Validate inputs via Shared Logic
+                val validation = AuthValidator.validateRegister(
+                    firstName = request.firstName,
+                    lastName = request.lastName,
+                    email = request.email,
+                    passwordPlain = request.passwordPlain
+                )
+
+                if (validation.isFailure) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(validation.exceptionOrNull()?.message ?: "Données d'inscription invalides.")
+                    )
+                    return@post
+                }
+
+                // 2. Check if user already exists
+                val alreadyExists = transaction {
+                    User.find { Users.email eq request.email }.count() > 0
+                }
+
+                if (alreadyExists) {
+                    call.respond(
+                        HttpStatusCode.Conflict,
+                        ErrorResponse("This email address is already registered. Try logging in instead.")
+                    )
+                    return@post
+                }
+
+                // 3. Hash password using BCrypt
+                val hashedPassword = BCrypt.withDefaults().hashToString(12, request.passwordPlain.toCharArray())
+
+                // Parse birthDate if provided
+                val parsedBirthDate = request.birthDate?.let {
+                    try {
+                        LocalDate.parse(it)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+
+                // 4. Save the new user record into DB
+                val newUser = transaction {
+                    User.new {
+                        email = request.email
+                        passwordHash = hashedPassword
+                        firstName = request.firstName
+                        lastName = request.lastName
+                        birthDate = parsedBirthDate
+                        phone = request.phone
+                        createdAt = LocalDateTime.now(Clock.systemUTC())
+                        updatedAt = LocalDateTime.now(Clock.systemUTC())
+                    }
+                }
+
+                // 5. Auto-authenticate by generating and returning a JWT token
+                val token = JwtConfig.generateToken(
+                    userId = newUser.id.value.toString(),
+                    email = newUser.email,
+                )
+
+                val userDto = UserDto(
+                    id = newUser.id.value.toString(),
+                    email = newUser.email,
+                    name = "${newUser.firstName} ${newUser.lastName}",
+                    phone = newUser.phone,
+                    birthDate = newUser.birthDate?.toString(),
+                    createdAt = newUser.createdAt.toString(),
+                    updatedAt = newUser.createdAt.toString()
+                )
+
+                call.respond(HttpStatusCode.Created, AuthResponse(token, userDto))
+
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    ErrorResponse("Une erreur est survenue lors de l'inscription: ${e.message}")
                 )
             }
         }

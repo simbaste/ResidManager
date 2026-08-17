@@ -3,6 +3,9 @@ package com.resid.manager
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.resid.manager.auth.JwtConfig
 import com.resid.manager.data.*
+import com.resid.manager.routes.applications
+import com.resid.manager.routes.invitationsRoutes
+import com.resid.manager.routes.residencesRoutes
 import com.resid.manager.routes.authRoutes
 import com.resid.manager.routes.configureAppRoutes
 import io.ktor.http.HttpHeaders
@@ -22,6 +25,7 @@ import org.jetbrains.exposed.sql.insertIgnore
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.flywaydb.core.Flyway
+import java.time.Clock
 import java.time.LocalDateTime
 
 fun main() {
@@ -99,7 +103,7 @@ fun Application.module() {
                     it[firstName] = "Admin"
                     it[lastName] = "ResidManager"
                     it[phone] = "+22501020304"
-                    it[createdAt] = LocalDateTime.now()
+                    it[createdAt] = LocalDateTime.now(Clock.systemUTC())
                 }
             }
         }
@@ -147,6 +151,15 @@ fun Application.module() {
         
         // Login route
         authRoutes()
+
+        // Residences
+        residencesRoutes()
+
+        // Invitations
+        invitationsRoutes()
+
+        // Applications
+        applications()
         
         // Secured routes example
         authenticate("auth-jwt") {

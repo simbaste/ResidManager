@@ -1,5 +1,8 @@
 package com.resid.manager.data
 
+import com.resid.manager.dto.ApplicationStatusDto
+import com.resid.manager.dto.CurrencySymbolDto
+import com.resid.manager.dto.CurrencyCodeDto
 import com.resid.manager.dto.ElectricityStatusDto
 import com.resid.manager.dto.EntityTypeDto
 import com.resid.manager.dto.InvitationStatusDto
@@ -12,7 +15,7 @@ import com.resid.manager.dto.TransactionCategoryDto
 import com.resid.manager.dto.TransactionTypeDto
 import com.resid.manager.dto.UnitStatusDto
 
-const val ENUM_NAME_COLUMN_LENGTH = 10
+const val ENUM_NAME_COLUMN_LENGTH = 20
 
 enum class Role {
     OWNER, ADMIN, MANAGER, STAFF, TENANT
@@ -25,6 +28,16 @@ fun Role.convert(): RoleDto {
         Role.MANAGER -> RoleDto.MANAGER
         Role.STAFF -> RoleDto.STAFF
         Role.TENANT -> RoleDto.TENANT
+    }
+}
+
+fun RoleDto.convert(): Role {
+    return when (this) {
+        RoleDto.OWNER -> Role.OWNER
+        RoleDto.ADMIN -> Role.ADMIN
+        RoleDto.MANAGER -> Role.MANAGER
+        RoleDto.STAFF -> Role.STAFF
+        RoleDto.TENANT -> Role.TENANT
     }
 }
 
@@ -41,7 +54,7 @@ fun Role.isManager(): Boolean {
 }
 
 enum class InvitationStatus {
-    PENDING_APPROVAL, INVITED, ACCEPTED
+    PENDING_APPROVAL, INVITED, ACCEPTED, DECLINED
 }
 
 fun InvitationStatus.convert(): InvitationStatusDto {
@@ -49,6 +62,36 @@ fun InvitationStatus.convert(): InvitationStatusDto {
         InvitationStatus.PENDING_APPROVAL -> InvitationStatusDto.PENDING_APPROVAL
         InvitationStatus.INVITED -> InvitationStatusDto.INVITED
         InvitationStatus.ACCEPTED -> InvitationStatusDto.ACCEPTED
+        InvitationStatus.DECLINED -> InvitationStatusDto.DECLINED
+    }
+}
+
+fun InvitationStatusDto.convert(): InvitationStatus {
+    return when (this) {
+        InvitationStatusDto.PENDING_APPROVAL -> InvitationStatus.PENDING_APPROVAL
+        InvitationStatusDto.INVITED -> InvitationStatus.INVITED
+        InvitationStatusDto.ACCEPTED -> InvitationStatus.ACCEPTED
+        InvitationStatusDto.DECLINED -> InvitationStatus.DECLINED
+    }
+}
+
+enum class ApplicationStatus {
+    PENDING, APPROVED, REJECTED
+}
+
+fun ApplicationStatus.convert(): ApplicationStatusDto {
+    return when (this) {
+        ApplicationStatus.PENDING -> ApplicationStatusDto.PENDING
+        ApplicationStatus.APPROVED -> ApplicationStatusDto.APPROVED
+        ApplicationStatus.REJECTED -> ApplicationStatusDto.REJECTED
+    }
+}
+
+fun ApplicationStatusDto.convert(): ApplicationStatus {
+    return when (this) {
+        ApplicationStatusDto.PENDING -> ApplicationStatus.PENDING
+        ApplicationStatusDto.APPROVED -> ApplicationStatus.APPROVED
+        ApplicationStatusDto.REJECTED -> ApplicationStatus.REJECTED
     }
 }
 
@@ -217,5 +260,49 @@ fun EntityType.convert(): EntityTypeDto {
         EntityType.BAIL -> EntityTypeDto.BAIL
         EntityType.ELECTRICITY_STATEMENT -> EntityTypeDto.ELECTRICITY_STATEMENT
         EntityType.TICKET -> EntityTypeDto.TICKET
+    }
+}
+
+enum class CurrencyCode {
+    XOF,
+    EUR,
+    USD
+}
+
+fun CurrencyCode.convert(): CurrencyCodeDto {
+    return when (this) {
+        CurrencyCode.XOF -> CurrencyCodeDto.XOF
+        CurrencyCode.EUR -> CurrencyCodeDto.EUR
+        CurrencyCode.USD -> CurrencyCodeDto.USD
+    }
+}
+
+fun CurrencyCodeDto.convert(): CurrencyCode {
+    return when (this) {
+        CurrencyCodeDto.XOF -> CurrencyCode.XOF
+        CurrencyCodeDto.EUR -> CurrencyCode.EUR
+        CurrencyCodeDto.USD -> CurrencyCode.USD
+    }
+}
+
+enum class CurrencySymbol {
+    FRANC_CFA,
+    EURO,
+    DOLLAR_US
+}
+
+fun CurrencySymbol.convert(): CurrencySymbolDto {
+    return when (this) {
+        CurrencySymbol.FRANC_CFA -> CurrencySymbolDto.FRANC_CFA
+        CurrencySymbol.EURO -> CurrencySymbolDto.EURO
+        CurrencySymbol.DOLLAR_US -> CurrencySymbolDto.DOLLAR_US
+    }
+}
+
+fun CurrencySymbolDto.convert(): CurrencySymbol {
+    return when (this) {
+        CurrencySymbolDto.FRANC_CFA -> CurrencySymbol.FRANC_CFA
+        CurrencySymbolDto.EURO -> CurrencySymbol.EURO
+        CurrencySymbolDto.DOLLAR_US -> CurrencySymbol.DOLLAR_US
     }
 }
