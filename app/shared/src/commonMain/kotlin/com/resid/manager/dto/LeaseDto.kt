@@ -35,7 +35,7 @@ enum class PaymentFrequencyDto {
 @Serializable
 data class LeaseDto(
     val id: String,
-    val unitId: String,
+    val residenceUnitId: String,
     val tenantId: String,
     val startDate: String, // ISO-8601 Date
     val endDate: String,   // ISO-8601 Date
@@ -61,7 +61,7 @@ data class InlineTenantCreateRequest(
 data class LeaseCreateRequest(
     val tenantId: String?, // Set if choosing existing (UUID as String)
     val inlineTenant: InlineTenantCreateRequest?, // Set if creating a new one inline
-    val logementId: String,
+    val residenceUnitId: String,
     val depositAmount: Double,
     val paymentFrequency: String, // "MONTHLY", "ANNUAL"
     val startDate: String, // ISO-8601 Date String

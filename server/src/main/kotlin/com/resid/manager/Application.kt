@@ -7,6 +7,7 @@ import com.resid.manager.routes.applications
 import com.resid.manager.routes.invitationsRoutes
 import com.resid.manager.routes.residencesRoutes
 import com.resid.manager.routes.authRoutes
+import com.resid.manager.routes.userRoutes
 import com.resid.manager.routes.configureAppRoutes
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -160,6 +161,9 @@ fun Application.module() {
 
         // Applications
         applications()
+
+        // Users
+        userRoutes()
         
         // Secured routes example
         authenticate("auth-jwt") {

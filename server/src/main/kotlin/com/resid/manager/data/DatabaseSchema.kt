@@ -62,7 +62,7 @@ object ResidenceApplications: Table("residence_applications") {
     override val primaryKey = PrimaryKey(userId, residenceId)
 }
 
-object Logements : UUIDTable("logements") {
+object ResidenceUnits : UUIDTable("residence_units") {
     val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE)
     val name = varchar("name", 100)
     val floor = varchar("floor", 50)
@@ -75,8 +75,8 @@ object Logements : UUIDTable("logements") {
     val updatedAt = datetime("updated_at")
 }
 
-object Baux : UUIDTable("baux") {
-    val logementId = reference("logement_id", Logements, onDelete = ReferenceOption.RESTRICT)
+object Leases : UUIDTable("leases") {
+    val residenceUnitId = reference("residence_unit_id", ResidenceUnits, onDelete = ReferenceOption.RESTRICT)
     val tenantId = reference("tenant_id", Users, onDelete = ReferenceOption.RESTRICT)
     val durationMonths = integer("duration_months")
     val paymentFrequencyDto = enumerationByName("payment_frequency", ENUM_NAME_COLUMN_LENGTH, PaymentFrequency::class)
@@ -92,7 +92,7 @@ object Baux : UUIDTable("baux") {
 }
 
 object ElectricityStatements : UUIDTable("electricity_statements") {
-    val logementId = reference("logement_id", Logements, onDelete = ReferenceOption.CASCADE)
+    val residenceUnitId = reference("residence_unit_id", ResidenceUnits, onDelete = ReferenceOption.CASCADE)
     val oldIndex = double("old_index")
     val newIndex = double("new_index")
     val kWhPriceApplied = double("kwh_price_applied")
@@ -112,7 +112,7 @@ object TicketCategories : UUIDTable("ticket_categories") {
 }
 
 object Tickets : UUIDTable("tickets") {
-    val logementId = reference("logement_id", Logements, onDelete = ReferenceOption.CASCADE)
+    val residenceUnitId = reference("residence_unit_id", ResidenceUnits, onDelete = ReferenceOption.CASCADE)
     val creatorId = reference("creator_id", Users, onDelete = ReferenceOption.CASCADE)
     val categoryId = reference("category_id", TicketCategories, onDelete = ReferenceOption.RESTRICT)
     val title = varchar("title", 255)
@@ -137,17 +137,17 @@ object FinancialTransactions : UUIDTable("financial_transactions") {
     val updatedAt = datetime("updated_at")
 }
 
-object Equipements : UUIDTable("equipements") {
+object Equipments : UUIDTable("equipments") {
     val key = varchar("key", 50).uniqueIndex()
     val label = varchar("label", 100)
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
 }
 
-object LogementEquipements : Table("logement_equipements") {
-    val logementId = reference("logement_id", Logements, onDelete = ReferenceOption.CASCADE)
-    val equipementId = reference("equipement_id", Equipements, onDelete = ReferenceOption.CASCADE)
-    override val primaryKey = PrimaryKey(logementId, equipementId)
+object ResidenceUnitEquipments : Table("residence_unit_equipments") {
+    val residenceUnitId = reference("residence_unit_id", ResidenceUnits, onDelete = ReferenceOption.CASCADE)
+    val equipmentId = reference("equipment_id", Equipments, onDelete = ReferenceOption.CASCADE)
+    override val primaryKey = PrimaryKey(residenceUnitId, equipmentId)
 }
 
 
@@ -189,54 +189,54 @@ class Residence(id: EntityID<UUID>) : UUIDEntity(id) {
     var updatedAt by Residences.updatedAt
 }
 
-class Logement(id: EntityID<UUID>) : UUIDEntity(id) {
-    companion object : UUIDEntityClass<Logement>(Logements)
+class ResidenceUnit(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<ResidenceUnit>(ResidenceUnits)
 
-    var residence by Residence referencedOn Logements.residenceId
-    var name by Logements.name
-    var floor by Logements.floor
-    var type by Logements.type
-    var nominalRent by Logements.nominalRent
-    var serviceCharges by Logements.serviceCharges
-    var initialElectricityIndex by Logements.initialElectricityIndex
-    var status by Logements.status
-    var createdAt by Logements.createdAt
-    var updatedAt by Logements.updatedAt
+    var residence by Residence referencedOn ResidenceUnits.residenceId
+    var name by ResidenceUnits.name
+    var floor by ResidenceUnits.floor
+    var type by ResidenceUnits.type
+    var nominalRent by ResidenceUnits.nominalRent
+    var serviceCharges by ResidenceUnits.serviceCharges
+    var initialElectricityIndex by ResidenceUnits.initialElectricityIndex
+    var status by ResidenceUnits.status
+    var createdAt by ResidenceUnits.createdAt
+    var updatedAt by ResidenceUnits.updatedAt
 
-    var equipements by Equipement via LogementEquipements
+    var equipments by Equipment via ResidenceUnitEquipments
 }
 
-class Equipement(id: EntityID<UUID>) : UUIDEntity(id) {
-    companion object : UUIDEntityClass<Equipement>(Equipements)
+class Equipment(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<Equipment>(Equipments)
 
-    var key by Equipements.key
-    var label by Equipements.label
-    var createdAt by Equipements.createdAt
-    var updatedAt by Equipements.updatedAt
+    var key by Equipments.key
+    var label by Equipments.label
+    var createdAt by Equipments.createdAt
+    var updatedAt by Equipments.updatedAt
 }
 
 class Lease(id: EntityID<UUID>) : UUIDEntity(id) {
-    companion object : UUIDEntityClass<Lease>(Baux)
+    companion object : UUIDEntityClass<Lease>(Leases)
 
-    var logement by Logement referencedOn Baux.logementId
-    var tenant by User referencedOn Baux.tenantId
-    var durationMonths by Baux.durationMonths
-    var paymentFrequency by Baux.paymentFrequencyDto
-    var depositAmount by Baux.depositAmount
-    var depositStatus by Baux.depositStatusDto
-    var status by Baux.status
-    var startDate by Baux.startDate
-    var endDate by Baux.endDate
-    var advanceMonths by Baux.advanceMonths
-    var advancePaymentAmount by Baux.advancePaymentAmount
-    var createdAt by Baux.createdAt
-    var updatedAt by Baux.updatedAt
+    var residenceUnit by ResidenceUnit referencedOn Leases.residenceUnitId
+    var tenant by User referencedOn Leases.tenantId
+    var durationMonths by Leases.durationMonths
+    var paymentFrequency by Leases.paymentFrequencyDto
+    var depositAmount by Leases.depositAmount
+    var depositStatus by Leases.depositStatusDto
+    var status by Leases.status
+    var startDate by Leases.startDate
+    var endDate by Leases.endDate
+    var advanceMonths by Leases.advanceMonths
+    var advancePaymentAmount by Leases.advancePaymentAmount
+    var createdAt by Leases.createdAt
+    var updatedAt by Leases.updatedAt
 }
 
 class ElectricityStatement(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<ElectricityStatement>(ElectricityStatements)
 
-    var logement by Logement referencedOn ElectricityStatements.logementId
+    var residenceUnit by ResidenceUnit referencedOn ElectricityStatements.residenceUnitId
     var oldIndex by ElectricityStatements.oldIndex
     var newIndex by ElectricityStatements.newIndex
     var kWhPriceApplied by ElectricityStatements.kWhPriceApplied
@@ -260,7 +260,7 @@ class TicketCategoryEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 class Ticket(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<Ticket>(Tickets)
 
-    var logement by Logement referencedOn Tickets.logementId
+    var residenceUnit by ResidenceUnit referencedOn Tickets.residenceUnitId
     var creator by User referencedOn Tickets.creatorId
     var category by TicketCategoryEntity referencedOn Tickets.categoryId
     var title by Tickets.title

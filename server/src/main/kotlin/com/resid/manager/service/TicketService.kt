@@ -11,7 +11,7 @@ import java.util.UUID
 object TicketService {
 
     fun createTicket(
-        logementId: UUID,
+        residenceUnitId: UUID,
         creatorId: UUID,
         categoryId: UUID,
         title: String,
@@ -19,7 +19,7 @@ object TicketService {
         urgency: TicketUrgencyDto
     ): TicketDto {
         // 1. Role validation
-        val dbLogement = Logement.findById(logementId) ?: throw Exception("Logement introuvable.")
+        val dbResidenceUnit = ResidenceUnit.findById(residenceUnitId) ?: throw Exception("Logement introuvable.")
         val dbUser = User.findById(creatorId) ?: throw Exception("Utilisateur introuvable.")
         val dbCategory = TicketCategoryEntity.findById(categoryId) ?: throw Exception("Catégorie de ticket introuvable.")
         
@@ -28,7 +28,7 @@ object TicketService {
             .select(ResidenceMembers.role)
             .where { 
                 (ResidenceMembers.userId eq creatorId) and 
-                (ResidenceMembers.residenceId eq dbLogement.residence.id.value) 
+                (ResidenceMembers.residenceId eq dbResidenceUnit.residence.id.value) 
             }
             .map { it[ResidenceMembers.role] }
             .firstOrNull() ?: throw Exception("Accès interdit : vous ne faites pas partie de cette résidence.")
@@ -37,12 +37,12 @@ object TicketService {
             "OWNER", "ADMIN", "MANAGER", "STAFF" -> true
             "TENANT" -> {
                 // Tenant is only allowed if they have an active lease on this logement
-                val activeLeaseCount = Baux
-                    .select(Baux.id)
+                val activeLeaseCount = Leases
+                    .select(Leases.id)
                     .where {
-                        (Baux.logementId eq logementId) and 
-                        (Baux.tenantId eq creatorId) and 
-                        (Baux.status eq LeaseStatus.SIGNED_ACTIVE)
+                        (Leases.residenceUnitId eq residenceUnitId) and
+                        (Leases.tenantId eq creatorId) and 
+                        (Leases.status eq LeaseStatus.SIGNED_ACTIVE)
                     }
                     .count()
                 activeLeaseCount > 0
@@ -56,7 +56,7 @@ object TicketService {
 
         // 2. Creation
         val ticket = Ticket.new {
-            this.logement = dbLogement
+            this.residenceUnit = dbResidenceUnit
             this.creator = dbUser
             this.category = dbCategory
             this.title = title
@@ -71,7 +71,7 @@ object TicketService {
 
         return TicketDto(
             id = ticket.id.value.toString(),
-            logementId = ticket.logement.id.value.toString(),
+            residenceUnitId = ticket.residenceUnit.id.value.toString(),
             creatorId = ticket.creator.id.value.toString(),
             category = TicketCategoryDto(
                 id = ticket.category.id.value.toString(),
@@ -112,7 +112,7 @@ object TicketService {
             .select(ResidenceMembers.role)
             .where { 
                 (ResidenceMembers.userId eq updaterUserId) and 
-                (ResidenceMembers.residenceId eq ticket.logement.residence.id.value) 
+                (ResidenceMembers.residenceId eq ticket.residenceUnit.residence.id.value)
             }
             .map { it[ResidenceMembers.role] }
             .firstOrNull() ?: throw Exception("Accès interdit : membre introuvable.")
@@ -138,8 +138,8 @@ object TicketService {
             ticket.interventionCost += cost
 
             FinancialTransaction.new {
-                this.residence = ticket.logement.residence
-                this.type = TransactionType.EXPENSE
+                this.residence = ticket.residenceUnit.residence
+                this.type = TransactionType.INCOME
                 this.category = TransactionCategory.MAINTENANCE
                 this.amount = cost
                 this.description = "Frais de maintenance - Ticket #${ticket.title} (Status: ${newStatus.name}) " + 
@@ -158,7 +158,7 @@ object TicketService {
 
         return TicketDto(
             id = ticket.id.value.toString(),
-            logementId = ticket.logement.id.value.toString(),
+            residenceUnitId = ticket.residenceUnit.id.value.toString(),
             creatorId = ticket.creator.id.value.toString(),
             category = TicketCategoryDto(
                 id = ticket.category.id.value.toString(),

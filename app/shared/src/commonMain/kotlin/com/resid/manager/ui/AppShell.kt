@@ -133,7 +133,7 @@ fun AppShell(
             viewModel = viewModel,
             onDismiss = { viewModel.setShowCreateUnitDialog(false) },
             onSubmit = { name, floor, type, rent, charges, initialIndex, equipementIds ->
-                viewModel.createLogement(name, floor, type, rent, charges, initialIndex, equipementIds)
+                viewModel.createResidenceUnit(name, floor, type, rent, charges, initialIndex, equipementIds)
             }
         )
     }

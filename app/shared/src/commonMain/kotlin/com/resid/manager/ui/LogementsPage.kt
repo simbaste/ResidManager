@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import com.resid.manager.dto.UnitDto
+import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.dto.UnitStatusDto
 import com.resid.manager.dto.UserRole
 import com.resid.manager.viewmodel.LoginViewModel
@@ -29,17 +29,17 @@ fun LogementsPage(viewModel: LoginViewModel) {
     val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
 
     var showDeleteConfirmationId by remember { mutableStateOf<String?>(null) }
-    var editingLogement by remember { mutableStateOf<UnitDto?>(null) }
-    var selectedLogementForDetail by remember { mutableStateOf<UnitDto?>(null) }
-    var showAssignLeaseWizardByLogementId by remember { mutableStateOf<String?>(null) }
+    var editingResidenceUnit by remember { mutableStateOf<ResidenceUnitDto?>(null) }
+    var selectedResidenceUnitForDetail by remember { mutableStateOf<ResidenceUnitDto?>(null) }
+    var showAssignLeaseWizardByResidenceUnitId by remember { mutableStateOf<String?>(null) }
 
-    if (selectedLogementForDetail != null) {
-        val logement = selectedLogementForDetail!!
+    if (selectedResidenceUnitForDetail != null) {
+        val residenceUnit = selectedResidenceUnitForDetail!!
         
-        // Lookup active lease for this logement
-        val activeLease = uiState.leases.firstOrNull { it.unitId == logement.id }
+        // Lookup active lease for this residenceUnit
+        val activeLease = uiState.leases.firstOrNull { it.residenceUnitId == residenceUnit.id }
         val activeTenant = activeLease?.let { lease -> uiState.members.firstOrNull { it.userId == lease.tenantId } }
-        val isAvailable = logement.status == UnitStatusDto.AVAILABLE
+        val isAvailable = residenceUnit.status == UnitStatusDto.AVAILABLE
 
         Column(
             modifier = Modifier
@@ -53,7 +53,7 @@ fun LogementsPage(viewModel: LoginViewModel) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = { selectedLogementForDetail = null }) {
+                TextButton(onClick = { selectedResidenceUnitForDetail = null }) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -84,7 +84,7 @@ fun LogementsPage(viewModel: LoginViewModel) {
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            text = "Détails du Logement : ${logement.name}",
+                            text = "Détails du Logement : ${residenceUnit.name}",
                             style = MaterialTheme.typography.headlineLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -171,22 +171,22 @@ fun LogementsPage(viewModel: LoginViewModel) {
                             Row(modifier = Modifier.fillMaxWidth()) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("Nom / Numéro", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                                    Text(logement.name, style = MaterialTheme.typography.titleLarge)
+                                    Text(residenceUnit.name, style = MaterialTheme.typography.titleLarge)
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("Étage", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                                    Text("Étage ${logement.floor}", style = MaterialTheme.typography.titleLarge)
+                                    Text("Étage ${residenceUnit.floor}", style = MaterialTheme.typography.titleLarge)
                                 }
                             }
                             Row(modifier = Modifier.fillMaxWidth()) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("Type d'appartement", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                                    Text("Studio ${logement.type}", style = MaterialTheme.typography.titleLarge)
+                                    Text("Studio ${residenceUnit.type}", style = MaterialTheme.typography.titleLarge)
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("Loyer mensuel", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                                     Text(
-                                        text = "${logement.nominalRent} XOF", 
+                                        text = "${residenceUnit.nominalRent} XOF", 
                                         style = MaterialTheme.typography.headlineMedium, 
                                         color = Color(0xFF006948)
                                     )
@@ -195,11 +195,11 @@ fun LogementsPage(viewModel: LoginViewModel) {
                             Row(modifier = Modifier.fillMaxWidth()) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("Charges fixes d'entretien", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                                    Text("${logement.serviceCharges} XOF", style = MaterialTheme.typography.titleLarge)
+                                    Text("${residenceUnit.serviceCharges} XOF", style = MaterialTheme.typography.titleLarge)
                                 }
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("Index Électricité initial", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                                    Text("${logement.initialElectricityIndex} kWh", style = MaterialTheme.typography.titleLarge)
+                                    Text("${residenceUnit.initialElectricityIndex} kWh", style = MaterialTheme.typography.titleLarge)
                                 }
                             }
                         }
@@ -215,10 +215,10 @@ fun LogementsPage(viewModel: LoginViewModel) {
                                 color = MaterialTheme.colorScheme.outline
                             )
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                if (logement.equipments.isEmpty()) {
+                                if (residenceUnit.equipments.isEmpty()) {
                                     Text("Aucun équipement renseigné", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                 } else {
-                                    logement.equipments.forEach { eq ->
+                                    residenceUnit.equipments.forEach { eq ->
                                         val icon = when (eq.key) {
                                             "WIFI" -> Icons.Default.Share
                                             "CLIM" -> Icons.Default.Settings
@@ -293,7 +293,7 @@ fun LogementsPage(viewModel: LoginViewModel) {
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                         )
                                         OutlinedButton(
-                                            onClick = { showAssignLeaseWizardByLogementId = logement.id },
+                                            onClick = { showAssignLeaseWizardByResidenceUnitId = residenceUnit.id },
                                             shape = RoundedCornerShape(8.dp)
                                         ) {
                                             Text("Attribuer un nouveau locataire", color = Color(0xFF006948))
@@ -341,7 +341,7 @@ fun LogementsPage(viewModel: LoginViewModel) {
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     Button(
-                                        onClick = { editingLogement = logement },
+                                        onClick = { editingResidenceUnit = residenceUnit },
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer),
                                         modifier = Modifier.weight(1f).height(44.dp)
@@ -356,7 +356,7 @@ fun LogementsPage(viewModel: LoginViewModel) {
                                     }
 
                                     Button(
-                                        onClick = { showDeleteConfirmationId = logement.id },
+                                        onClick = { showDeleteConfirmationId = residenceUnit.id },
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                         modifier = Modifier.weight(1f).height(44.dp)
@@ -541,9 +541,9 @@ fun LogementsPage(viewModel: LoginViewModel) {
                     modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    val total = uiState.logements.size
-                    val available = uiState.logements.count { it.status == UnitStatusDto.AVAILABLE }
-                    val occupied = uiState.logements.count { it.status == UnitStatusDto.OCCUPIED }
+                    val total = uiState.residenceUnits.size
+                    val available = uiState.residenceUnits.count { it.status == UnitStatusDto.AVAILABLE }
+                    val occupied = uiState.residenceUnits.count { it.status == UnitStatusDto.OCCUPIED }
 
                     BentoMiniStatCard(title = "Total Unités", value = total.toString().padStart(2, '0'), borderColor = Color(0xFF8E9193), modifier = Modifier.weight(1f))
                     BentoMiniStatCard(title = "Disponibles", value = available.toString().padStart(2, '0'), borderColor = Color(0xFF006948), modifier = Modifier.weight(1f))
@@ -552,13 +552,13 @@ fun LogementsPage(viewModel: LoginViewModel) {
                 }
             }
 
-            // 3. List of logement cards (takes adaptive grid spacing automatically)
-            items(uiState.logements) { logement ->
-                LogementCard(
-                    logement = logement,
+            // 3. List of residenceUnit cards (takes adaptive grid spacing automatically)
+            items(uiState.residenceUnits) { unit ->
+                ResidenceUnitCard(
+                    residenceUnit = unit,
                     isAuthorized = isAuthorized,
-                    onDetailClick = { selectedLogementForDetail = logement },
-                    onEditClick = { editingLogement = logement }
+                    onDetailClick = { selectedResidenceUnitForDetail = unit },
+                    onEditClick = { editingResidenceUnit = unit }
                 )
             }
 
@@ -611,18 +611,18 @@ fun LogementsPage(viewModel: LoginViewModel) {
     // Delete Confirmation Dialog
     if (showDeleteConfirmationId != null) {
         val targetId = showDeleteConfirmationId!!
-        val logementName = uiState.logements.firstOrNull { it.id == targetId }?.name ?: "Ce logement"
+        val unitName = uiState.residenceUnits.firstOrNull { it.id == targetId }?.name ?: "Ce logement"
 
         AlertDialog(
             onDismissRequest = { showDeleteConfirmationId = null },
             title = { Text("Supprimer le logement") },
-            text = { Text("Êtes-vous sûr de vouloir supprimer définitivement le logement '$logementName' ? Cette action est irréversible.") },
+            text = { Text("Êtes-vous sûr de vouloir supprimer définitivement le logement '$unitName' ? Cette action est irréversible.") },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.deleteLogement(targetId)
+                        viewModel.deleteResidenceUnit(targetId)
                         showDeleteConfirmationId = null
-                        selectedLogementForDetail = null
+                        selectedResidenceUnitForDetail = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
@@ -637,17 +637,17 @@ fun LogementsPage(viewModel: LoginViewModel) {
         )
     }
 
-    // Edit Logement Dialog
-    if (editingLogement != null) {
-        val target = editingLogement!!
+    // Edit ResidenceUnit Dialog
+    if (editingResidenceUnit != null) {
+        val target = editingResidenceUnit!!
         EditLogementDialog(
             viewModel = viewModel,
-            logement = target,
-            onDismiss = { editingLogement = null },
+            residenceUnit = target,
+            onDismiss = { editingResidenceUnit = null },
             onSubmit = { name, floor, type, rent, charges, initialIndex, equipementIds ->
-                viewModel.updateLogement(target.id, name, floor, type, rent, charges, initialIndex, equipementIds)
-                editingLogement = null
-                selectedLogementForDetail = target.copy(
+                viewModel.updateResidenceUnit(target.id, name, floor, type, rent, charges, initialIndex, equipementIds)
+                editingResidenceUnit = null
+                selectedResidenceUnitForDetail = target.copy(
                     name = name,
                     floor = floor,
                     type = type,
@@ -660,16 +660,16 @@ fun LogementsPage(viewModel: LoginViewModel) {
         )
     }
 
-    if (showAssignLeaseWizardByLogementId != null) {
+    if (showAssignLeaseWizardByResidenceUnitId != null) {
         LeaseWizardDialog(
             viewModel = viewModel,
             onDismiss = { 
-                showAssignLeaseWizardByLogementId = null
-                selectedLogementForDetail = null // return to list to update and refresh
-                viewModel.fetchLogements()
+                showAssignLeaseWizardByResidenceUnitId = null
+                selectedResidenceUnitForDetail = null // return to list to update and refresh
+                viewModel.fetchResidenceUnits()
                 viewModel.fetchLeases()
             },
-            initialLogementId = showAssignLeaseWizardByLogementId
+            initialResidenceUnitId = showAssignLeaseWizardByResidenceUnitId
         )
     }
 }
@@ -709,13 +709,13 @@ fun BentoMiniStatCard(
 }
 
 @Composable
-fun LogementCard(
-    logement: UnitDto,
+fun ResidenceUnitCard(
+    residenceUnit: ResidenceUnitDto,
     isAuthorized: Boolean,
     onDetailClick: () -> Unit,
     onEditClick: () -> Unit
 ) {
-    val isAvailable = logement.status == UnitStatusDto.AVAILABLE
+    val isAvailable = residenceUnit.status == UnitStatusDto.AVAILABLE
     val badgeBg = if (isAvailable) Color(0xFFE6F7F0) else Color(0xFFFDE8E8)
     val badgeColor = if (isAvailable) Color(0xFF006948) else Color(0xFFBA1A1A)
     val badgeText = if (isAvailable) "✓ AVAILABLE (Libre)" else "👤 OCCUPIED"
@@ -789,7 +789,7 @@ fun LogementCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = logement.name,
+                            text = residenceUnit.name,
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -800,7 +800,7 @@ fun LogementCard(
 
                     // Subtitle
                     Text(
-                        text = "Studio ${logement.type} • Étage ${logement.floor}",
+                        text = "Studio ${residenceUnit.type} • Étage ${residenceUnit.floor}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.outline
                     )
@@ -809,9 +809,9 @@ fun LogementCard(
 
                     // Dynamic Value List rows
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        LogementDetailRow(icon = Icons.Default.Star, label = "Loyer de base", value = "${logement.nominalRent} XOF / mois")
-                        LogementDetailRow(icon = Icons.Default.Settings, label = "Index Elec initial", value = "${logement.initialElectricityIndex} kWh")
-                        LogementDetailRow(icon = Icons.Default.Star, label = "Charges fixes", value = "${logement.serviceCharges} XOF / mois")
+                        ResidenceUnitDetailRow(icon = Icons.Default.Star, label = "Loyer de base", value = "${residenceUnit.nominalRent} XOF / mois")
+                        ResidenceUnitDetailRow(icon = Icons.Default.Settings, label = "Index Elec initial", value = "${residenceUnit.initialElectricityIndex} kWh")
+                        ResidenceUnitDetailRow(icon = Icons.Default.Star, label = "Charges fixes", value = "${residenceUnit.serviceCharges} XOF / mois")
                     }
                 }
 
@@ -863,7 +863,7 @@ fun LogementCard(
 }
 
 @Composable
-fun LogementDetailRow(
+fun ResidenceUnitDetailRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     value: String

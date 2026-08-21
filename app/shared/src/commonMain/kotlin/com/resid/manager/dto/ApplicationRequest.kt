@@ -4,7 +4,5 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ApplicationRequest(
-    val residenceId: String,
-    val userId: String,
     val role: RoleDto,
 )

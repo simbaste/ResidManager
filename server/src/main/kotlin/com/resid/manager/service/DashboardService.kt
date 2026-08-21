@@ -72,14 +72,14 @@ object DashboardService {
             val netCashflow = revenuesSum - expensesSum
 
             // 3. Occupancy Rate (Instant picture)
-            val totalUnitsCount = Logements
-                .select(Logements.id)
-                .where { Logements.residenceId eq residenceId }
+            val totalUnitsCount = ResidenceUnits
+                .select(ResidenceUnits.id)
+                .where { ResidenceUnits.residenceId eq residenceId }
                 .count()
 
-            val occupiedUnitsCount = Logements
-                .select(Logements.id)
-                .where { (Logements.residenceId eq residenceId) and (Logements.status eq UnitStatus.OCCUPIED) }
+            val occupiedUnitsCount = ResidenceUnits
+                .select(ResidenceUnits.id)
+                .where { (ResidenceUnits.residenceId eq residenceId) and (ResidenceUnits.status eq UnitStatus.OCCUPIED) }
                 .count()
 
             val occupancyRate = if (totalUnitsCount > 0) {
@@ -87,11 +87,11 @@ object DashboardService {
             } else 0.0
 
             // 4. Delinquency Rate
-            val bauxList = Lease.all().filter { it.logement.residence.id.value == residenceId }
-            val totalRentAmountGenerated = bauxList.sumOf { it.logement.nominalRent }
+            val bauxList = Lease.all().filter { it.residenceUnit.residence.id.value == residenceId }
+            val totalRentAmountGenerated = bauxList.sumOf { it.residenceUnit.nominalRent }
             val unpaidRentAmount = bauxList.filter { 
                 it.status == LeaseStatus.PENDING_PAYMENT || it.status == LeaseStatus.DOWN_PAYMENT_PAID
-            }.sumOf { it.logement.nominalRent }
+            }.sumOf { it.residenceUnit.nominalRent }
 
             val delinquencyRate = if (totalRentAmountGenerated > 0.0) {
                 (unpaidRentAmount / totalRentAmountGenerated) * 100.0

@@ -29,7 +29,7 @@ val networkModule = module {
 val repositoryModule = module {
     single<AuthRepository> { AuthRepositoryImpl(get()) }
     single<ResidenceRepository> { ResidenceRepositoryImpl(get()) }
-    single<LogementRepository> { LogementRepositoryImpl(get()) }
+    single<ResidenceUnitRepository> { ResidenceUnitRepositoryImpl(get()) }
     single<LeaseRepository> { LeaseRepositoryImpl(get()) }
     single<MemberRepository> { MemberRepositoryImpl(get()) }
 }

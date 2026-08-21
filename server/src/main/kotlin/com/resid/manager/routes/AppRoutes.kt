@@ -32,7 +32,7 @@ fun Application.configureAppRoutes() {
         get("/api/equipements") {
             try {
                 val list = transaction {
-                    Equipement.all().map {
+                    Equipment.all().map {
                         EquipmentDto(id = it.id.value.toString(), key = it.key, label = it.label)
                     }
                 }
@@ -46,148 +46,6 @@ fun Application.configureAppRoutes() {
         }
 
         authenticate("auth-jwt") {
-            
-            // GET /api/profile : Fetch logged-in user profile details
-            get("/api/profile") {
-                val principal = call.principal<JWTPrincipal>()
-                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
-
-                try {
-                    val userDto = transaction {
-                        val dbUser = User.findById(UUID.fromString(userId)) ?: throw Exception("Utilisateur introuvable.")
-                        
-                        
-                        UserDto(
-                            id = dbUser.id.value.toString(),
-                            email = dbUser.email,
-                            name = "${dbUser.firstName} ${dbUser.lastName}",
-                            phone = dbUser.phone,
-                            birthDate = dbUser.birthDate?.toString(),
-                            createdAt = dbUser.createdAt.toString(),
-                            updatedAt = dbUser.createdAt.toString()
-                        )
-                    }
-
-                    call.respond(HttpStatusCode.OK, userDto)
-                } catch (e: Exception) {
-                    call.respond(
-                        HttpStatusCode.NotFound,
-                        ErrorResponse("Utilisateur introuvable : ${e.message}")
-                    )
-                }
-            }
-
-            // PUT /api/profile : Update profile
-            put("/api/profile") {
-                val principal = call.principal<JWTPrincipal>()
-                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
-
-                try {
-                    val request = call.receive<UserUpdateRequest>()
-
-                    // Optional validations
-                    request.email?.let {
-                        if (!AuthValidator.isValidEmail(it)) {
-                            call.respond(HttpStatusCode.BadRequest, ErrorResponse("Format d'email invalide."))
-                            return@put
-                        }
-                    }
-                    request.passwordPlain?.let {
-                        if (!AuthValidator.isValidPassword(it)) {
-                            call.respond(HttpStatusCode.BadRequest, ErrorResponse("Le nouveau mot de passe doit faire au moins 8 caractères et contenir un chiffre et un caractère spécial."))
-                            return@put
-                        }
-                    }
-
-                    val updatedUserDto = transaction {
-                        val dbUser = User.findById(UUID.fromString(userId)) ?: throw Exception("Utilisateur introuvable.")
-
-                        request.email?.let { dbUser.email = it }
-                        request.passwordPlain?.let {
-                            dbUser.passwordHash = BCrypt.withDefaults().hashToString(12, it.toCharArray())
-                        }
-                        request.firstName?.let { dbUser.firstName = it }
-                        request.lastName?.let { dbUser.lastName = it }
-                        request.birthDate?.let { dateStr ->
-                            dbUser.birthDate = try {
-                                LocalDate.parse(dateStr)
-                            } catch (e: Exception) {
-                                null
-                            }
-                        }
-                        request.phone?.let { dbUser.phone = it }
-
-                        dbUser.flush()
-
-                        UserDto(
-                            id = dbUser.id.value.toString(),
-                            email = dbUser.email,
-                            name = "${dbUser.firstName} ${dbUser.lastName}",
-                            phone = dbUser.phone,
-                            birthDate = dbUser.birthDate?.toString(),
-                            createdAt = dbUser.createdAt.toString(),
-                            updatedAt = dbUser.createdAt.toString()
-                        )
-                    }
-
-                    call.respond(HttpStatusCode.OK, updatedUserDto)
-                } catch (e: Exception) {
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse("Erreur lors de la mise à jour du profil : ${e.message}")
-                    )
-                }
-            }
-
-            // GET /api/users/tenant/search?q=name Search User by his name or his residence role
-            get("/api/users/search") {
-                val query = call.request.queryParameters["q"] ?: ""
-                val residenceId = call.request.queryParameters["residenceId"] ?: ""
-                val role = call.request.queryParameters["role"] ?: ""
-                try {
-                    val users = transaction {
-                        if (residenceId.isNotBlank()) {
-                            (Users innerJoin ResidenceMembers)
-                                .select(Users.id, Users.firstName, Users.lastName, Users.email, ResidenceMembers.role)
-                                .where {
-                                    ((Users.email like "%$query%") or
-                                        (Users.firstName like "%$query%") or
-                                        (Users.lastName like "%$query%")) and
-                                     ((ResidenceMembers.residenceId eq UUID.fromString(residenceId)) or
-                                        (ResidenceMembers.role eq Role.valueOf(role)))
-                                }
-                                .withDistinct()
-                                .map { row ->
-                                    UserSearchDto(
-                                        id = row[Users.id].value.toString(),
-                                        email = row[Users.email],
-                                        name = "${row[Users.firstName]} ${row[Users.lastName]}",
-                                        roleDto = row[ResidenceMembers.role].convert()
-                                    )
-                                }
-                        } else {
-                            Users.select(Users.id, Users.firstName, Users.lastName, Users.email)
-                                .where {
-                                    (Users.email like "%$query%") or
-                                            (Users.firstName like "%$query%") or
-                                            (Users.lastName like "%$query%")
-                                }
-                                .map { row ->
-                                    UserSearchDto(
-                                        id = row[Users.id].value.toString(),
-                                        email = row[Users.email],
-                                        name = "${row[Users.firstName]} ${row[Users.lastName]}",
-                                    )
-                                }
-                        }
-
-                    }
-                    call.respond(HttpStatusCode.OK, users)
-                } catch (e: Exception) {
-                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse("Erreur lors de la recherche de locataires: ${e.message}"))
-                }
-            }
-
             // GET /api/residences/{residence_id}/members Get All the residence members
             get("/api/residences/{id}/members") {
                 val principal = call.principal<JWTPrincipal>()
@@ -272,8 +130,8 @@ fun Application.configureAppRoutes() {
                     }
 
                     val list = transaction {
-                        Logement.find { Logements.residenceId eq UUID.fromString(residenceId) }.map {
-                            UnitDto(
+                        ResidenceUnit.find { ResidenceUnits.residenceId eq UUID.fromString(residenceId) }.map {
+                            ResidenceUnitDto(
                                 id = it.id.value.toString(),
                                 residenceId = it.residence.id.value.toString(),
                                 name = it.name,
@@ -283,7 +141,7 @@ fun Application.configureAppRoutes() {
                                 serviceCharges = it.serviceCharges,
                                 initialElectricityIndex = it.initialElectricityIndex,
                                 status = it.status.convert(),
-                                equipments = it.equipements.map { eq ->
+                                equipments = it.equipments.map { eq ->
                                     EquipmentDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
                                 }
                             )
@@ -323,7 +181,7 @@ fun Application.configureAppRoutes() {
                         return@post
                     }
 
-                    val request = call.receive<LogementCreateRequest>()
+                    val request = call.receive<ResidenceUnitCreateRequest>()
 
                     // Validation
                     if (request.name.isBlank() || request.floor.isBlank() || request.type.isBlank()) {
@@ -338,7 +196,7 @@ fun Application.configureAppRoutes() {
                     val dto = transaction {
                         val activeRes = Residence.findById(UUID.fromString(residenceId)) ?: throw Exception("Résidence introuvable.")
                         
-                        val newLogement = Logement.new {
+                        val newResidenceUnit = ResidenceUnit.new {
                             residence = activeRes
                             name = request.name
                             floor = request.floor
@@ -354,24 +212,24 @@ fun Application.configureAppRoutes() {
                         // Attach selected equipments
                         if (request.equipementIds.isNotEmpty()) {
                             val selectedEq = request.equipementIds.mapNotNull { eqId ->
-                                Equipement.findById(UUID.fromString(eqId))
+                                Equipment.findById(UUID.fromString(eqId))
                             }
-                            newLogement.equipements = SizedCollection(selectedEq)
+                            newResidenceUnit.equipments = SizedCollection(selectedEq)
                         }
 
-                        newLogement.flush()
+                        newResidenceUnit.flush()
 
-                        UnitDto(
-                            id = newLogement.id.value.toString(),
-                            residenceId = newLogement.residence.id.value.toString(),
-                            name = newLogement.name,
-                            floor = newLogement.floor,
-                            type = newLogement.type,
-                            nominalRent = newLogement.nominalRent,
-                            serviceCharges = newLogement.serviceCharges,
-                            initialElectricityIndex = newLogement.initialElectricityIndex,
-                            status = newLogement.status.convert(),
-                            equipments = newLogement.equipements.map { eq ->
+                        ResidenceUnitDto(
+                            id = newResidenceUnit.id.value.toString(),
+                            residenceId = newResidenceUnit.residence.id.value.toString(),
+                            name = newResidenceUnit.name,
+                            floor = newResidenceUnit.floor,
+                            type = newResidenceUnit.type,
+                            nominalRent = newResidenceUnit.nominalRent,
+                            serviceCharges = newResidenceUnit.serviceCharges,
+                            initialElectricityIndex = newResidenceUnit.initialElectricityIndex,
+                            status = newResidenceUnit.status.convert(),
+                            equipments = newResidenceUnit.equipments.map { eq ->
                                 EquipmentDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
                             }
                         )
@@ -386,12 +244,12 @@ fun Application.configureAppRoutes() {
                 }
             }
 
-            // DELETE /api/residences/{id}/logements/{logementId} : Delete a housing unit (logement)
-            delete("/api/residences/{id}/logements/{logementId}") {
+            // DELETE /api/residences/{id}/logements/{residenceUnitId} : Delete a housing unit (logement)
+            delete("/api/residences/{id}/logements/{residenceUnitId}") {
                 val principal = call.principal<JWTPrincipal>()
                 val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
                 val residenceId = call.parameters["id"] ?: ""
-                val logementId = call.parameters["logementId"] ?: ""
+                val residenceUnitId = call.parameters["residenceUnitId"] ?: ""
 
                 try {
                     // Check user roles: OWNER, ADMIN, RESIDENCE_MANAGER
@@ -413,7 +271,7 @@ fun Application.configureAppRoutes() {
 
                     // Perform deletion inside transaction using Exposed DSL
                     transaction {
-                        Logements.deleteWhere { Logements.id eq UUID.fromString(logementId) }
+                        ResidenceUnits.deleteWhere { ResidenceUnits.id eq UUID.fromString(residenceUnitId) }
                     }
 
                     call.respond(HttpStatusCode.OK, mapOf("message" to "Le logement a été supprimé de la base de données avec succès !"))
@@ -425,12 +283,12 @@ fun Application.configureAppRoutes() {
                 }
             }
 
-            // PUT /api/residences/{id}/logements/{logementId} : Update a housing unit (logement)
-            put("/api/residences/{id}/logements/{logementId}") {
+            // PUT /api/residences/{id}/logements/{residenceUnitId} : Update a housing unit (logement)
+            put("/api/residences/{id}/logements/{residenceUnitId}") {
                 val principal = call.principal<JWTPrincipal>()
                 val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
                 val residenceId = call.parameters["id"] ?: ""
-                val logementId = call.parameters["logementId"] ?: ""
+                val residenceUnitId = call.parameters["residenceUnitId"] ?: ""
 
                 try {
                     // Check user roles: OWNER, ADMIN, RESIDENCE_MANAGER
@@ -450,7 +308,7 @@ fun Application.configureAppRoutes() {
                         return@put
                     }
 
-                    val request = call.receive<LogementCreateRequest>()
+                    val request = call.receive<ResidenceUnitCreateRequest>()
 
                     // Validation
                     if (request.name.isBlank() || request.floor.isBlank() || request.type.isBlank()) {
@@ -463,35 +321,35 @@ fun Application.configureAppRoutes() {
                     }
 
                     val updatedDto = transaction {
-                        val dbLogement = Logement.findById(UUID.fromString(logementId)) ?: throw Exception("Logement introuvable.")
+                        val dbResidenceUnit = ResidenceUnit.findById(UUID.fromString(residenceUnitId)) ?: throw Exception("Logement introuvable.")
                         
-                        dbLogement.name = request.name
-                        dbLogement.floor = request.floor
-                        dbLogement.type = request.type
-                        dbLogement.nominalRent = request.nominalRent
-                        dbLogement.serviceCharges = request.serviceCharges
-                        dbLogement.initialElectricityIndex = request.initialElectricityIndex
-                        dbLogement.updatedAt = LocalDateTime.now(Clock.systemUTC())
+                        dbResidenceUnit.name = request.name
+                        dbResidenceUnit.floor = request.floor
+                        dbResidenceUnit.type = request.type
+                        dbResidenceUnit.nominalRent = request.nominalRent
+                        dbResidenceUnit.serviceCharges = request.serviceCharges
+                        dbResidenceUnit.initialElectricityIndex = request.initialElectricityIndex
+                        dbResidenceUnit.updatedAt = LocalDateTime.now(Clock.systemUTC())
 
                         // Update selected equipments
                         val selectedEq = request.equipementIds.mapNotNull { eqId ->
-                            Equipement.findById(UUID.fromString(eqId))
+                            Equipment.findById(UUID.fromString(eqId))
                         }
-                        dbLogement.equipements = SizedCollection(selectedEq)
+                        dbResidenceUnit.equipments = SizedCollection(selectedEq)
 
-                        dbLogement.flush()
+                        dbResidenceUnit.flush()
 
-                        UnitDto(
-                            id = dbLogement.id.value.toString(),
-                            residenceId = dbLogement.residence.id.value.toString(),
-                            name = dbLogement.name,
-                            floor = dbLogement.floor,
-                            type = dbLogement.type,
-                            nominalRent = dbLogement.nominalRent,
-                            serviceCharges = dbLogement.serviceCharges,
-                            initialElectricityIndex = dbLogement.initialElectricityIndex,
-                            status = dbLogement.status.convert(),
-                            equipments = dbLogement.equipements.map { eq ->
+                        ResidenceUnitDto(
+                            id = dbResidenceUnit.id.value.toString(),
+                            residenceId = dbResidenceUnit.residence.id.value.toString(),
+                            name = dbResidenceUnit.name,
+                            floor = dbResidenceUnit.floor,
+                            type = dbResidenceUnit.type,
+                            nominalRent = dbResidenceUnit.nominalRent,
+                            serviceCharges = dbResidenceUnit.serviceCharges,
+                            initialElectricityIndex = dbResidenceUnit.initialElectricityIndex,
+                            status = dbResidenceUnit.status.convert(),
+                            equipments = dbResidenceUnit.equipments.map { eq ->
                                 EquipmentDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
                             }
                         )
@@ -508,7 +366,7 @@ fun Application.configureAppRoutes() {
 
             // POST /api/logements/{id}/baux : Create a lease agreement
             post("/api/logements/{id}/baux") {
-                val logementId = call.parameters["id"] ?: ""
+                val residenceUnitId = call.parameters["id"] ?: ""
 
                 try {
                     val request = call.receive<LeaseCreateRequest>()
@@ -518,10 +376,10 @@ fun Application.configureAppRoutes() {
 
                     val createdLeaseDto = transaction {
                         // 1. Fetch logement & verify status == "AVAILABLE"
-                        val dbLogement = Logement.findById(UUID.fromString(logementId)) 
+                        val dbResidenceUnit = ResidenceUnit.findById(UUID.fromString(residenceUnitId)) 
                             ?: throw Exception("Logement introuvable.")
                         
-                        if (dbLogement.status != UnitStatus.AVAILABLE) {
+                        if (dbResidenceUnit.status != UnitStatus.AVAILABLE) {
                             throw Exception("Ce logement n'est plus disponible pour une location.")
                         }
 
@@ -552,7 +410,7 @@ fun Application.configureAppRoutes() {
                                 // Instantly register as a member of this residence
                                 ResidenceMembers.insert {
                                     it[userId] = newUser.id.value
-                                    it[residenceId] = dbLogement.residence.id.value
+                                    it[residenceId] = dbResidenceUnit.residence.id.value
                                     it[role] = Role.TENANT
                                     it[status] = InvitationStatus.ACCEPTED
                                     it[createdAt] = LocalDateTime.now(Clock.systemUTC())
@@ -564,11 +422,11 @@ fun Application.configureAppRoutes() {
                         }
 
                         // 3. Check if tenant already has an ongoing lease (not TERMINATED)
-                        val hasOngoingLease = Baux
-                            .select(Baux.id)
+                        val hasOngoingLease = Leases
+                            .select(Leases.id)
                             .where { 
-                                (Baux.tenantId eq dbTenant.id.value) and 
-                                (Baux.status neq LeaseStatus.TERMINATED)
+                                (Leases.tenantId eq dbTenant.id.value) and 
+                                (Leases.status neq LeaseStatus.TERMINATED)
                             }
                             .count() > 0
 
@@ -579,7 +437,7 @@ fun Application.configureAppRoutes() {
                         // 4. Calculate Total Requirement and Initial Status based on Advanced Payments
                         val paymentFrequencyDto = PaymentFrequency.valueOf(request.paymentFrequency)
                         val isMonthly = paymentFrequencyDto == PaymentFrequency.MONTHLY
-                        val rentAndCharges = dbLogement.nominalRent + dbLogement.serviceCharges
+                        val rentAndCharges = dbResidenceUnit.nominalRent + dbResidenceUnit.serviceCharges
                         val advanceMonths = if (isMonthly) 1 else (request.advanceMonths ?: 12)
                         
                         val requiredFirstRent = advanceMonths * rentAndCharges
@@ -596,7 +454,7 @@ fun Application.configureAppRoutes() {
 
                         // Create Lease record
                         val newLease = Lease.new {
-                            this.logement = dbLogement
+                            this.residenceUnit = dbResidenceUnit
                             this.tenant = dbTenant
                             this.durationMonths = if (duration <= 0) 12 else duration
                             this.paymentFrequency = paymentFrequencyDto
@@ -612,8 +470,8 @@ fun Application.configureAppRoutes() {
                         }
 
                         // 5. Update logement status to OCCUPIED
-                        dbLogement.status = UnitStatus.OCCUPIED
-                        dbLogement.flush()
+                        dbResidenceUnit.status = UnitStatus.OCCUPIED
+                        dbResidenceUnit.flush()
                         newLease.flush()
 
                         // 6. Generate financial transaction entries if an advance payment was actually made!
@@ -623,11 +481,11 @@ fun Application.configureAppRoutes() {
 
                             if (paidCaution > 0.0) {
                                 FinancialTransaction.new {
-                                    this.residence = dbLogement.residence
+                                    this.residence = dbResidenceUnit.residence
                                     this.type = TransactionType.INCOME
                                     this.category = TransactionCategory.DEPOSIT
                                     this.amount = paidCaution
-                                    this.description = "Acompte caution à la signature pour le logement ${dbLogement.name}"
+                                    this.description = "Acompte caution à la signature pour le logement ${dbResidenceUnit.name}"
                                     this.relatedEntityType = EntityType.BAIL
                                     this.relatedEntityId = newLease.id.value
                                     this.transactionDate = LocalDate.now()
@@ -638,11 +496,11 @@ fun Application.configureAppRoutes() {
 
                             if (paidRent > 0.0) {
                                 FinancialTransaction.new {
-                                    this.residence = dbLogement.residence
+                                    this.residence = dbResidenceUnit.residence
                                     this.type = TransactionType.INCOME
                                     this.category = TransactionCategory.RENT
                                     this.amount = paidRent
-                                    this.description = "Acompte loyer d'avance à la signature pour le logement ${dbLogement.name}"
+                                    this.description = "Acompte loyer d'avance à la signature pour le logement ${dbResidenceUnit.name}"
                                     this.relatedEntityType = EntityType.BAIL
                                     this.relatedEntityId = newLease.id.value
                                     this.transactionDate = LocalDate.now()
@@ -654,7 +512,7 @@ fun Application.configureAppRoutes() {
 
                         LeaseDto(
                             id = newLease.id.value.toString(),
-                            unitId = newLease.logement.id.value.toString(),
+                            residenceUnitId = newLease.residenceUnit.id.value.toString(),
                             tenantId = newLease.tenant.id.value.toString(),
                             startDate = newLease.startDate.toString(),
                             endDate = newLease.endDate.toString(),
@@ -703,7 +561,7 @@ fun Application.configureAppRoutes() {
 
                     val leasesList = transaction {
                         // Find baux for all logements in this residence
-                        Lease.all().filter { it.logement.residence.id.value == UUID.fromString(residenceId) }.map { lease ->
+                        Lease.all().filter { it.residenceUnit.residence.id.value == UUID.fromString(residenceId) }.map { lease ->
                             val previousPayments = FinancialTransaction.find { 
                                 (FinancialTransactions.relatedEntityType eq EntityType.BAIL) and
                                 (FinancialTransactions.relatedEntityId eq lease.id.value) 
@@ -718,12 +576,12 @@ fun Application.configureAppRoutes() {
                             }
                             LeaseDto(
                                 id = lease.id.value.toString(),
-                                unitId = lease.logement.id.value.toString(),
+                                residenceUnitId = lease.residenceUnit.id.value.toString(),
                                 tenantId = lease.tenant.id.value.toString(),
                                 startDate = lease.startDate.toString(),
                                 endDate = lease.endDate.toString(),
                                 depositAmount = lease.depositAmount,
-                                monthlyRentAtSign = lease.logement.nominalRent,
+                                monthlyRentAtSign = lease.residenceUnit.nominalRent,
                                 status = lease.status.convert(),
                                 createdAt = lease.createdAt.toString(),
                                 updatedAt = lease.updatedAt.toString(),
@@ -780,7 +638,7 @@ fun Application.configureAppRoutes() {
 
                         // 5. Calculate required amounts
                         val requiredCaution = dbLease.depositAmount
-                        val requiredRent = dbLease.advanceMonths * (dbLease.logement.nominalRent + dbLease.logement.serviceCharges)
+                        val requiredRent = dbLease.advanceMonths * (dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges)
 
                         // 6. Determine status update based on dual ledger
                         val newStatus = if (totalPaidCaution >= requiredCaution && totalPaidRent >= requiredRent) {
@@ -801,14 +659,14 @@ fun Application.configureAppRoutes() {
 
                         // 7. Generate financial transaction entry
                         FinancialTransaction.new {
-                            this.residence = dbLease.logement.residence
+                            this.residence = dbLease.residenceUnit.residence
                             this.type = TransactionType.INCOME
                             this.category = request.category.convert()
                             this.amount = request.amountPaid
                             this.description = if (request.category == TransactionCategoryDto.DEPOSIT) {
-                                "Versement partiel caution pour le logement ${dbLease.logement.name}"
+                                "Versement partiel caution pour le logement ${dbLease.residenceUnit.name}"
                             } else {
-                                "Versement partiel loyer pour le logement ${dbLease.logement.name}"
+                                "Versement partiel loyer pour le logement ${dbLease.residenceUnit.name}"
                             }
                             this.relatedEntityType = EntityType.BAIL
                             this.relatedEntityId = UUID.fromString(leaseId)
@@ -832,12 +690,12 @@ fun Application.configureAppRoutes() {
 
                         LeaseDto(
                             id = dbLease.id.value.toString(),
-                            unitId = dbLease.logement.id.value.toString(),
+                            residenceUnitId = dbLease.residenceUnit.id.value.toString(),
                             tenantId = dbLease.tenant.id.value.toString(),
                             startDate = dbLease.startDate.toString(),
                             endDate = dbLease.endDate.toString(),
                             depositAmount = dbLease.depositAmount,
-                            monthlyRentAtSign = dbLease.logement.nominalRent,
+                            monthlyRentAtSign = dbLease.residenceUnit.nominalRent,
                             status = newStatus.convert(),
                             createdAt = dbLease.createdAt.toString(),
                             updatedAt = dbLease.updatedAt.toString(),
@@ -868,8 +726,8 @@ fun Application.configureAppRoutes() {
                         request.status?.let { 
                             dbLease.status = it.convert()
                             if (it == LeaseStatusDto.TERMINATED) {
-                                dbLease.logement.status = UnitStatus.AVAILABLE
-                                dbLease.logement.flush()
+                                dbLease.residenceUnit.status = UnitStatus.AVAILABLE
+                                dbLease.residenceUnit.flush()
                             }
                         }
                         dbLease.updatedAt = LocalDateTime.now(Clock.systemUTC())
@@ -890,12 +748,12 @@ fun Application.configureAppRoutes() {
 
                         LeaseDto(
                             id = dbLease.id.value.toString(),
-                            unitId = dbLease.logement.id.value.toString(),
+                            residenceUnitId = dbLease.residenceUnit.id.value.toString(),
                             tenantId = dbLease.tenant.id.value.toString(),
                             startDate = dbLease.startDate.toString(),
                             endDate = dbLease.endDate.toString(),
                             depositAmount = dbLease.depositAmount,
-                            monthlyRentAtSign = dbLease.logement.nominalRent,
+                            monthlyRentAtSign = dbLease.residenceUnit.nominalRent,
                             status = dbLease.status.convert(),
                             createdAt = dbLease.createdAt.toString(),
                             updatedAt = dbLease.updatedAt.toString(),
@@ -940,7 +798,7 @@ fun Application.configureAppRoutes() {
 
                         ElectricityStatementDto(
                             id = stmt.id.value.toString(),
-                            logementId = stmt.logement.id.value.toString(),
+                            residenceUnitId = stmt.residenceUnit.id.value.toString(),
                             previousIndex = stmt.oldIndex,
                             newIndex = stmt.newIndex,
                             kWhPriceApplied = stmt.kWhPriceApplied,
@@ -959,10 +817,10 @@ fun Application.configureAppRoutes() {
 
             // GET /api/logements/{id}/electricity/previous : Fetch the previous (locked/read-only) meter index
             get("/api/logements/{id}/electricity/previous") {
-                val logementId = call.parameters["id"] ?: ""
+                val residenceUnitId = call.parameters["id"] ?: ""
                 try {
                     val previous = transaction {
-                        ElectricityService.getPreviousIndex(UUID.fromString(logementId))
+                        ElectricityService.getPreviousIndex(UUID.fromString(residenceUnitId))
                     }
                     call.respond(HttpStatusCode.OK, mapOf("previousIndex" to previous))
                 } catch (e: Exception) {
@@ -972,12 +830,12 @@ fun Application.configureAppRoutes() {
 
             // POST /api/logements/{id}/electricity : Enter new meter index and generate statement
             post("/api/logements/{id}/electricity") {
-                val logementId = call.parameters["id"] ?: ""
+                val residenceUnitId = call.parameters["id"] ?: ""
                 try {
                     val request = call.receive<ElectricityStatementCreateRequest>()
                     val created = transaction {
                         ElectricityService.submitStatement(
-                            logementId = UUID.fromString(logementId),
+                            residenceUnitId = UUID.fromString(residenceUnitId),
                             newIndex = request.newIndex,
                             kWhPriceApplied = request.kWhPriceApplied,
                             dateStr = request.statementDate
@@ -993,14 +851,14 @@ fun Application.configureAppRoutes() {
             get("/api/residences/{id}/electricity/statements") {
                 val residenceId = call.parameters["id"] ?: ""
                 val statusParam = call.request.queryParameters["status"]
-                val logementParam = call.request.queryParameters["logementId"]
+                val residenceUnitParam = call.request.queryParameters["residenceUnitId"]
                 val floorParam = call.request.queryParameters["floor"]
                 val tenantParam = call.request.queryParameters["tenantName"]
 
                 try {
                     val statements = transaction {
                         val list = ElectricityStatement.all().filter { 
-                            it.logement.residence.id.value == UUID.fromString(residenceId) 
+                            it.residenceUnit.residence.id.value == UUID.fromString(residenceId) 
                         }
                         
                         var filtered = list
@@ -1010,18 +868,18 @@ fun Application.configureAppRoutes() {
                             filtered = filtered.filter { it.status == statusEnum }
                         }
 
-                        logementParam?.ifBlank { null }?.let { logId ->
-                            filtered = filtered.filter { it.logement.id.value == UUID.fromString(logId) }
+                        residenceUnitParam?.ifBlank { null }?.let { logId ->
+                            filtered = filtered.filter { it.residenceUnit.id.value == UUID.fromString(logId) }
                         }
 
                         floorParam?.ifBlank { null }?.let { floor ->
-                            filtered = filtered.filter { it.logement.floor.contains(floor, ignoreCase = true) }
+                            filtered = filtered.filter { it.residenceUnit.floor.contains(floor, ignoreCase = true) }
                         }
 
                         tenantParam?.ifBlank { null }?.let { tenantName ->
                             filtered = filtered.filter { stmt ->
                                 val activeLease = Lease.find { 
-                                    (Baux.logementId eq stmt.logement.id) and (Baux.status eq LeaseStatus.SIGNED_ACTIVE)
+                                    (Leases.residenceUnitId eq stmt.residenceUnit.id) and (Leases.status eq LeaseStatus.SIGNED_ACTIVE)
                                 }.firstOrNull()
                                 val tenant = activeLease?.tenant
                                 val fullName = "${tenant?.firstName} ${tenant?.lastName}"
@@ -1032,7 +890,7 @@ fun Application.configureAppRoutes() {
                         filtered.sortedByDescending { it.statementDate }.map {
                             ElectricityStatementDto(
                                 id = it.id.value.toString(),
-                                logementId = it.logement.id.value.toString(),
+                                residenceUnitId = it.residenceUnit.id.value.toString(),
                                 previousIndex = it.oldIndex,
                                 newIndex = it.newIndex,
                                 kWhPriceApplied = it.kWhPriceApplied,
@@ -1160,10 +1018,10 @@ fun Application.configureAppRoutes() {
                 val residenceId = call.parameters["id"] ?: ""
                 try {
                     val ticketsList = transaction {
-                        Ticket.all().filter { it.logement.residence.id.value == UUID.fromString(residenceId) }.map {
+                        Ticket.all().filter { it.residenceUnit.residence.id.value == UUID.fromString(residenceId) }.map {
                             TicketDto(
                                 id = it.id.value.toString(),
-                                logementId = it.logement.id.value.toString(),
+                                residenceUnitId = it.residenceUnit.id.value.toString(),
                                 creatorId = it.creator.id.value.toString(),
                                 category = TicketCategoryDto(
                                     id = it.category.id.value.toString(),
@@ -1189,7 +1047,7 @@ fun Application.configureAppRoutes() {
 
             // POST /api/logements/{id}/tickets : Open a maintenance ticket
             post("/api/logements/{id}/tickets") {
-                val logementId = call.parameters["id"] ?: ""
+                val residenceUnitId = call.parameters["id"] ?: ""
                 try {
                     val request = call.receive<TicketCreateRequest>()
                     val principal = call.principal<JWTPrincipal>()
@@ -1198,7 +1056,7 @@ fun Application.configureAppRoutes() {
 
                     val created = transaction {
                         TicketService.createTicket(
-                            logementId = UUID.fromString(logementId),
+                            residenceUnitId = UUID.fromString(residenceUnitId),
                             creatorId = UUID.fromString(creatorIdStr),
                             categoryId = UUID.fromString(request.categoryId),
                             title = request.title,

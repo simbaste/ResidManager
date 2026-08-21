@@ -9,7 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.resid.manager.dto.UnitDto
+import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceSummaryItemDto
 import com.resid.manager.viewmodel.LoginViewModel
@@ -291,18 +291,18 @@ fun CreateLogementDialog(
 @Composable
 fun EditLogementDialog(
     viewModel: LoginViewModel,
-    logement: UnitDto,
+    residenceUnit: ResidenceUnitDto,
     onDismiss: () -> Unit,
     onSubmit: (String, String, String, Double, Double, Double, List<String>) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var name by remember { mutableStateOf(logement.name) }
-    var floor by remember { mutableStateOf(logement.floor) }
-    var type by remember { mutableStateOf(logement.type) }
-    var nominalRent by remember { mutableStateOf(logement.nominalRent.toString()) }
-    var serviceCharges by remember { mutableStateOf(logement.serviceCharges.toString()) }
-    var initialElectricityIndex by remember { mutableStateOf(logement.initialElectricityIndex.toString()) }
-    var selectedEquipements by remember { mutableStateOf(logement.equipments.map { it.id }.toSet()) }
+    var name by remember { mutableStateOf(residenceUnit.name) }
+    var floor by remember { mutableStateOf(residenceUnit.floor) }
+    var type by remember { mutableStateOf(residenceUnit.type) }
+    var nominalRent by remember { mutableStateOf(residenceUnit.nominalRent.toString()) }
+    var serviceCharges by remember { mutableStateOf(residenceUnit.serviceCharges.toString()) }
+    var initialElectricityIndex by remember { mutableStateOf(residenceUnit.initialElectricityIndex.toString()) }
+    var selectedEquipements by remember { mutableStateOf(residenceUnit.equipments.map { it.id }.toSet()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,

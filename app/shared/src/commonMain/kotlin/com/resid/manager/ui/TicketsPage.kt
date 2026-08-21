@@ -39,11 +39,11 @@ fun TicketsPage(viewModel: LoginViewModel) {
     // Search and filter states
     var statusFilter by remember { mutableStateOf("ALL") } // "ALL", "OPEN", "IN_PROGRESS", "CLOSED"
     var urgencyFilter by remember { mutableStateOf("ALL") } // "ALL", "LOW", "MEDIUM", "CRITICAL"
-    var logementFilterId by remember { mutableStateOf("") }
+    var residenceUnitFilterId by remember { mutableStateOf("") }
 
     // Dialog form states (Declaration)
     var showCreateDialog by remember { mutableStateOf(false) }
-    var formLogementId by remember { mutableStateOf("") }
+    var formResidenceUnitId by remember { mutableStateOf("") }
     var formCategoryId by remember { mutableStateOf("") }
     var formUrgency by remember { mutableStateOf(TicketUrgencyDto.MEDIUM) }
     var formTitle by remember { mutableStateOf("") }
@@ -100,12 +100,12 @@ fun TicketsPage(viewModel: LoginViewModel) {
     }
 
     // Client-side real-time filtering for absolute mobile snappiness
-    val filteredTickets = remember(tickets, statusFilter, urgencyFilter, logementFilterId) {
+    val filteredTickets = remember(tickets, statusFilter, urgencyFilter, residenceUnitFilterId) {
         tickets.filter { t ->
             val matchStatus = if (statusFilter != "ALL") t.status.name == statusFilter else true
             val matchUrgency = if (urgencyFilter != "ALL") t.urgency.name == urgencyFilter else true
-            val matchLogement = if (logementFilterId.isNotEmpty()) t.logementId == logementFilterId else true
-            matchStatus && matchUrgency && matchLogement
+            val matchResidenceUnit = if (residenceUnitFilterId.isNotEmpty()) t.residenceUnitId == residenceUnitFilterId else true
+            matchStatus && matchUrgency && matchResidenceUnit
         }
     }
 
@@ -134,7 +134,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
 
             Button(
                 onClick = { 
-                    formLogementId = uiState.logements.firstOrNull()?.id ?: ""
+                    formResidenceUnitId = uiState.residenceUnits.firstOrNull()?.id ?: ""
                     formCategoryId = categoriesList.firstOrNull()?.id ?: ""
                     showCreateDialog = true 
                 },
@@ -189,18 +189,18 @@ fun TicketsPage(viewModel: LoginViewModel) {
                         }
                     }
 
-                    // Logement Filter dropdown
+                    // ResidenceUnit Filter dropdown
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Unité rattachée", style = MaterialTheme.typography.labelMedium)
                         var expandedLogDropdown by remember { mutableStateOf(false) }
-                        val selectedLogementObj = uiState.logements.firstOrNull { it.id == logementFilterId }
+                        val selectedResidenceUnitObj = uiState.residenceUnits.firstOrNull { it.id == residenceUnitFilterId }
                         
                         Box(modifier = Modifier.padding(top = 4.dp)) {
                             OutlinedButton(
                                 onClick = { expandedLogDropdown = true },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(selectedLogementObj?.name ?: "Toutes les unités")
+                                Text(selectedResidenceUnitObj?.name ?: "Toutes les unités")
                             }
                             DropdownMenu(
                                 expanded = expandedLogDropdown,
@@ -209,15 +209,15 @@ fun TicketsPage(viewModel: LoginViewModel) {
                                 DropdownMenuItem(
                                     text = { Text("Toutes les unités") },
                                     onClick = {
-                                        logementFilterId = ""
+                                        residenceUnitFilterId = ""
                                         expandedLogDropdown = false
                                     }
                                 )
-                                uiState.logements.forEach { logement ->
+                                uiState.residenceUnits.forEach { residenceUnit ->
                                     DropdownMenuItem(
-                                        text = { Text(logement.name) },
+                                        text = { Text(residenceUnit.name) },
                                         onClick = {
-                                            logementFilterId = logement.id
+                                            residenceUnitFilterId = residenceUnit.id
                                             expandedLogDropdown = false
                                         }
                                     )
@@ -246,8 +246,8 @@ fun TicketsPage(viewModel: LoginViewModel) {
                 modifier = Modifier.fillMaxWidth().weight(1f)
             ) {
                 items(filteredTickets) { ticket ->
-                    val matchedLogement = uiState.logements.firstOrNull { it.id == ticket.logementId }
-                    val matchedLogementName = matchedLogement?.name ?: "Logement ${ticket.logementId.take(5)}"
+                    val matchedResidenceUnit = uiState.residenceUnits.firstOrNull { it.id == ticket.residenceUnitId }
+                    val matchedResidenceUnitName = matchedResidenceUnit?.name ?: "Logement ${ticket.residenceUnitId.take(5)}"
                     
                     val (statusColor, statusBg) = when (ticket.status) {
                         TicketStatusDto.OPEN -> Color(0xFFBA1A1A) to Color(0xFFFDE8E8)
@@ -300,7 +300,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
 
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(ticket.title, style = MaterialTheme.typography.titleLarge, color = Color(0xFF006948))
-                                Text("Unité : $matchedLogementName | Catégorie : ${ticket.category.label}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                Text("Unité : $matchedResidenceUnitName | Catégorie : ${ticket.category.label}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                             }
 
                             Text(
@@ -369,16 +369,16 @@ fun TicketsPage(viewModel: LoginViewModel) {
 
     // Modal creation dialog (Mobile-declaration form with dynamic categories!)
     if (showCreateDialog) {
-        var logementSearchQuery by remember { mutableStateOf("") }
-        var selectedLogementName by remember { mutableStateOf("") }
+        var residenceUnitSearchQuery by remember { mutableStateOf("") }
+        var selectedResidenceUnitName by remember { mutableStateOf("") }
 
-        val filteredLogements = remember(uiState.logements, logementSearchQuery, selectedLogementName) {
-            if (logementSearchQuery.isBlank() || logementSearchQuery == selectedLogementName) {
+        val filteredResidenceUnits = remember(uiState.residenceUnits, residenceUnitSearchQuery, selectedResidenceUnitName) {
+            if (residenceUnitSearchQuery.isBlank() || residenceUnitSearchQuery == selectedResidenceUnitName) {
                 emptyList()
             } else {
-                uiState.logements.filter {
-                    it.name.contains(logementSearchQuery, ignoreCase = true) ||
-                    it.floor.contains(logementSearchQuery, ignoreCase = true)
+                uiState.residenceUnits.filter {
+                    it.name.contains(residenceUnitSearchQuery, ignoreCase = true) ||
+                    it.floor.contains(residenceUnitSearchQuery, ignoreCase = true)
                 }
             }
         }
@@ -395,15 +395,15 @@ fun TicketsPage(viewModel: LoginViewModel) {
                     
                     // Compact autocomplete search input
                     OutlinedTextField(
-                        value = logementSearchQuery,
-                        onValueChange = { logementSearchQuery = it },
+                        value = residenceUnitSearchQuery,
+                        onValueChange = { residenceUnitSearchQuery = it },
                         label = { Text("Saisissez le nom ou l'étage...") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
 
                     // Results dropdown list (only visible when user is typing a query)
-                    if (filteredLogements.isNotEmpty()) {
+                    if (filteredResidenceUnits.isNotEmpty()) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -412,14 +412,14 @@ fun TicketsPage(viewModel: LoginViewModel) {
                                 modifier = Modifier.heightIn(max = 140.dp).fillMaxWidth().verticalScroll(rememberScrollState()),
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                filteredLogements.forEach { logement ->
+                                filteredResidenceUnits.forEach { residenceUnit ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clickable {
-                                                formLogementId = logement.id
-                                                selectedLogementName = logement.name
-                                                logementSearchQuery = logement.name // collapses list
+                                                formResidenceUnitId = residenceUnit.id
+                                                selectedResidenceUnitName = residenceUnit.name
+                                                residenceUnitSearchQuery = residenceUnit.name // collapses list
                                             }
                                             .padding(12.dp),
                                         verticalAlignment = Alignment.CenterVertically
@@ -427,8 +427,8 @@ fun TicketsPage(viewModel: LoginViewModel) {
                                         Icon(Icons.Default.Home, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Column {
-                                            Text(logement.name, style = MaterialTheme.typography.titleSmall)
-                                            Text("Étage : ${logement.floor} | Type : ${logement.type}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                            Text(residenceUnit.name, style = MaterialTheme.typography.titleSmall)
+                                            Text("Étage : ${residenceUnit.floor} | Type : ${residenceUnit.type}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                         }
                                     }
                                 }
@@ -436,8 +436,8 @@ fun TicketsPage(viewModel: LoginViewModel) {
                         }
                     }
 
-                    // Selected logement feedback card
-                    if (formLogementId.isNotEmpty() && selectedLogementName.isNotEmpty()) {
+                    // Selected residenceUnit feedback card
+                    if (formResidenceUnitId.isNotEmpty() && selectedResidenceUnitName.isNotEmpty()) {
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                             modifier = Modifier.fillMaxWidth()
@@ -450,7 +450,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
                                 Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF006948))
                                 Column {
                                     Text("Unité rattachée sélectionnée :", style = MaterialTheme.typography.labelSmall, color = Color(0xFF006948))
-                                    Text(selectedLogementName, style = MaterialTheme.typography.titleSmall, color = Color(0xFF006948))
+                                    Text(selectedResidenceUnitName, style = MaterialTheme.typography.titleSmall, color = Color(0xFF006948))
                                 }
                             }
                         }
@@ -515,7 +515,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
             confirmButton = {
                 Button(
                     onClick = {
-                        if (formLogementId.isEmpty() || formCategoryId.isEmpty() || formTitle.isEmpty() || formDescription.isEmpty()) {
+                        if (formResidenceUnitId.isEmpty() || formCategoryId.isEmpty() || formTitle.isEmpty() || formDescription.isEmpty()) {
                             formError = "Veuillez remplir tous les champs obligatoires."
                             return@Button
                         }
@@ -524,13 +524,13 @@ fun TicketsPage(viewModel: LoginViewModel) {
                         coroutineScope.launch {
                             try {
                                 val req = TicketCreateRequest(
-                                    logementId = formLogementId,
+                                    residenceUnitId = formResidenceUnitId,
                                     categoryId = formCategoryId,
                                     title = formTitle,
                                     description = formDescription,
                                     urgency = formUrgency
                                 )
-                                val resp = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/logements/$formLogementId/tickets") {
+                                val resp = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/logements/$formResidenceUnitId/tickets") {
                                     contentType(ContentType.Application.Json)
                                     header(HttpHeaders.Authorization, "Bearer ${uiState.jwtToken}")
                                     setBody(req)

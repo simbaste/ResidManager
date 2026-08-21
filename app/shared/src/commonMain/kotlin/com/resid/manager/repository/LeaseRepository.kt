@@ -9,7 +9,7 @@ import io.ktor.http.*
 
 interface LeaseRepository {
     suspend fun fetchLeases(token: String, residenceId: String): Result<List<LeaseDto>>
-    suspend fun createLease(token: String, logementId: String, request: LeaseCreateRequest): Result<LeaseDto>
+    suspend fun createLease(token: String, residenceUnitId: String, request: LeaseCreateRequest): Result<LeaseDto>
     suspend fun recordLeasePayment(token: String, leaseId: String, amount: Double, category: String): Result<LeaseDto>
     suspend fun updateLeaseStatus(token: String, leaseId: String, status: LeaseStatusDto): Result<LeaseDto>
 }
@@ -35,11 +35,11 @@ class LeaseRepositoryImpl(
 
     override suspend fun createLease(
         token: String,
-        logementId: String,
+        residenceUnitId: String,
         request: LeaseCreateRequest
     ): Result<LeaseDto> {
         return try {
-            val response = httpClient.post("${ApiClient.BASE_URL}/api/logements/$logementId/baux") {
+            val response = httpClient.post("${ApiClient.BASE_URL}/api/logements/$residenceUnitId/baux") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(request)

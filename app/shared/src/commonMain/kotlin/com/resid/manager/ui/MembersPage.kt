@@ -524,7 +524,7 @@ fun MembersPage(viewModel: LoginViewModel) {
                         coroutineScope.launch {
                             try {
                                 val req = InviteMemberRequest(email = selectedUserEmail, role = RoleDto.valueOf(selectedRole))
-                                val resp = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/residences/${activeResidence?.residenceId}/members/invite") {
+                                val resp = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/invitations?residenceId=${activeResidence?.residenceId}") {
                                     contentType(ContentType.Application.Json)
                                     header(HttpHeaders.Authorization, "Bearer ${uiState.jwtToken}")
                                     setBody(req)

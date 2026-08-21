@@ -36,8 +36,8 @@ fun LeasesPage(viewModel: LoginViewModel) {
 
     if (selectedLeaseForDetail != null) {
         val lease = selectedLeaseForDetail!!
-        val matchedLogement = uiState.logements.firstOrNull { it.id == lease.unitId }
-        val matchedLogementName = matchedLogement?.name ?: "Logement ${lease.unitId.take(5)}"
+        val matchedResidenceUnit = uiState.residenceUnits.firstOrNull { it.id == lease.residenceUnitId }
+        val matchedResidenceUnitName = matchedResidenceUnit?.name ?: "Logement ${lease.residenceUnitId.take(5)}"
         
         var paymentAmountText by remember { mutableStateOf("") }
         var localError by remember { mutableStateOf<String?>(null) }
@@ -108,9 +108,9 @@ fun LeasesPage(viewModel: LoginViewModel) {
                             HorizontalDivider()
 
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Unité rattachée : $matchedLogementName", style = MaterialTheme.typography.bodyLarge)
-                                Text("Étage : ${matchedLogement?.floor ?: "Non spécifié"}", style = MaterialTheme.typography.bodyMedium)
-                                Text("Type d'unité : ${matchedLogement?.type ?: "Non spécifié"}", style = MaterialTheme.typography.bodyMedium)
+                                Text("Unité rattachée : $matchedResidenceUnitName", style = MaterialTheme.typography.bodyLarge)
+                                Text("Étage : ${matchedResidenceUnit?.floor ?: "Non spécifié"}", style = MaterialTheme.typography.bodyMedium)
+                                Text("Type d'unité : ${matchedResidenceUnit?.type ?: "Non spécifié"}", style = MaterialTheme.typography.bodyMedium)
                                 
                                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
@@ -536,7 +536,7 @@ fun LeasesPage(viewModel: LoginViewModel) {
                 }
             } else {
                 items(filteredLeases) { lease ->
-                    val matchedLogement = uiState.logements.firstOrNull { it.id == lease.unitId }?.name ?: "Logement ${lease.unitId.take(5)}"
+                    val matchedResidenceUnit = uiState.residenceUnits.firstOrNull { it.id == lease.residenceUnitId }?.name ?: "Logement ${lease.residenceUnitId.take(5)}"
                     val matchedTenant = uiState.members.firstOrNull { it.userId == lease.tenantId }
                     val tenantName = matchedTenant?.let { "${it.firstName} ${it.lastName}" } ?: "Inconnu"
 
@@ -568,7 +568,7 @@ fun LeasesPage(viewModel: LoginViewModel) {
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = matchedLogement, 
+                                        text = matchedResidenceUnit, 
                                         style = MaterialTheme.typography.titleLarge, 
                                         color = Color(0xFF006948)
                                     )
@@ -664,7 +664,7 @@ enum class WizardStep { TENANT, UNIT, FINANCIALS, TIMELINE }
 fun LeaseWizardDialog(
     viewModel: LoginViewModel,
     onDismiss: () -> Unit,
-    initialLogementId: String? = null
+    initialResidenceUnitId: String? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var currentStep by remember { mutableStateOf(WizardStep.TENANT) }
@@ -678,7 +678,7 @@ fun LeaseWizardDialog(
     var inlineEmail by remember { mutableStateOf("") }
     var inlinePhone by remember { mutableStateOf("") }
 
-    var draftLogementId by remember { mutableStateOf(initialLogementId ?: "") }
+    var draftResidenceUnitId by remember { mutableStateOf(initialResidenceUnitId ?: "") }
     var draftDepositAmount by remember { mutableStateOf("0.0") }
     var draftPaymentFrequency by remember { mutableStateOf("MONTHLY") }
     var draftStartDate by remember { mutableStateOf("") }
@@ -833,25 +833,25 @@ fun LeaseWizardDialog(
                     WizardStep.UNIT -> {
                         Text("Étape 2 sur 4 : Sélection du Logement", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         
-                        val availableLogements = uiState.logements.filter { it.status == UnitStatusDto.AVAILABLE }
+                        val availableResidenceUnits = uiState.residenceUnits.filter { it.status == UnitStatusDto.AVAILABLE }
 
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            if (availableLogements.isEmpty()) {
+                            if (availableResidenceUnits.isEmpty()) {
                                 Text("Aucun logement de type AVAILABLE (libre) n'est disponible dans cette résidence.")
                             } else {
                                 Text("Sélectionnez l'unité libre à attribuer :")
                                 
-                                availableLogements.forEach { logement ->
+                                availableResidenceUnits.forEach { unit ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable { draftLogementId = logement.id }
-                                            .background(if (draftLogementId == logement.id) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                            .clickable { draftResidenceUnitId = unit.id }
+                                            .background(if (draftResidenceUnitId == unit.id) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
                                             .padding(12.dp)
                                     ) {
                                         Column {
-                                            Text(text = logement.name, style = MaterialTheme.typography.titleSmall)
-                                            Text(text = "Étage : ${logement.floor} | Loyer : ${logement.nominalRent} XOF")
+                                            Text(text = unit.name, style = MaterialTheme.typography.titleSmall)
+                                            Text(text = "Étage : ${unit.floor} | Loyer : ${unit.nominalRent} XOF")
                                         }
                                     }
                                 }
@@ -862,7 +862,7 @@ fun LeaseWizardDialog(
                     WizardStep.FINANCIALS -> {
                         Text("Étape 3 sur 4 : Conditions Financières", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                         
-                        val selectedLogement = uiState.logements.firstOrNull { it.id == draftLogementId }
+                        val selectedResidenceUnit = uiState.residenceUnits.firstOrNull { it.id == draftResidenceUnitId }
                         val isAnnual = draftPaymentFrequency == "ANNUAL"
 
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -939,9 +939,9 @@ fun LeaseWizardDialog(
                                 }
                             }
 
-                            if (selectedLogement != null) {
-                                val rent = selectedLogement.nominalRent
-                                val charges = selectedLogement.serviceCharges
+                            if (selectedResidenceUnit != null) {
+                                val rent = selectedResidenceUnit.nominalRent
+                                val charges = selectedResidenceUnit.serviceCharges
                                 
                                 val months = if (isAnnual) (draftAdvanceMonths.toIntOrNull() ?: 12) else 1
                                 val firstRent = months * (rent + charges)
@@ -1070,11 +1070,11 @@ fun LeaseWizardDialog(
             if (currentStep == WizardStep.TIMELINE) {
                 Button(
                     onClick = {
-                        val rentVal = uiState.logements.firstOrNull { it.id == draftLogementId }?.nominalRent ?: 0.0
+                        val rentVal = uiState.residenceUnits.firstOrNull { it.id == draftResidenceUnitId }?.nominalRent ?: 0.0
                         val req = LeaseCreateRequest(
                             tenantId = draftTenantId,
                             inlineTenant = if (isInlineTenant) InlineTenantCreateRequest(inlineFirstName, inlineLastName, inlineEmail, inlinePhone.ifBlank { null }) else null,
-                            logementId = draftLogementId,
+                            residenceUnitId = draftResidenceUnitId,
                             depositAmount = draftDepositAmount.toDoubleOrNull() ?: 0.0,
                             paymentFrequency = draftPaymentFrequency,
                             startDate = draftStartDate,
@@ -1083,7 +1083,7 @@ fun LeaseWizardDialog(
                             advanceMonths = if (draftPaymentFrequency == "ANNUAL") (draftAdvanceMonths.toIntOrNull() ?: 12) else 1,
                             advancePaymentAmount = (draftAdvancePaymentAmount.toDoubleOrNull() ?: 0.0)
                         )
-                        viewModel.createLease(draftLogementId, req) {
+                        viewModel.createLease(draftResidenceUnitId, req) {
                             onDismiss()
                         }
                     },

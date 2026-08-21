@@ -35,12 +35,12 @@ class MemberRepositoryImpl(
     override suspend fun inviteMember(token: String, residenceId: String, email: String, role: String): Result<Unit> {
         return try {
             val req = InviteMemberRequest(email = email, role = RoleDto.valueOf(role))
-            val response = httpClient.post("${ApiClient.BASE_URL}/api/residences/$residenceId/members/invite") {
+            val response = httpClient.post("${ApiClient.BASE_URL}/api/invitations?residenceId=$residenceId") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(req)
             }
-            if (response.status == HttpStatusCode.OK) {
+            if (response.status == HttpStatusCode.OK || response.status == HttpStatusCode.Created) {
                 Result.success(Unit)
             } else {
                 val errorBody = response.body<ErrorResponse>()

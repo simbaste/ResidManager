@@ -37,13 +37,13 @@ fun ElectricityPage(viewModel: LoginViewModel) {
 
     // Filter states
     var statusFilter by remember { mutableStateOf("ALL") } // "ALL", "UNPAID", "PAID"
-    var selectedLogementFilterId by remember { mutableStateOf("") }
+    var selectedResidenceUnitFilterId by remember { mutableStateOf("") }
     var floorFilterText by remember { mutableStateOf("") }
     var tenantFilterText by remember { mutableStateOf("") }
 
     // Form / dialog states
     var showFormDialog by remember { mutableStateOf(false) }
-    var formSelectedLogementId by remember { mutableStateOf("") }
+    var formSelectedResidenceUnitId by remember { mutableStateOf("") }
     var formPreviousIndex by remember { mutableStateOf<Double?>(null) }
     var formNewIndexText by remember { mutableStateOf("") }
     var formKWhPriceText by remember { mutableStateOf("120.0") }
@@ -85,7 +85,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
     }
 
     // Client-side real-time filtering for maximum mobile-first snappiness
-    val filteredStatements = remember(statements, statusFilter, selectedLogementFilterId, floorFilterText, tenantFilterText, uiState.leases, uiState.members) {
+    val filteredStatements = remember(statements, statusFilter, selectedResidenceUnitFilterId, floorFilterText, tenantFilterText, uiState.leases, uiState.members) {
         statements.filter { stmt ->
             // 1. Status Filter
             val matchStatus = when (statusFilter) {
@@ -94,24 +94,24 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                 else -> true
             }
 
-            // 2. Logement Filter
-            val matchLogement = if (selectedLogementFilterId.isNotEmpty()) stmt.logementId == selectedLogementFilterId else true
+            // 2. ResidenceUnit Filter
+            val matchResidenceUnit = if (selectedResidenceUnitFilterId.isNotEmpty()) stmt.residenceUnitId == selectedResidenceUnitFilterId else true
 
             // 3. Floor Filter
-            val matchedLogementObj = uiState.logements.firstOrNull { it.id == stmt.logementId }
-            val matchFloor = if (floorFilterText.isNotEmpty() && matchedLogementObj != null) {
-                matchedLogementObj.floor.contains(floorFilterText, ignoreCase = true)
+            val matchedResidenceUnitObj = uiState.residenceUnits.firstOrNull { it.id == stmt.residenceUnitId }
+            val matchFloor = if (floorFilterText.isNotEmpty() && matchedResidenceUnitObj != null) {
+                matchedResidenceUnitObj.floor.contains(floorFilterText, ignoreCase = true)
             } else true
 
             // 4. Tenant Name Filter (join via active lease)
             val matchTenant = if (tenantFilterText.isNotEmpty()) {
-                val activeLease = uiState.leases.firstOrNull { it.unitId == stmt.logementId && it.status == LeaseStatusDto.SIGNED_ACTIVE }
+                val activeLease = uiState.leases.firstOrNull { it.residenceUnitId == stmt.residenceUnitId && it.status == LeaseStatusDto.SIGNED_ACTIVE }
                 val tenant = activeLease?.let { lease -> uiState.members.firstOrNull { it.userId == lease.tenantId } }
                 val fullName = "${tenant?.firstName ?: ""} ${tenant?.lastName ?: ""}"
                 fullName.contains(tenantFilterText, ignoreCase = true)
             } else true
 
-            matchStatus && matchLogement && matchFloor && matchTenant
+            matchStatus && matchResidenceUnit && matchFloor && matchTenant
         }
     }
 
@@ -250,8 +250,8 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                 modifier = Modifier.fillMaxWidth().weight(1f)
             ) {
                 items(filteredStatements) { stmt ->
-                    val matchedLogement = uiState.logements.firstOrNull { it.id == stmt.logementId }
-                    val matchedLogementName = matchedLogement?.name ?: "Logement ${stmt.logementId.take(5)}"
+                    val matchedResidenceUnit = uiState.residenceUnits.firstOrNull { it.id == stmt.residenceUnitId }
+                    val matchedResidenceUnitName = matchedResidenceUnit?.name ?: "Logement ${stmt.residenceUnitId.take(5)}"
                     val isChecked = selectedStatementIds[stmt.id] ?: false
                     val currencySymbol = activeResidence?.currencySymbol ?: "XOF"
 
@@ -270,7 +270,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                                         checked = isChecked,
                                         onCheckedChange = { selectedStatementIds[stmt.id] = it ?: false }
                                     )
-                                    Text(text = matchedLogementName, style = MaterialTheme.typography.titleMedium, color = Color(0xFF006948))
+                                    Text(text = matchedResidenceUnitName, style = MaterialTheme.typography.titleMedium, color = Color(0xFF006948))
                                 }
 
                                 Card(
@@ -347,16 +347,16 @@ fun ElectricityPage(viewModel: LoginViewModel) {
 
     // Input Form Dialog (Mobile-First responsive modal)
     if (showFormDialog) {
-        var logementSearchQuery by remember { mutableStateOf("") }
-        var selectedLogementName by remember { mutableStateOf("") }
+        var residenceUnitSearchQuery by remember { mutableStateOf("") }
+        var selectedResidenceUnitName by remember { mutableStateOf("") }
 
-        val filteredLogements = remember(uiState.logements, logementSearchQuery, selectedLogementName) {
-            if (logementSearchQuery.isBlank() || logementSearchQuery == selectedLogementName) {
+        val filteredResidenceUnits = remember(uiState.residenceUnits, residenceUnitSearchQuery, selectedResidenceUnitName) {
+            if (residenceUnitSearchQuery.isBlank() || residenceUnitSearchQuery == selectedResidenceUnitName) {
                 emptyList()
             } else {
-                uiState.logements.filter {
-                    it.name.contains(logementSearchQuery, ignoreCase = true) ||
-                    it.floor.contains(logementSearchQuery, ignoreCase = true)
+                uiState.residenceUnits.filter {
+                    it.name.contains(residenceUnitSearchQuery, ignoreCase = true) ||
+                    it.floor.contains(residenceUnitSearchQuery, ignoreCase = true)
                 }
             }
         }
@@ -378,15 +378,15 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                     
                     // Compact autocomplete search input
                     OutlinedTextField(
-                        value = logementSearchQuery,
-                        onValueChange = { logementSearchQuery = it },
+                        value = residenceUnitSearchQuery,
+                        onValueChange = { residenceUnitSearchQuery = it },
                         label = { Text("Saisissez le nom ou l'étage...") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
 
                     // Results dropdown list
-                    if (filteredLogements.isNotEmpty()) {
+                    if (filteredResidenceUnits.isNotEmpty()) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -395,20 +395,20 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                                 modifier = Modifier.heightIn(max = 140.dp).fillMaxWidth().verticalScroll(rememberScrollState()),
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                filteredLogements.forEach { logement ->
+                                filteredResidenceUnits.forEach { residenceUnit ->
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clickable {
-                                                formSelectedLogementId = logement.id
-                                                selectedLogementName = logement.name
-                                                logementSearchQuery = logement.name // collapses list
+                                                formSelectedResidenceUnitId = residenceUnit.id
+                                                selectedResidenceUnitName = residenceUnit.name
+                                                residenceUnitSearchQuery = residenceUnit.name // collapses list
                                                 
                                                 // Dynamically fetch previous index for read-only display!
                                                 isLoadingPreviousIndex = true
                                                 coroutineScope.launch {
                                                     try {
-                                                        val resp = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/logements/${logement.id}/electricity/previous") {
+                                                        val resp = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/logements/${residenceUnit.id}/electricity/previous") {
                                                             header(HttpHeaders.Authorization, "Bearer ${uiState.jwtToken}")
                                                         }
                                                         if (resp.status == io.ktor.http.HttpStatusCode.OK) {
@@ -425,8 +425,8 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                                         Icon(Icons.Default.Home, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Column {
-                                            Text(logement.name, style = MaterialTheme.typography.titleSmall)
-                                            Text("Étage : ${logement.floor} | Type : ${logement.type}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                            Text(residenceUnit.name, style = MaterialTheme.typography.titleSmall)
+                                            Text("Étage : ${residenceUnit.floor} | Type : ${residenceUnit.type}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                         }
                                     }
                                 }
@@ -434,8 +434,8 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                         }
                     }
 
-                    // Selected logement feedback card
-                    if (formSelectedLogementId.isNotEmpty() && selectedLogementName.isNotEmpty()) {
+                    // Selected residenceUnit feedback card
+                    if (formSelectedResidenceUnitId.isNotEmpty() && selectedResidenceUnitName.isNotEmpty()) {
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                             modifier = Modifier.fillMaxWidth()
@@ -448,7 +448,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                                 Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF006948))
                                 Column {
                                     Text("Unité sélectionnée avec succès :", style = MaterialTheme.typography.labelSmall, color = Color(0xFF006948))
-                                    Text(selectedLogementName, style = MaterialTheme.typography.titleSmall, color = Color(0xFF006948))
+                                    Text(selectedResidenceUnitName, style = MaterialTheme.typography.titleSmall, color = Color(0xFF006948))
                                 }
                             }
                         }
@@ -457,7 +457,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                     HorizontalDivider()
 
                     // Locked Read-only previous index field
-                    if (formSelectedLogementId.isNotEmpty()) {
+                    if (formSelectedResidenceUnitId.isNotEmpty()) {
                         if (isLoadingPreviousIndex) {
                             CircularProgressIndicator(modifier = Modifier.size(24.dp).align(Alignment.CenterHorizontally))
                         } else {
@@ -516,7 +516,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
             confirmButton = {
                 Button(
                     onClick = {
-                        if (formSelectedLogementId.isEmpty() || formNewIndexText.isEmpty() || formStatementDate.isEmpty()) {
+                        if (formSelectedResidenceUnitId.isEmpty() || formNewIndexText.isEmpty() || formStatementDate.isEmpty()) {
                             formError = "Veuillez remplir tous les champs obligatoires."
                             return@Button
                         }
@@ -529,13 +529,13 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                         coroutineScope.launch {
                             try {
                                 val req = ElectricityStatementCreateRequest(
-                                    logementId = formSelectedLogementId,
+                                    residenceUnitId = formSelectedResidenceUnitId,
                                     previousIndex = calculatedOldIndex,
                                     newIndex = calculatedNewIndex,
                                     kWhPriceApplied = calculatedPrice,
                                     statementDate = formStatementDate
                                 )
-                                val resp = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/logements/$formSelectedLogementId/electricity") {
+                                val resp = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/logements/$formSelectedResidenceUnitId/electricity") {
                                     contentType(ContentType.Application.Json)
                                     header(HttpHeaders.Authorization, "Bearer ${uiState.jwtToken}")
                                     setBody(req)
@@ -543,7 +543,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                                 if (resp.status == io.ktor.http.HttpStatusCode.Created || resp.status == io.ktor.http.HttpStatusCode.OK) {
                                     fetchStatements()
                                     // Reset input form
-                                    formSelectedLogementId = ""
+                                    formSelectedResidenceUnitId = ""
                                     formPreviousIndex = null
                                     formNewIndexText = ""
                                     formError = null

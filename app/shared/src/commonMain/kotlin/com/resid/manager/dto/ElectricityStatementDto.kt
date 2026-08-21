@@ -11,7 +11,7 @@ enum class ElectricityStatusDto {
 @Serializable
 data class ElectricityStatementDto(
     val id: String,
-    val logementId: String,
+    val residenceUnitId: String,
     val previousIndex: Double,
     val newIndex: Double,
     val kWhPriceApplied: Double,
@@ -24,7 +24,7 @@ data class ElectricityStatementDto(
 
 @Serializable
 data class ElectricityStatementCreateRequest(
-    val logementId: String,
+    val residenceUnitId: String,
     val previousIndex: Double,
     val newIndex: Double,
     val kWhPriceApplied: Double,

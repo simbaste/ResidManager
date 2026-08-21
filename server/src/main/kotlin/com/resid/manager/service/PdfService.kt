@@ -42,7 +42,7 @@ object PdfService {
                 
                 // Receipt details
                 cell.addElement(Paragraph("Date du relevé : ${stmt.statementDate}", FontFactory.getFont(FontFactory.HELVETICA, 10f)))
-                cell.addElement(Paragraph("Logement : Unité ${stmt.logementId.take(8).uppercase()}", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10f)))
+                cell.addElement(Paragraph("Logement : Unité ${stmt.residenceUnitId.take(8).uppercase()}", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10f)))
                 
                 cell.addElement(Paragraph("\nINDEXATION :", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9f, Font.UNDERLINE)))
                 cell.addElement(Paragraph("• Ancien Index : ${stmt.previousIndex} kWh", FontFactory.getFont(FontFactory.HELVETICA, 10f)))

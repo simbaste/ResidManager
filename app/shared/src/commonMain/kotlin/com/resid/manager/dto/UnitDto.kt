@@ -15,7 +15,7 @@ enum class UnitStatusDto {
 }
 
 @Serializable
-data class UnitDto(
+data class ResidenceUnitDto(
     val id: String,
     val residenceId: String,
     val name: String,
@@ -29,7 +29,7 @@ data class UnitDto(
 )
 
 @Serializable
-data class LogementCreateRequest(
+data class ResidenceUnitCreateRequest(
     val name: String,
     val floor: String,
     val type: String,
