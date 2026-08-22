@@ -3,13 +3,36 @@ package com.resid.manager.viewmodel
 import androidx.lifecycle.viewModelScope
 import com.resid.manager.SessionStorage
 import com.resid.manager.base.MviViewModel
-import com.resid.manager.dto.*
-import com.resid.manager.repository.*
+import com.resid.manager.dto.ApplicationRequest
+import com.resid.manager.dto.CurrencyCodeDto
+import com.resid.manager.dto.EquipmentDto
+import com.resid.manager.dto.ErrorResponse
+import com.resid.manager.dto.LeaseCreateRequest
+import com.resid.manager.dto.LeaseDto
+import com.resid.manager.dto.LeaseStatusDto
+import com.resid.manager.dto.ResidenceContext
+import com.resid.manager.dto.ResidenceCreateRequest
+import com.resid.manager.dto.ResidenceMemberSummaryDto
+import com.resid.manager.dto.ResidenceSummaryItemDto
+import com.resid.manager.dto.ResidenceUnitCreateRequest
+import com.resid.manager.dto.ResidenceUnitDto
+import com.resid.manager.dto.RoleDto
+import com.resid.manager.dto.UserDto
+import com.resid.manager.dto.UserRole
+import com.resid.manager.dto.toUserRole
+import com.resid.manager.network.ApiClient
+import com.resid.manager.repository.AuthRepository
+import com.resid.manager.repository.LeaseRepository
+import com.resid.manager.repository.MemberRepository
+import com.resid.manager.repository.ResidenceRepository
+import com.resid.manager.repository.ResidenceUnitRepository
 import com.resid.manager.usecase.SearchResidencesUseCase
 import com.resid.manager.validation.AuthValidator
-import com.resid.manager.network.ApiClient
-import io.ktor.client.request.*
 import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import kotlinx.coroutines.launch
 
 enum class AuthScreen {
@@ -122,11 +145,8 @@ class LoginViewModel(
     init {
         fetchEquipements()
         // Load session if available on startup
-        sessionStorage?.loadSession()?.let { (token, userName) ->
-            val nameParts = userName.split(" ")
-            val fName = nameParts.getOrNull(0) ?: "Utilisateur"
-            val lName = nameParts.getOrNull(1) ?: "ResidManager"
-            updateState { 
+        sessionStorage?.loadSession()?.let { (token, fName, lName) ->
+            updateState {
                 it.copy(
                     jwtToken = token,
                     currentScreen = AuthScreen.MAIN,
@@ -136,7 +156,8 @@ class LoginViewModel(
                     loggedInUser = UserDto(
                         id = "",
                         email = "",
-                        name = userName,
+                        firstName = fName,
+                        lastName = lName,
                         phone = null,
                         birthDate = null,
                         createdAt = "",
@@ -652,9 +673,8 @@ class LoginViewModel(
             try {
                 authRepository.login(emailInput, passwordInput)
                     .onSuccess { authResponse ->
-                        val nameParts = authResponse.user.name.split(" ")
-                        val fName = nameParts.getOrNull(0) ?: "Utilisateur"
-                        val lName = nameParts.getOrNull(1) ?: ""
+                        val fName = authResponse.user.firstName ?: "Utilisateur"
+                        val lName = authResponse.user.lastName ?: ""
                         updateState {
                             it.copy(
                                 isLoading = false,
@@ -666,7 +686,11 @@ class LoginViewModel(
                                 currentAppScreen = AppScreen.DASHBOARD
                             )
                         }
-                        sessionStorage?.saveSession(authResponse.token, authResponse.user.name)
+                        sessionStorage?.saveSession(
+                            authResponse.token,
+                            fName,
+                            lName
+                        )
                         fetchResidences()
                     }
                     .onFailure { exception ->
@@ -712,7 +736,13 @@ class LoginViewModel(
                                 currentAppScreen = AppScreen.DASHBOARD
                             )
                         }
-                        sessionStorage?.saveSession(authResponse.token, authResponse.user.name)
+                        val fName = authResponse.user.firstName ?: "Utilisateur"
+                        val lName = authResponse.user.lastName ?: ""
+                        sessionStorage?.saveSession(
+                            authResponse.token,
+                            fName,
+                            lName
+                        )
                         fetchResidences()
                     }
                     .onFailure { exception ->
@@ -751,14 +781,11 @@ class LoginViewModel(
     }
 
     fun updateUserProfile(user: UserDto) {
-        val nameParts = user.name.split(" ")
-        val fName = nameParts.firstOrNull() ?: ""
-        val lName = if (nameParts.size > 1) nameParts.drop(1).joinToString(" ") else ""
         updateState { 
             it.copy(
                 loggedInUser = user, 
-                firstName = fName, 
-                lastName = lName, 
+                firstName = user.firstName.orEmpty(),
+                lastName = user.lastName.orEmpty(),
                 phone = user.phone ?: ""
             ) 
         }

@@ -35,7 +35,8 @@ fun RoleDto.toUserRole(): UserRole {
 data class UserDto(
     val id: String,
     val email: String,
-    val name: String,
+    val firstName: String?,
+    val lastName: String?,
     val phone: String?,
     val birthDate: String?,
     val createdAt: String, // ISO-8601 string
@@ -53,11 +54,16 @@ data class UserCreateRequest(
 @Serializable
 data class UserUpdateRequest(
     val email: String? = null,
-    val passwordPlain: String? = null,
     val firstName: String? = null,
     val lastName: String? = null,
     val birthDate: String? = null,
     val phone: String? = null
+)
+
+@Serializable
+data class UserPasswordUpdateRequest(
+    val oldPassword: String,
+    val newPassword: String
 )
 
 @Serializable

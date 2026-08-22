@@ -6,25 +6,29 @@ import kotlinx.browser.localStorage
 
 class WebSessionStorage : SessionStorage {
     private val tokenKey = "jwt_token"
-    private val userKey = "user_name"
+    private val userFnameKey = "user_fname"
+    private val userLNameKey = "user_lname"
 
-    override fun saveSession(token: String, userName: String) {
+    override fun saveSession(token: String, fName: String, lName: String) {
         localStorage.setItem(tokenKey, token)
-        localStorage.setItem(userKey, userName)
+        localStorage.setItem(userFnameKey, fName)
+        localStorage.setItem(userLNameKey, lName)
     }
 
-    override fun loadSession(): Pair<String, String>? {
+    override fun loadSession(): Triple<String, String, String>? {
         val token = localStorage.getItem(tokenKey)
-        val userName = localStorage.getItem(userKey)
-        if (token != null && userName != null) {
-            return Pair(token, userName)
+        val fName = localStorage.getItem(userFnameKey)
+        val lName = localStorage.getItem(userLNameKey) ?: ""
+        if (token != null && fName != null) {
+            return Triple(token, fName, lName)
         }
         return null
     }
 
     override fun clearSession() {
         localStorage.removeItem(tokenKey)
-        localStorage.removeItem(userKey)
+        localStorage.removeItem(userFnameKey)
+        localStorage.removeItem(userLNameKey)
     }
 }
 

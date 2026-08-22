@@ -10,11 +10,12 @@ import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.dto.RegisterRequest
 import com.resid.manager.dto.UserDto
 import com.resid.manager.validation.AuthValidator
-import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.post
+import io.ktor.server.routing.route
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Clock
 import java.time.LocalDate
@@ -72,7 +73,8 @@ fun Route.authRoutes() {
                 val userDto = UserDto(
                     id = dbUser.id.value.toString(),
                     email = dbUser.email,
-                    name = "${dbUser.firstName} ${dbUser.lastName}",
+                    firstName = dbUser.firstName,
+                    lastName = dbUser.lastName,
                     phone = dbUser.phone,
                     birthDate = dbUser.birthDate?.toString(),
                     createdAt = dbUser.createdAt.toString(),
@@ -163,7 +165,8 @@ fun Route.authRoutes() {
                 val userDto = UserDto(
                     id = newUser.id.value.toString(),
                     email = newUser.email,
-                    name = "${newUser.firstName} ${newUser.lastName}",
+                    firstName = newUser.firstName,
+                    lastName = newUser.lastName,
                     phone = newUser.phone,
                     birthDate = newUser.birthDate?.toString(),
                     createdAt = newUser.createdAt.toString(),

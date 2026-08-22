@@ -1,15 +1,26 @@
 package com.resid.manager.service
 
 import at.favre.lib.crypto.bcrypt.BCrypt
-import com.resid.manager.data.*
+import com.resid.manager.data.HttpError
+import com.resid.manager.data.InvitationStatus
+import com.resid.manager.data.ResidenceMembers
+import com.resid.manager.data.Role
+import com.resid.manager.data.User
+import com.resid.manager.data.Users
+import com.resid.manager.data.convert
 import com.resid.manager.dto.UserDto
+import com.resid.manager.dto.UserPasswordUpdateRequest
 import com.resid.manager.dto.UserSearchDto
 import com.resid.manager.dto.UserUpdateRequest
 import com.resid.manager.validation.AuthValidator
 import io.ktor.http.HttpStatusCode
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
+import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.lowerCase
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Clock
 import java.time.LocalDate
@@ -25,12 +36,40 @@ object UserService {
         UserDto(
             id = dbUser.id.value.toString(),
             email = dbUser.email,
-            name = "${dbUser.firstName} ${dbUser.lastName}",
+            firstName = dbUser.firstName,
+            lastName = dbUser.lastName,
             phone = dbUser.phone,
             birthDate = dbUser.birthDate?.toString(),
             createdAt = dbUser.createdAt.toString(),
             updatedAt = dbUser.updatedAt.toString()
         )
+    }
+
+    fun updateUserPassword(
+        userId: UUID,
+        request: UserPasswordUpdateRequest,
+    ) = transaction {
+        val dbUser = User.findById(userId)
+            ?: throw HttpError(HttpStatusCode.NotFound, "Utilisateur introuvable.")
+
+        // Verify the old password with BCrypt
+        val verification = BCrypt.verifyer().verify(request.oldPassword.toCharArray(), dbUser.passwordHash)
+        if (!verification.verified) {
+            throw HttpError(HttpStatusCode.Unauthorized, "L'ancien mot de passe est incorrect.")
+        }
+
+        // Validate the new password complexity
+        if (!AuthValidator.isValidPassword(request.newPassword)) {
+            throw HttpError(
+                HttpStatusCode.BadRequest,
+                "Le nouveau mot de passe doit faire au moins 8 caractères et contenir un chiffre et un caractère spécial."
+            )
+        }
+
+        // Hash and save new password
+        dbUser.passwordHash = BCrypt.withDefaults().hashToString(12, request.newPassword.toCharArray())
+        dbUser.updatedAt = LocalDateTime.now(Clock.systemUTC())
+        dbUser.flush()
     }
 
     fun updateUserProfile(userId: UUID, request: UserUpdateRequest): UserDto = transaction {
@@ -51,19 +90,9 @@ object UserService {
             }
         }
 
-        request.passwordPlain?.let { password ->
-            if (!AuthValidator.isValidPassword(password)) {
-                throw HttpError(
-                    HttpStatusCode.BadRequest,
-                    "Le nouveau mot de passe doit faire au moins 8 caractères et contenir un chiffre et un caractère spécial."
-                )
-            }
-            dbUser.passwordHash = BCrypt.withDefaults().hashToString(12, password.toCharArray())
-        }
-
-        request.firstName?.let { dbUser.firstName = it }
-        request.lastName?.let { dbUser.lastName = it }
-        request.phone?.let { dbUser.phone = it }
+        request.firstName?.takeIf { it.isNotBlank() }?.let { dbUser.firstName = it }
+        request.lastName?.takeIf { it.isNotBlank() }?.let { dbUser.lastName = it }
+        request.phone?.takeIf { it.isNotBlank() }?.let { dbUser.phone = it }
         request.birthDate?.let { dateStr ->
             dbUser.birthDate = try {
                 LocalDate.parse(dateStr)
@@ -78,7 +107,8 @@ object UserService {
         UserDto(
             id = dbUser.id.value.toString(),
             email = dbUser.email,
-            name = "${dbUser.firstName} ${dbUser.lastName}",
+            firstName = dbUser.firstName,
+            lastName = dbUser.lastName,
             phone = dbUser.phone,
             birthDate = dbUser.birthDate?.toString(),
             createdAt = dbUser.createdAt.toString(),
