@@ -1,10 +1,13 @@
 package com.resid.manager.data
 
 import com.resid.manager.dto.ApplicationStatusDto
-import com.resid.manager.dto.CurrencySymbolDto
+import com.resid.manager.dto.ConditionRatingDto
 import com.resid.manager.dto.CurrencyCodeDto
+import com.resid.manager.dto.CurrencySymbolDto
 import com.resid.manager.dto.ElectricityStatusDto
 import com.resid.manager.dto.EntityTypeDto
+import com.resid.manager.dto.InspectionItemCategoryDto
+import com.resid.manager.dto.InspectionTypeDto
 import com.resid.manager.dto.InvitationStatusDto
 import com.resid.manager.dto.LeaseStatusDto
 import com.resid.manager.dto.PaymentFrequencyDto
@@ -104,6 +107,14 @@ fun UnitStatus.convert(): UnitStatusDto {
         UnitStatus.AVAILABLE -> UnitStatusDto.AVAILABLE
         UnitStatus.OCCUPIED -> UnitStatusDto.OCCUPIED
         UnitStatus.RESERVED -> UnitStatusDto.RESERVED
+    }
+}
+
+fun UnitStatusDto.convert(): UnitStatus {
+    return when (this) {
+        UnitStatusDto.AVAILABLE -> UnitStatus.AVAILABLE
+        UnitStatusDto.OCCUPIED -> UnitStatus.OCCUPIED
+        UnitStatusDto.RESERVED -> UnitStatus.RESERVED
     }
 }
 
@@ -274,6 +285,102 @@ fun CurrencyCode.convert(): CurrencyCodeDto {
         CurrencyCode.XOF -> CurrencyCodeDto.XOF
         CurrencyCode.EUR -> CurrencyCodeDto.EUR
         CurrencyCode.USD -> CurrencyCodeDto.USD
+    }
+}
+
+enum class InspectionType {
+    MOVE_IN,
+    MOVE_OUT
+}
+
+fun InspectionType.convert(): InspectionTypeDto {
+    return when (this) {
+        InspectionType.MOVE_IN -> InspectionTypeDto.MOVE_IN
+        InspectionType.MOVE_OUT -> InspectionTypeDto.MOVE_OUT
+    }
+}
+
+fun InspectionTypeDto.convert(): InspectionType {
+    return when (this) {
+        InspectionTypeDto.MOVE_IN -> InspectionType.MOVE_IN
+        InspectionTypeDto.MOVE_OUT -> InspectionType.MOVE_OUT
+    }
+}
+
+enum class ConditionRating {
+    NEW,
+    EXCELLENT,
+    GOOD,
+    FAIR,
+    POOR,
+    BROKEN,
+    MISSING
+}
+
+fun ConditionRating.convert(): ConditionRatingDto {
+    return when (this) {
+        ConditionRating.NEW -> ConditionRatingDto.NEW
+        ConditionRating.EXCELLENT -> ConditionRatingDto.EXCELLENT
+        ConditionRating.GOOD -> ConditionRatingDto.GOOD
+        ConditionRating.FAIR -> ConditionRatingDto.FAIR
+        ConditionRating.POOR -> ConditionRatingDto.POOR
+        ConditionRating.BROKEN -> ConditionRatingDto.BROKEN
+        ConditionRating.MISSING -> ConditionRatingDto.MISSING
+    }
+}
+
+fun ConditionRatingDto.convert(): ConditionRating {
+    return when (this) {
+        ConditionRatingDto.NEW -> ConditionRating.NEW
+        ConditionRatingDto.EXCELLENT -> ConditionRating.EXCELLENT
+        ConditionRatingDto.GOOD -> ConditionRating.GOOD
+        ConditionRatingDto.FAIR -> ConditionRating.FAIR
+        ConditionRatingDto.POOR -> ConditionRating.POOR
+        ConditionRatingDto.BROKEN -> ConditionRating.BROKEN
+        ConditionRatingDto.MISSING -> ConditionRating.MISSING
+    }
+}
+
+enum class InspectionItemCategory {
+    ROOM_LIVING_ROOM,
+    ROOM_BEDROOM,
+    ROOM_KITCHEN,
+    ROOM_BATHROOM,
+    ROOM_BALCONY,
+    ROOM_CORRIDOR,
+    FURNITURE,
+    APPLIANCE,
+    UTENSIL,
+    OTHER
+}
+
+fun InspectionItemCategory.convert(): InspectionItemCategoryDto {
+    return when (this) {
+        InspectionItemCategory.ROOM_LIVING_ROOM -> InspectionItemCategoryDto.ROOM_LIVING_ROOM
+        InspectionItemCategory.ROOM_BEDROOM -> InspectionItemCategoryDto.ROOM_BEDROOM
+        InspectionItemCategory.ROOM_KITCHEN -> InspectionItemCategoryDto.ROOM_KITCHEN
+        InspectionItemCategory.ROOM_BATHROOM -> InspectionItemCategoryDto.ROOM_BATHROOM
+        InspectionItemCategory.ROOM_BALCONY -> InspectionItemCategoryDto.ROOM_BALCONY
+        InspectionItemCategory.ROOM_CORRIDOR -> InspectionItemCategoryDto.ROOM_CORRIDOR
+        InspectionItemCategory.FURNITURE -> InspectionItemCategoryDto.FURNITURE
+        InspectionItemCategory.APPLIANCE -> InspectionItemCategoryDto.APPLIANCE
+        InspectionItemCategory.UTENSIL -> InspectionItemCategoryDto.UTENSIL
+        InspectionItemCategory.OTHER -> InspectionItemCategoryDto.OTHER
+    }
+}
+
+fun InspectionItemCategoryDto.convert(): InspectionItemCategory {
+    return when (this) {
+        InspectionItemCategoryDto.ROOM_LIVING_ROOM -> InspectionItemCategory.ROOM_LIVING_ROOM
+        InspectionItemCategoryDto.ROOM_BEDROOM -> InspectionItemCategory.ROOM_BEDROOM
+        InspectionItemCategoryDto.ROOM_KITCHEN -> InspectionItemCategory.ROOM_KITCHEN
+        InspectionItemCategoryDto.ROOM_BATHROOM -> InspectionItemCategory.ROOM_BATHROOM
+        InspectionItemCategoryDto.ROOM_BALCONY -> InspectionItemCategory.ROOM_BALCONY
+        InspectionItemCategoryDto.ROOM_CORRIDOR -> InspectionItemCategory.ROOM_CORRIDOR
+        InspectionItemCategoryDto.FURNITURE -> InspectionItemCategory.FURNITURE
+        InspectionItemCategoryDto.APPLIANCE -> InspectionItemCategory.APPLIANCE
+        InspectionItemCategoryDto.UTENSIL -> InspectionItemCategory.UTENSIL
+        InspectionItemCategoryDto.OTHER -> InspectionItemCategory.OTHER
     }
 }
 

@@ -73,6 +73,10 @@ object ResidenceUnits : UUIDTable("residence_units") {
     val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, UnitStatus::class).default(UnitStatus.AVAILABLE)
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
+
+    init {
+        uniqueIndex("uk_residence_units_residence_name", residenceId, name)
+    }
 }
 
 object Leases : UUIDTable("leases") {
@@ -120,6 +124,38 @@ object Tickets : UUIDTable("tickets") {
     val urgency = enumerationByName("urgency", ENUM_NAME_COLUMN_LENGTH, TicketUrgency::class)
     val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, TicketStatus::class).default(TicketStatus.OPEN)
     val interventionCost = double("intervention_cost").default(0.0)
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
+}
+
+object InspectionReports : UUIDTable("inspection_reports") {
+    val leaseId = reference("lease_id", Leases, onDelete = ReferenceOption.CASCADE)
+    val inspectorId = reference("inspector_id", Users, onDelete = ReferenceOption.RESTRICT)
+    val type = enumerationByName("type", ENUM_NAME_COLUMN_LENGTH, InspectionType::class)
+    val inspectionDate = date("inspection_date")
+    val generalCondition = enumerationByName("general_condition", ENUM_NAME_COLUMN_LENGTH, ConditionRating::class).default(ConditionRating.GOOD)
+    val electricityMeterIndex = double("electricity_meter_index").default(0.0)
+    val waterMeterIndex = double("water_meter_index").nullable()
+    val gasMeterIndex = double("gas_meter_index").nullable()
+    val keysCount = integer("keys_count").default(1)
+    val comments = text("comments").nullable()
+    val photoUrls = text("photo_urls").nullable()
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
+
+    init {
+        uniqueIndex("uk_inspection_reports_lease_type", leaseId, type)
+    }
+}
+
+object InspectionReportItems : UUIDTable("inspection_report_items") {
+    val inspectionReportId = reference("inspection_report_id", InspectionReports, onDelete = ReferenceOption.CASCADE)
+    val category = enumerationByName("category", 30, InspectionItemCategory::class)
+    val name = varchar("name", 255)
+    val condition = enumerationByName("condition", ENUM_NAME_COLUMN_LENGTH, ConditionRating::class).default(ConditionRating.GOOD)
+    val quantity = integer("quantity").default(1)
+    val observations = text("observations").nullable()
+    val photoUrls = text("photo_urls").nullable()
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
 }
@@ -285,4 +321,37 @@ class FinancialTransaction(id: EntityID<UUID>) : UUIDEntity(id) {
     var transactionDate by FinancialTransactions.transactionDate
     var createdAt by FinancialTransactions.createdAt
     var updatedAt by FinancialTransactions.updatedAt
+}
+
+class InspectionReport(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<InspectionReport>(InspectionReports)
+
+    var lease by Lease referencedOn InspectionReports.leaseId
+    var inspector by User referencedOn InspectionReports.inspectorId
+    var type by InspectionReports.type
+    var inspectionDate by InspectionReports.inspectionDate
+    var generalCondition by InspectionReports.generalCondition
+    var electricityMeterIndex by InspectionReports.electricityMeterIndex
+    var waterMeterIndex by InspectionReports.waterMeterIndex
+    var gasMeterIndex by InspectionReports.gasMeterIndex
+    var keysCount by InspectionReports.keysCount
+    var comments by InspectionReports.comments
+    var photoUrls by InspectionReports.photoUrls
+    var createdAt by InspectionReports.createdAt
+    var updatedAt by InspectionReports.updatedAt
+    val items by InspectionReportItem referrersOn InspectionReportItems.inspectionReportId
+}
+
+class InspectionReportItem(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<InspectionReportItem>(InspectionReportItems)
+
+    var inspectionReport by InspectionReport referencedOn InspectionReportItems.inspectionReportId
+    var category by InspectionReportItems.category
+    var name by InspectionReportItems.name
+    var condition by InspectionReportItems.condition
+    var quantity by InspectionReportItems.quantity
+    var observations by InspectionReportItems.observations
+    var photoUrls by InspectionReportItems.photoUrls
+    var createdAt by InspectionReportItems.createdAt
+    var updatedAt by InspectionReportItems.updatedAt
 }

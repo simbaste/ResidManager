@@ -61,12 +61,13 @@ data class InlineTenantCreateRequest(
 data class LeaseCreateRequest(
     val tenantId: String?, // Set if choosing existing (UUID as String)
     val inlineTenant: InlineTenantCreateRequest?, // Set if creating a new one inline
+    @Deprecated("This field can be remove when using /api/leases route")
     val residenceUnitId: String,
     val depositAmount: Double,
     val paymentFrequency: String, // "MONTHLY", "ANNUAL"
     val startDate: String, // ISO-8601 Date String
     val endDate: String,   // ISO-8601 Date String
-    val monthlyRentAtSign: Double,
+    val monthlyRentAtSign: Double, //
     val advanceMonths: Int? = null,
     val advancePaymentAmount: Double? = null
 )
@@ -77,6 +78,8 @@ data class LeaseUpdateRequest(
     val endDate: String? = null,
     val depositAmount: Double? = null,
     val monthlyRentAtSign: Double? = null,
+    val advanceMonths: Int? = null,
+    val paymentFrequency: String? = null,
     val status: LeaseStatusDto? = null
 )
 

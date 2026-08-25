@@ -8,6 +8,7 @@ import com.resid.manager.data.Role
 import com.resid.manager.data.User
 import com.resid.manager.data.Users
 import com.resid.manager.data.convert
+import com.resid.manager.dto.RegisterRequest
 import com.resid.manager.dto.UserDto
 import com.resid.manager.dto.UserPasswordUpdateRequest
 import com.resid.manager.dto.UserSearchDto
@@ -28,6 +29,72 @@ import java.time.LocalDateTime
 import java.util.UUID
 
 object UserService {
+
+    fun createUser(request: RegisterRequest) = transaction {
+        val alreadyExists = transaction {
+            User.find { Users.email eq request.email }.count() > 0
+        }
+
+        if (alreadyExists) throw HttpError(HttpStatusCode.Conflict, "Un utilisateur existe déjà ave cet email")
+
+        // Validate the password complexity
+        if (!AuthValidator.isValidPassword(request.passwordPlain)) {
+            throw HttpError(
+                HttpStatusCode.BadRequest,
+                "Le mot de passe doit faire au moins 8 caractères et contenir un chiffre et un caractère spécial."
+            )
+        }
+        // Validate the email
+        if (!AuthValidator.isValidEmail(request.email)) {
+            throw HttpError(HttpStatusCode.BadRequest, "Format d'email invalide.")
+        }
+        val hashedPassword = BCrypt.withDefaults().hashToString(12, request.passwordPlain.toCharArray())
+        // Parse birthDate if provided
+        val parsedBirthDate = request.birthDate?.let {
+            try {
+                LocalDate.parse(it)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        User.new {
+            email = request.email
+            passwordHash = hashedPassword
+            firstName = request.firstName
+            lastName = request.lastName
+            birthDate = parsedBirthDate
+            phone = request.phone
+            createdAt = LocalDateTime.now(Clock.systemUTC())
+            updatedAt = LocalDateTime.now(Clock.systemUTC())
+        }.also { it.flush() }.let { newUser ->
+            UserDto(
+                id = newUser.id.value.toString(),
+                email = newUser.email,
+                firstName = newUser.firstName,
+                lastName = newUser.lastName,
+                phone = newUser.phone,
+                birthDate = newUser.birthDate?.toString(),
+                createdAt = newUser.createdAt.toString(),
+                updatedAt = newUser.createdAt.toString()
+            )
+        }
+    }
+
+    // To be updated so only super admin can use this in future
+    fun getAllUsers() = transaction {
+        User.all().toMutableList().map { user ->
+            UserDto(
+                id = user.id.value.toString(),
+                email = user.email,
+                firstName = user.firstName,
+                lastName = user.lastName,
+                phone = user.phone,
+                birthDate = user.birthDate?.toString(),
+                createdAt = user.createdAt.toString(),
+                updatedAt = user.updatedAt.toString()
+            )
+        }
+    }
 
     fun getUserProfile(userId: UUID): UserDto = transaction {
         val dbUser = User.findById(userId)
@@ -117,10 +184,9 @@ object UserService {
     }
 
     fun deleteUser(userId: UUID) = transaction {
-        val dbUser = User.findById(userId)
-            ?: throw HttpError(HttpStatusCode.NotFound, "Utilisateur introuvable.")
-
-        Users.deleteWhere { id eq userId }
+        User.findById(userId)?.let {
+            Users.deleteWhere { id eq userId }
+        } ?: throw HttpError(HttpStatusCode.NotFound, "Utilisateur introuvable.")
     }
 
     fun searchUsers(

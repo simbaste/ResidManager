@@ -44,14 +44,6 @@ data class UserDto(
 )
 
 @Serializable
-data class UserCreateRequest(
-    val email: String,
-    val passwordPlain: String,
-    val name: String,
-    val phone: String?,
-)
-
-@Serializable
 data class UserUpdateRequest(
     val email: String? = null,
     val firstName: String? = null,
