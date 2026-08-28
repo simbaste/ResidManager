@@ -1,11 +1,36 @@
 package com.resid.manager.service
 
-import com.resid.manager.data.*
-import com.resid.manager.dto.*
+import com.resid.manager.data.Currencies
+import com.resid.manager.data.CurrencyEntity
+import com.resid.manager.data.ElectricityStatement
+import com.resid.manager.data.ElectricityStatements
+import com.resid.manager.data.HttpError
+import com.resid.manager.data.InvitationStatus
+import com.resid.manager.data.Residence
+import com.resid.manager.data.ResidenceMembers
+import com.resid.manager.data.ResidenceUnits
+import com.resid.manager.data.Residences
+import com.resid.manager.data.Role
+import com.resid.manager.data.convert
+import com.resid.manager.data.isAdmin
+import com.resid.manager.data.isOwner
+import com.resid.manager.dto.AssociatedResidenceItem
+import com.resid.manager.dto.ElectricityStatementDto
+import com.resid.manager.dto.MemberStatusUpdateRequest
+import com.resid.manager.dto.ResidenceCreateRequest
+import com.resid.manager.dto.ResidenceDirectoryDTO
+import com.resid.manager.dto.ResidenceSummaryItemDto
 import io.ktor.http.HttpStatusCode
-import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.count
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.lowerCase
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import java.time.Clock
 import java.time.LocalDateTime
 import java.util.UUID
@@ -282,7 +307,7 @@ object ResidenceService {
         }.map {
             ElectricityStatementDto(
                 id = it.id.value.toString(),
-                residenceUnitId = it.residenceUnit.id.value.toString(),
+                unitId = it.residenceUnit.id.value.toString(),
                 previousIndex = it.oldIndex,
                 newIndex = it.newIndex,
                 kWhPriceApplied = it.kWhPriceApplied,
