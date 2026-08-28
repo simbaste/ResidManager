@@ -1,15 +1,7 @@
 package com.resid.manager.routes
 
-import com.resid.manager.data.ElectricityStatement
-import com.resid.manager.data.ElectricityStatus
-import com.resid.manager.data.EntityType
 import com.resid.manager.data.Equipment
-import com.resid.manager.data.FinancialTransaction
-import com.resid.manager.data.FinancialTransactions
 import com.resid.manager.data.InvitationStatus
-import com.resid.manager.data.Lease
-import com.resid.manager.data.LeaseStatus
-import com.resid.manager.data.Leases
 import com.resid.manager.data.Residence
 import com.resid.manager.data.ResidenceMembers
 import com.resid.manager.data.Ticket
@@ -17,9 +9,6 @@ import com.resid.manager.data.TicketCategories
 import com.resid.manager.data.TicketCategoryEntity
 import com.resid.manager.data.Users
 import com.resid.manager.data.convert
-import com.resid.manager.dto.ElectricityStatementCreateRequest
-import com.resid.manager.dto.ElectricityStatementDto
-import com.resid.manager.dto.ElectricityStatementUpdateRequest
 import com.resid.manager.dto.EquipmentDto
 import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.dto.ExpenseRecordRequest
@@ -29,7 +18,6 @@ import com.resid.manager.dto.TicketCreateRequest
 import com.resid.manager.dto.TicketDto
 import com.resid.manager.dto.TicketUpdateRequest
 import com.resid.manager.service.DashboardService
-import com.resid.manager.service.ElectricityService
 import com.resid.manager.service.FinanceOperationService
 import com.resid.manager.service.TicketService
 import io.ktor.http.HttpStatusCode
@@ -136,144 +124,6 @@ fun Application.configureAppRoutes() {
             // -----------------------------------------------------------------
             // FINANCES & CASHFLOW ROUTES SECTION
             // -----------------------------------------------------------------
-            // PUT /api/electricity/statements/{id}/status : Mark an electricity statement as PAID
-            put("/api/electricity/statements/{id}/status") {
-                val statementId = call.parameters["id"] ?: ""
-                try {
-                    val request = call.receive<ElectricityStatementUpdateRequest>()
-                    val updated = transaction {
-                        val stmt = ElectricityStatement.findById(UUID.fromString(statementId))
-                            ?: throw Exception("Relevé d'électricité introuvable.")
-
-                        stmt.status = request.status?.convert() ?: ElectricityStatus.PAID
-                        stmt.updatedAt = LocalDateTime.now(Clock.systemUTC())
-                        stmt.flush()
-
-                        // Update description of original Financial Transaction to reflect payment
-                        val tx = FinancialTransaction.find { 
-                            (FinancialTransactions.relatedEntityType eq EntityType.ELECTRICITY_STATEMENT) and
-                            (FinancialTransactions.relatedEntityId eq stmt.id.value) 
-                        }.firstOrNull()
-
-                        if (tx != null && !tx.description.startsWith("[PAID]")) {
-                            tx.description = "[PAID] " + tx.description
-                            tx.updatedAt = LocalDateTime.now(Clock.systemUTC())
-                            tx.flush()
-                        }
-
-                        ElectricityStatementDto(
-                            id = stmt.id.value.toString(),
-                            residenceUnitId = stmt.residenceUnit.id.value.toString(),
-                            previousIndex = stmt.oldIndex,
-                            newIndex = stmt.newIndex,
-                            kWhPriceApplied = stmt.kWhPriceApplied,
-                            amountDue = stmt.amountDue,
-                            statementDate = stmt.statementDate.toString(),
-                            status = stmt.status.convert(),
-                            createdAt = stmt.createdAt.toString(),
-                            updatedAt = stmt.updatedAt.toString()
-                        )
-                    }
-                    call.respond(HttpStatusCode.OK, updated)
-                } catch (e: Exception) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Erreur de mise à jour."))
-                }
-            }
-
-            // GET /api/logements/{id}/electricity/previous : Fetch the previous (locked/read-only) meter index
-            get("/api/logements/{id}/electricity/previous") {
-                val residenceUnitId = call.parameters["id"] ?: ""
-                try {
-                    val previous = transaction {
-                        ElectricityService.getPreviousIndex(UUID.fromString(residenceUnitId))
-                    }
-                    call.respond(HttpStatusCode.OK, mapOf("previousIndex" to previous))
-                } catch (e: Exception) {
-                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Erreur de chargement de l'index précédent."))
-                }
-            }
-
-            // POST /api/logements/{id}/electricity : Enter new meter index and generate statement
-            post("/api/logements/{id}/electricity") {
-                val residenceUnitId = call.parameters["id"] ?: ""
-                try {
-                    val request = call.receive<ElectricityStatementCreateRequest>()
-                    val created = transaction {
-                        ElectricityService.submitStatement(
-                            residenceUnitId = UUID.fromString(residenceUnitId),
-                            newIndex = request.newIndex,
-                            kWhPriceApplied = request.kWhPriceApplied,
-                            dateStr = request.statementDate
-                        )
-                    }
-                    call.respond(HttpStatusCode.Created, created)
-                } catch (e: Exception) {
-                    call.respond(HttpStatusCode.BadRequest, ErrorResponse(e.message ?: "Erreur de validation de l'index."))
-                }
-            }
-
-            // GET /api/residences/{id}/electricity/statements : List statements with filters
-            get("/api/residences/{id}/electricity/statements") {
-                val residenceId = call.parameters["id"] ?: ""
-                val statusParam = call.request.queryParameters["status"]
-                val residenceUnitParam = call.request.queryParameters["residenceUnitId"]
-                val floorParam = call.request.queryParameters["floor"]
-                val tenantParam = call.request.queryParameters["tenantName"]
-
-                try {
-                    val statements = transaction {
-                        val list = ElectricityStatement.all().filter { 
-                            it.residenceUnit.residence.id.value == UUID.fromString(residenceId) 
-                        }
-                        
-                        var filtered = list
-
-                        statusParam?.ifBlank { null }?.let { status ->
-                            val statusEnum = ElectricityStatus.valueOf(status)
-                            filtered = filtered.filter { it.status == statusEnum }
-                        }
-
-                        residenceUnitParam?.ifBlank { null }?.let { logId ->
-                            filtered = filtered.filter { it.residenceUnit.id.value == UUID.fromString(logId) }
-                        }
-
-                        floorParam?.ifBlank { null }?.let { floor ->
-                            filtered = filtered.filter { it.residenceUnit.floor.contains(floor, ignoreCase = true) }
-                        }
-
-                        tenantParam?.ifBlank { null }?.let { tenantName ->
-                            filtered = filtered.filter { stmt ->
-                                val activeLease = Lease.find { 
-                                    (Leases.residenceUnitId eq stmt.residenceUnit.id) and (Leases.status eq LeaseStatus.SIGNED_ACTIVE)
-                                }.firstOrNull()
-                                val tenant = activeLease?.tenant
-                                val fullName = "${tenant?.firstName} ${tenant?.lastName}"
-                                fullName.contains(tenantName, ignoreCase = true)
-                            }
-                        }
-
-                        filtered.sortedByDescending { it.statementDate }.map {
-                            ElectricityStatementDto(
-                                id = it.id.value.toString(),
-                                residenceUnitId = it.residenceUnit.id.value.toString(),
-                                previousIndex = it.oldIndex,
-                                newIndex = it.newIndex,
-                                kWhPriceApplied = it.kWhPriceApplied,
-                                amountDue = it.amountDue,
-                                statementDate = it.statementDate.toString(),
-                                status = it.status.convert(),
-                                createdAt = it.createdAt.toString(),
-                                updatedAt = it.updatedAt.toString()
-                            )
-                        }
-                    }
-
-                    call.respond(HttpStatusCode.OK, statements)
-                } catch (e: Exception) {
-                    call.respond(HttpStatusCode.InternalServerError, ErrorResponse(e.message ?: "Erreur lors de la récupération des relevés."))
-                }
-            }
-
             // GET /api/residences/{id}/ticket-categories : List all ticket categories (global and custom to residence)
             get("/api/residences/{id}/ticket-categories") {
                 val residenceId = call.parameters["id"] ?: ""

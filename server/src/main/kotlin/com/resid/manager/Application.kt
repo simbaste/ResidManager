@@ -6,6 +6,7 @@ import com.resid.manager.data.Users
 import com.resid.manager.routes.applications
 import com.resid.manager.routes.authRoutes
 import com.resid.manager.routes.configureAppRoutes
+import com.resid.manager.routes.electricitiesRoutes
 import com.resid.manager.routes.inspectionsRoutes
 import com.resid.manager.routes.invitationsRoutes
 import com.resid.manager.routes.leasesRoutes
@@ -184,6 +185,9 @@ fun Application.module() {
 
         // Inspection Reports (Move-in / Move-out)
         inspectionsRoutes()
+
+        // Electricity Statements
+        electricitiesRoutes()
         
         // Secured routes example
         authenticate("auth-jwt") {

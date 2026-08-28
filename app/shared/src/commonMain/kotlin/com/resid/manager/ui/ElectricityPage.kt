@@ -2,28 +2,77 @@ package com.resid.manager.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import com.resid.manager.dto.*
+import androidx.compose.ui.unit.dp
+import com.resid.manager.dto.ElectricityStatementCreateRequest
+import com.resid.manager.dto.ElectricityStatementDto
+import com.resid.manager.dto.ElectricityStatementUpdateRequest
+import com.resid.manager.dto.ElectricityStatusDto
+import com.resid.manager.dto.ErrorResponse
+import com.resid.manager.dto.LeaseStatusDto
+import com.resid.manager.dto.UserRole
 import com.resid.manager.network.ApiClient
 import com.resid.manager.viewmodel.LoginViewModel
-import io.ktor.client.request.*
 import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.contentType
 import kotlinx.coroutines.launch
 
 @Composable
@@ -95,17 +144,17 @@ fun ElectricityPage(viewModel: LoginViewModel) {
             }
 
             // 2. ResidenceUnit Filter
-            val matchResidenceUnit = if (selectedResidenceUnitFilterId.isNotEmpty()) stmt.residenceUnitId == selectedResidenceUnitFilterId else true
+            val matchResidenceUnit = if (selectedResidenceUnitFilterId.isNotEmpty()) stmt.unitId == selectedResidenceUnitFilterId else true
 
             // 3. Floor Filter
-            val matchedResidenceUnitObj = uiState.residenceUnits.firstOrNull { it.id == stmt.residenceUnitId }
+            val matchedResidenceUnitObj = uiState.residenceUnits.firstOrNull { it.id == stmt.unitId }
             val matchFloor = if (floorFilterText.isNotEmpty() && matchedResidenceUnitObj != null) {
                 matchedResidenceUnitObj.floor.contains(floorFilterText, ignoreCase = true)
             } else true
 
             // 4. Tenant Name Filter (join via active lease)
             val matchTenant = if (tenantFilterText.isNotEmpty()) {
-                val activeLease = uiState.leases.firstOrNull { it.residenceUnitId == stmt.residenceUnitId && it.status == LeaseStatusDto.SIGNED_ACTIVE }
+                val activeLease = uiState.leases.firstOrNull { it.residenceUnitId == stmt.unitId && it.status == LeaseStatusDto.SIGNED_ACTIVE }
                 val tenant = activeLease?.let { lease -> uiState.members.firstOrNull { it.userId == lease.tenantId } }
                 val fullName = "${tenant?.firstName ?: ""} ${tenant?.lastName ?: ""}"
                 fullName.contains(tenantFilterText, ignoreCase = true)
@@ -250,8 +299,8 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                 modifier = Modifier.fillMaxWidth().weight(1f)
             ) {
                 items(filteredStatements) { stmt ->
-                    val matchedResidenceUnit = uiState.residenceUnits.firstOrNull { it.id == stmt.residenceUnitId }
-                    val matchedResidenceUnitName = matchedResidenceUnit?.name ?: "Logement ${stmt.residenceUnitId.take(5)}"
+                    val matchedResidenceUnit = uiState.residenceUnits.firstOrNull { it.id == stmt.unitId }
+                    val matchedResidenceUnitName = matchedResidenceUnit?.name ?: "Logement ${stmt.unitId.take(5)}"
                     val isChecked = selectedStatementIds[stmt.id] ?: false
                     val currencySymbol = activeResidence?.currencySymbol ?: "XOF"
 
@@ -529,7 +578,7 @@ fun ElectricityPage(viewModel: LoginViewModel) {
                         coroutineScope.launch {
                             try {
                                 val req = ElectricityStatementCreateRequest(
-                                    residenceUnitId = formSelectedResidenceUnitId,
+                                    unitId = formSelectedResidenceUnitId,
                                     previousIndex = calculatedOldIndex,
                                     newIndex = calculatedNewIndex,
                                     kWhPriceApplied = calculatedPrice,

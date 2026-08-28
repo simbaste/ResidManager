@@ -1,12 +1,18 @@
 package com.resid.manager.service
 
-import com.lowagie.text.*
+import com.lowagie.text.Document
+import com.lowagie.text.Element
+import com.lowagie.text.Font
+import com.lowagie.text.FontFactory
+import com.lowagie.text.PageSize
+import com.lowagie.text.Paragraph
+import com.lowagie.text.Rectangle
 import com.lowagie.text.pdf.PdfPCell
 import com.lowagie.text.pdf.PdfPTable
 import com.lowagie.text.pdf.PdfWriter
 import com.resid.manager.dto.ElectricityStatementDto
-import java.io.ByteArrayOutputStream
 import java.awt.Color
+import java.io.ByteArrayOutputStream
 
 object PdfService {
 
@@ -42,7 +48,7 @@ object PdfService {
                 
                 // Receipt details
                 cell.addElement(Paragraph("Date du relevé : ${stmt.statementDate}", FontFactory.getFont(FontFactory.HELVETICA, 10f)))
-                cell.addElement(Paragraph("Logement : Unité ${stmt.residenceUnitId.take(8).uppercase()}", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10f)))
+                cell.addElement(Paragraph("Logement : Unité ${stmt.unitId.take(8).uppercase()}", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10f)))
                 
                 cell.addElement(Paragraph("\nINDEXATION :", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9f, Font.UNDERLINE)))
                 cell.addElement(Paragraph("• Ancien Index : ${stmt.previousIndex} kWh", FontFactory.getFont(FontFactory.HELVETICA, 10f)))

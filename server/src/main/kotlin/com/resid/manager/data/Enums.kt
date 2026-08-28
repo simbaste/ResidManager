@@ -18,7 +18,7 @@ import com.resid.manager.dto.TransactionCategoryDto
 import com.resid.manager.dto.TransactionTypeDto
 import com.resid.manager.dto.UnitStatusDto
 
-const val ENUM_NAME_COLUMN_LENGTH = 20
+const val ENUM_NAME_COLUMN_LENGTH = 50
 
 enum class Role {
     OWNER, ADMIN, MANAGER, STAFF, TENANT
@@ -102,20 +102,16 @@ enum class UnitStatus {
     AVAILABLE, OCCUPIED, RESERVED
 }
 
-fun UnitStatus.convert(): UnitStatusDto {
-    return when (this) {
-        UnitStatus.AVAILABLE -> UnitStatusDto.AVAILABLE
-        UnitStatus.OCCUPIED -> UnitStatusDto.OCCUPIED
-        UnitStatus.RESERVED -> UnitStatusDto.RESERVED
-    }
+fun UnitStatus.convert(): UnitStatusDto = when (this.name) {
+    UnitStatus.OCCUPIED.name -> UnitStatusDto.OCCUPIED
+    UnitStatus.RESERVED.name -> UnitStatusDto.RESERVED
+    else -> UnitStatusDto.AVAILABLE
 }
 
-fun UnitStatusDto.convert(): UnitStatus {
-    return when (this) {
-        UnitStatusDto.AVAILABLE -> UnitStatus.AVAILABLE
-        UnitStatusDto.OCCUPIED -> UnitStatus.OCCUPIED
-        UnitStatusDto.RESERVED -> UnitStatus.RESERVED
-    }
+fun UnitStatusDto.convert(): UnitStatus = when (this.name) {
+    UnitStatusDto.OCCUPIED.name -> UnitStatus.OCCUPIED
+    UnitStatusDto.RESERVED.name -> UnitStatusDto.RESERVED.let { UnitStatus.RESERVED }
+    else -> UnitStatus.AVAILABLE
 }
 
 enum class PaymentFrequency {
