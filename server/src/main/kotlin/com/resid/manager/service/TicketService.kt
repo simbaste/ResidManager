@@ -35,7 +35,6 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.isNull
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.or
-import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -43,7 +42,7 @@ import java.util.UUID
 
 object TicketService {
 
-    fun isResidenceManager(userId: UUID, residenceId: UUID): Boolean = transaction {
+    suspend fun isResidenceManager(userId: UUID, residenceId: UUID): Boolean = dbQuery {
         ResidenceMembers.select(ResidenceMembers.role)
             .where {
                 (ResidenceMembers.userId eq userId) and
@@ -52,7 +51,7 @@ object TicketService {
             }.any { it[ResidenceMembers.role].isManager() }
     }
 
-    fun isResidenceMember(userId: UUID, residenceId: UUID): Boolean = transaction {
+    suspend fun isResidenceMember(userId: UUID, residenceId: UUID): Boolean = dbQuery {
         ResidenceMembers.select(ResidenceMembers.userId)
             .where {
                 (ResidenceMembers.userId eq userId) and
@@ -64,7 +63,7 @@ object TicketService {
     // -------------------------------------------------------------
     // Ticket Categories Management
     // -------------------------------------------------------------
-    fun getCategories(residenceId: UUID?): List<TicketCategoryDto> = transaction {
+    suspend fun getCategories(residenceId: UUID?): List<TicketCategoryDto> = dbQuery {
         val conditions: Op<Boolean> = if (residenceId != null) {
             (TicketCategories.residenceId.isNull()) or (TicketCategories.residenceId eq residenceId)
         } else {
@@ -74,11 +73,11 @@ object TicketService {
         TicketCategoryEntity.find { conditions }.map { it.toDto() }
     }
 
-    fun createCategory(
+    suspend fun createCategory(
         requesterId: UUID,
         residenceId: UUID,
         request: TicketCategoryRequest
-    ): TicketCategoryDto = transaction {
+    ): TicketCategoryDto = dbQuery {
         val dbResidence = Residence.findById(residenceId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Résidence introuvable.")
 
@@ -107,11 +106,11 @@ object TicketService {
         entity.toDto()
     }
 
-    fun updateCategory(
+    suspend fun updateCategory(
         requesterId: UUID,
         categoryId: UUID,
         request: TicketCategoryRequest
-    ): TicketCategoryDto = transaction {
+    ): TicketCategoryDto = dbQuery {
         val entity = TicketCategoryEntity.findById(categoryId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Catégorie de ticket introuvable.")
 
@@ -135,10 +134,10 @@ object TicketService {
         entity.toDto()
     }
 
-    fun deleteCategory(
+    suspend fun deleteCategory(
         requesterId: UUID,
         categoryId: UUID
-    ) = transaction {
+    ) = dbQuery {
         val entity = TicketCategoryEntity.findById(categoryId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Catégorie de ticket introuvable.")
 
@@ -161,10 +160,10 @@ object TicketService {
     // -------------------------------------------------------------
     // Tickets Management
     // -------------------------------------------------------------
-    fun createTicket(
+    suspend fun createTicket(
         creatorId: UUID,
         request: TicketCreateRequest
-    ): TicketDto = transaction {
+    ): TicketDto = dbQuery {
         val unitUuid = try {
             UUID.fromString(request.unitId)
         } catch (e: Exception) {
@@ -247,11 +246,11 @@ object TicketService {
         ticket.toDto()
     }
 
-    fun updateTicketStatus(
+    suspend fun updateTicketStatus(
         updaterUserId: UUID,
         ticketId: UUID,
         request: TicketUpdateRequest
-    ): TicketDto = transaction {
+    ): TicketDto = dbQuery {
         val ticket = Ticket.findById(ticketId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Ticket de maintenance introuvable.")
 
@@ -327,14 +326,14 @@ object TicketService {
         ticket.toDto()
     }
 
-    fun getTickets(
+    suspend fun getTickets(
         requesterId: UUID,
         residenceId: UUID?,
         unitId: UUID?,
         status: TicketStatusDto?,
         urgency: TicketUrgencyDto?,
         creatorId: UUID?
-    ): List<TicketDto> = transaction {
+    ): List<TicketDto> = dbQuery {
         var conditions: Op<Boolean> = Op.TRUE
 
         if (residenceId != null) {
@@ -371,10 +370,10 @@ object TicketService {
             .map { it.toDto() }
     }
 
-    fun getTicketById(
+    suspend fun getTicketById(
         requesterId: UUID,
         ticketId: UUID
-    ): TicketDto = transaction {
+    ): TicketDto = dbQuery {
         val ticket = Ticket.findById(ticketId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Ticket introuvable.")
 
@@ -391,10 +390,10 @@ object TicketService {
         ticket.toDto()
     }
 
-    fun deleteTicket(
+    suspend fun deleteTicket(
         requesterId: UUID,
         ticketId: UUID
-    ) = transaction {
+    ) = dbQuery {
         val ticket = Ticket.findById(ticketId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Ticket introuvable.")
 

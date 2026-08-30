@@ -36,7 +36,6 @@ import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
-import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -45,7 +44,7 @@ import java.util.UUID
 
 object LeaseService {
 
-    fun isResidenceManager(userId: UUID, residenceId: UUID): Boolean = transaction {
+    suspend fun isResidenceManager(userId: UUID, residenceId: UUID): Boolean = dbQuery {
         ResidenceMembers.select(ResidenceMembers.role)
             .where {
                 (ResidenceMembers.userId eq userId) and
@@ -54,11 +53,11 @@ object LeaseService {
             }.any { it[ResidenceMembers.role].isManager() }
     }
 
-    fun createLease(
+    suspend fun createLease(
         requesterId: UUID,
         unitId: UUID,
         request: LeaseCreateRequest
-    ): LeaseDto = transaction {
+    ): LeaseDto = dbQuery {
         val dbResidenceUnit = ResidenceUnit.findById(unitId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Logement introuvable.")
 
@@ -262,11 +261,11 @@ object LeaseService {
         )
     }
 
-    fun updateLease(
+    suspend fun updateLease(
         requesterId: UUID,
         leaseId: UUID,
         request: LeaseUpdateRequest
-    ): LeaseDto = transaction {
+    ): LeaseDto = dbQuery {
         val dbLease = Lease.findById(leaseId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Contrat de bail introuvable.")
 
@@ -396,10 +395,10 @@ object LeaseService {
         )
     }
 
-    fun getLeasesByResidence(
+    suspend fun getLeasesByResidence(
         residenceId: UUID,
         leaseId: UUID?,
-    ): List<LeaseDto> = transaction {
+    ): List<LeaseDto> = dbQuery {
         Residence.findById(residenceId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Résidence introuvable.")
 
@@ -442,11 +441,11 @@ object LeaseService {
             }
     }
 
-    fun recordPayment(
+    suspend fun recordPayment(
         requesterId: UUID,
         leaseId: UUID,
         request: LeasePaymentRequest
-    ): LeaseDto = transaction {
+    ): LeaseDto = dbQuery {
         val dbLease = Lease.findById(leaseId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Contrat de bail introuvable.")
 
@@ -553,11 +552,11 @@ object LeaseService {
         )
     }
 
-    fun updateLeaseStatus(
+    suspend fun updateLeaseStatus(
         requesterId: UUID,
         leaseId: UUID,
         newStatus: LeaseStatusDto
-    ): LeaseDto = transaction {
+    ): LeaseDto = dbQuery {
         val dbLease = Lease.findById(leaseId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Contrat de bail introuvable.")
 
@@ -576,7 +575,7 @@ object LeaseService {
         // -------------------------------------------------------------
         if (currentStatus == newStatus) {
             // No-op transition
-            return@transaction dbLease.toDto()
+            return@dbQuery dbLease.toDto()
         }
 
         if (currentStatus == LeaseStatusDto.TERMINATED) {

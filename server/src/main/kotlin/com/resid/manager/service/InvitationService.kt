@@ -1,20 +1,31 @@
 package com.resid.manager.service
 
-import com.resid.manager.data.*
+import com.resid.manager.data.HttpError
+import com.resid.manager.data.InvitationStatus
+import com.resid.manager.data.Residence
+import com.resid.manager.data.ResidenceMembers
+import com.resid.manager.data.User
+import com.resid.manager.data.Users
+import com.resid.manager.data.convert
+import com.resid.manager.data.isAdmin
 import com.resid.manager.dto.InvitationDto
 import com.resid.manager.dto.InviteMemberRequest
 import com.resid.manager.dto.InviteUpdateRequest
 import io.ktor.http.HttpStatusCode
-import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.update
 import java.time.Clock
 import java.time.LocalDateTime
 import java.util.UUID
 
 object InvitationService {
 
-    fun isResidenceAdmin(userId: UUID, residenceId: UUID): Boolean = transaction {
+    suspend fun isResidenceAdmin(userId: UUID, residenceId: UUID): Boolean = dbQuery {
         ResidenceMembers.select(ResidenceMembers.role)
             .where {
                 (ResidenceMembers.userId eq userId) and
@@ -23,11 +34,11 @@ object InvitationService {
             }.any { it[ResidenceMembers.role].isAdmin() }
     }
 
-    fun inviteMember(
+    suspend fun inviteMember(
         requesterUuid: UUID,
         residenceUuid: UUID,
         request: InviteMemberRequest
-    ): Map<String, Any> = transaction {
+    ): Map<String, Any> = dbQuery {
         // Check if residence exists
         Residence.findById(residenceUuid) ?: throw HttpError(
             HttpStatusCode.NotFound,
@@ -76,11 +87,11 @@ object InvitationService {
         )
     }
 
-    fun updateInvitation(
+    suspend fun updateInvitation(
         requesterUuid: UUID,
         residenceUuid: UUID,
         request: InviteMemberRequest
-    ): Map<String, String> = transaction {
+    ): Map<String, String> = dbQuery {
         if (!isResidenceAdmin(requesterUuid, residenceUuid)) {
             throw HttpError(HttpStatusCode.Forbidden, "Accès interdit.")
         }
@@ -104,12 +115,12 @@ object InvitationService {
         mapOf("status" to "Invitation mise à jour")
     }
 
-    fun processInvitation(
+    suspend fun processInvitation(
         requesterUuid: UUID,
         targetUserUuid: UUID,
         residenceUuid: UUID,
         request: InviteUpdateRequest
-    ) = transaction {
+    ) = dbQuery {
         if (targetUserUuid != requesterUuid) {
             throw HttpError(
                 HttpStatusCode.Forbidden,
@@ -144,12 +155,12 @@ object InvitationService {
         if (updated == 0) throw HttpError(HttpStatusCode.NotFound, "Invitation introuvable.")
     }
 
-    fun getInvitations(
+    suspend fun getInvitations(
         requesterUuid: UUID,
         residenceUuid: UUID,
         queryUserUuid: UUID?,
         status: InvitationStatus?
-    ): List<InvitationDto> = transaction {
+    ): List<InvitationDto> = dbQuery {
         val isAdmin = isResidenceAdmin(requesterUuid, residenceUuid)
         if (!isAdmin && queryUserUuid != requesterUuid) {
             throw HttpError(HttpStatusCode.Forbidden, "Accès interdit.")
@@ -175,11 +186,11 @@ object InvitationService {
             }
     }
 
-    fun deleteInvitation(
+    suspend fun deleteInvitation(
         requesterUuid: UUID,
         targetUserUuid: UUID,
         residenceUuid: UUID
-    ): Map<String, String> = transaction {
+    ): Map<String, String> = dbQuery {
         val isAdmin = isResidenceAdmin(requesterUuid, residenceUuid)
         if (!isAdmin && requesterUuid != targetUserUuid) {
             throw HttpError(HttpStatusCode.Forbidden, "Accès interdit.")

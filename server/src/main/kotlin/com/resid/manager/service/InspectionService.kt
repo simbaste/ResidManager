@@ -20,7 +20,6 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -28,7 +27,7 @@ import java.util.UUID
 
 object InspectionService {
 
-    fun isResidenceManager(userId: UUID, residenceId: UUID): Boolean = transaction {
+    suspend fun isResidenceManager(userId: UUID, residenceId: UUID): Boolean = dbQuery {
         ResidenceMembers.select(ResidenceMembers.role)
             .where {
                 (ResidenceMembers.userId eq userId) and
@@ -37,7 +36,7 @@ object InspectionService {
             }.any { it[ResidenceMembers.role].isManager() }
     }
 
-    fun isResidenceMember(userId: UUID, residenceId: UUID): Boolean = transaction {
+    suspend fun isResidenceMember(userId: UUID, residenceId: UUID): Boolean = dbQuery {
         ResidenceMembers.select(ResidenceMembers.userId)
             .where {
                 (ResidenceMembers.userId eq userId) and
@@ -46,10 +45,10 @@ object InspectionService {
             }.count() > 0
     }
 
-    fun createReport(
+    suspend fun createReport(
         inspectorId: UUID,
         request: InspectionReportCreateRequest
-    ): InspectionReportDto = transaction {
+    ): InspectionReportDto = dbQuery {
         val leaseUuid = try {
             UUID.fromString(request.leaseId)
         } catch (e: Exception) {
@@ -157,11 +156,11 @@ object InspectionService {
         )
     }
 
-    fun updateReport(
+    suspend fun updateReport(
         requesterId: UUID,
         reportId: UUID,
         request: InspectionReportUpdateRequest
-    ): InspectionReportDto = transaction {
+    ): InspectionReportDto = dbQuery {
         val dbReport = InspectionReport.findById(reportId)
             ?: throw HttpError(HttpStatusCode.NotFound, "État des lieux introuvable.")
 
@@ -219,10 +218,10 @@ object InspectionService {
         getReportById(requesterId, reportId)
     }
 
-    fun getReportsByLease(
+    suspend fun getReportsByLease(
         requesterId: UUID,
         leaseId: UUID
-    ): List<InspectionReportDto> = transaction {
+    ): List<InspectionReportDto> = dbQuery {
         val dbLease = Lease.findById(leaseId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Contrat de bail introuvable.")
 
@@ -245,10 +244,10 @@ object InspectionService {
             }
     }
 
-    fun getReportById(
+    suspend fun getReportById(
         requesterId: UUID,
         reportId: UUID
-    ): InspectionReportDto = transaction {
+    ): InspectionReportDto = dbQuery {
         val dbReport = InspectionReport.findById(reportId)
             ?: throw HttpError(HttpStatusCode.NotFound, "État des lieux introuvable.")
 
@@ -299,10 +298,10 @@ object InspectionService {
         )
     }
 
-    fun deleteReport(
+    suspend fun deleteReport(
         requesterId: UUID,
         reportId: UUID
-    ) = transaction {
+    ) = dbQuery {
         val dbReport = InspectionReport.findById(reportId)
             ?: throw HttpError(HttpStatusCode.NotFound, "État des lieux introuvable.")
 

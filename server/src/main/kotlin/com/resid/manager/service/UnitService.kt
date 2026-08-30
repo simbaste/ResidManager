@@ -26,14 +26,13 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.or
-import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Clock
 import java.time.LocalDateTime
 import java.util.UUID
 
 object UnitService {
 
-    fun isResidenceManager(userId: UUID, residenceId: UUID): Boolean = transaction {
+    suspend fun isResidenceManager(userId: UUID, residenceId: UUID): Boolean = dbQuery {
         ResidenceMembers.select(ResidenceMembers.role)
             .where {
                 (ResidenceMembers.userId eq userId) and
@@ -42,11 +41,11 @@ object UnitService {
             }.any { it[ResidenceMembers.role].isManager() }
     }
 
-    fun createUnit(
+    suspend fun createUnit(
         requesterId: UUID,
         residenceId: UUID,
         request: ResidenceUnitCreateRequest
-    ): ResidenceUnitDto = transaction {
+    ): ResidenceUnitDto = dbQuery {
         if (!isResidenceManager(requesterId, residenceId)) {
             throw HttpError(
                 HttpStatusCode.Forbidden,
@@ -116,12 +115,12 @@ object UnitService {
         )
     }
 
-    fun updateUnit(
+    suspend fun updateUnit(
         requesterId: UUID,
         residenceId: UUID,
         unitId: UUID,
         request: ResidenceUnitCreateRequest
-    ): ResidenceUnitDto = transaction {
+    ): ResidenceUnitDto = dbQuery {
         if (!isResidenceManager(requesterId, residenceId)) {
             throw HttpError(
                 HttpStatusCode.Forbidden,
@@ -190,10 +189,10 @@ object UnitService {
         )
     }
 
-    fun getUnits(
+    suspend fun getUnits(
         residenceId: UUID,
         unitId: UUID?,
-    ): List<ResidenceUnitDto> = transaction {
+    ): List<ResidenceUnitDto> = dbQuery {
         Residence.findById(residenceId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Résidence introuvable.")
 
@@ -218,12 +217,12 @@ object UnitService {
         }
     }
 
-    fun searchUnits(
+    suspend fun searchUnits(
         residenceId: UUID,
         query: String?,
         memberId: UUID?,
         status: UnitStatusDto?
-    ): List<ResidenceUnitDto> = transaction {
+    ): List<ResidenceUnitDto> = dbQuery {
         Residence.findById(residenceId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Résidence introuvable.")
 
@@ -272,11 +271,11 @@ object UnitService {
         }
     }
 
-    fun deleteUnit(
+    suspend fun deleteUnit(
         requesterId: UUID,
         residenceId: UUID,
         unitId: UUID
-    ) = transaction {
+    ) = dbQuery {
         if (!isResidenceManager(requesterId, residenceId)) {
             throw HttpError(
                 HttpStatusCode.Forbidden,

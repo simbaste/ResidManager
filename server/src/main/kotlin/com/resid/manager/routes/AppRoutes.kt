@@ -3,12 +3,9 @@ package com.resid.manager.routes
 import com.resid.manager.data.Equipment
 import com.resid.manager.data.InvitationStatus
 import com.resid.manager.data.ResidenceMembers
-import com.resid.manager.data.Users
-import com.resid.manager.data.convert
 import com.resid.manager.dto.EquipmentDto
 import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.dto.ExpenseRecordRequest
-import com.resid.manager.dto.ResidenceMemberSummaryDto
 import com.resid.manager.service.DashboardService
 import com.resid.manager.service.FinanceOperationService
 import io.ktor.http.HttpStatusCode
@@ -49,64 +46,6 @@ fun Application.configureAppRoutes() {
         }
 
         authenticate("auth-jwt") {
-            // GET /api/residences/{residence_id}/members Get All the residence members
-            get("/api/residences/{id}/members") {
-                val principal = call.principal<JWTPrincipal>()
-                val userId = principal?.payload?.getClaim("userId")?.asString() ?: ""
-                val residenceId = call.parameters["id"] ?: ""
-
-                try {
-                    // Check if member exists in residence_members with ACCEPTED status
-                    val isMember = transaction {
-                        !ResidenceMembers
-                            .select(ResidenceMembers.userId)
-                            .where { 
-                                (ResidenceMembers.userId eq UUID.fromString(userId)) and 
-                                (ResidenceMembers.residenceId eq UUID.fromString(residenceId)) and 
-                                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
-                            }
-                            .empty()
-                    }
-
-                    if (!isMember) {
-                        call.respond(HttpStatusCode.Forbidden, ErrorResponse("Accès interdit : vous ne faites pas partie de cette résidence."))
-                        return@get
-                    }
-
-                    val membersList = transaction {
-                        // Join Users with ResidenceMembers
-                        (Users innerJoin ResidenceMembers)
-                            .select(
-                                Users.id,
-                                Users.firstName,
-                                Users.lastName,
-                                Users.email,
-                                Users.phone,
-                                ResidenceMembers.role,
-                                ResidenceMembers.status
-                            )
-                            .where { ResidenceMembers.residenceId eq UUID.fromString(residenceId) }
-                            .map { row ->
-                                ResidenceMemberSummaryDto(
-                                    userId = row[Users.id].value.toString(),
-                                    firstName = row[Users.firstName],
-                                    lastName = row[Users.lastName],
-                                    email = row[Users.email],
-                                    phone = row[Users.phone],
-                                    roleDto = row[ResidenceMembers.role].convert(),
-                                    status = row[ResidenceMembers.status].convert()
-                                )
-                            }
-                    }
-
-                    call.respond(HttpStatusCode.OK, membersList)
-                } catch (e: Exception) {
-                    call.respond(
-                        HttpStatusCode.InternalServerError,
-                        ErrorResponse("Erreur lors de la récupération de la liste des membres : ${e.message}")
-                    )
-                }
-            }
 
             // -----------------------------------------------------------------
             // FINANCES & CASHFLOW ROUTES SECTION
