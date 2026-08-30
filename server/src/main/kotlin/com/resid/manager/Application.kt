@@ -11,6 +11,7 @@ import com.resid.manager.routes.inspectionsRoutes
 import com.resid.manager.routes.invitationsRoutes
 import com.resid.manager.routes.leasesRoutes
 import com.resid.manager.routes.residencesRoutes
+import com.resid.manager.routes.ticketsRoutes
 import com.resid.manager.routes.unitsRoutes
 import com.resid.manager.routes.userRoutes
 import io.ktor.http.HttpHeaders
@@ -188,6 +189,9 @@ fun Application.module() {
 
         // Electricity Statements
         electricitiesRoutes()
+
+        // Tickets & Ticket Categories
+        ticketsRoutes()
         
         // Secured routes example
         authenticate("auth-jwt") {

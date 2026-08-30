@@ -2,28 +2,79 @@ package com.resid.manager.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import com.resid.manager.dto.*
+import com.resid.manager.dto.ErrorResponse
+import com.resid.manager.dto.TicketCategoryDto
+import com.resid.manager.dto.TicketCreateRequest
+import com.resid.manager.dto.TicketDto
+import com.resid.manager.dto.TicketStatusDto
+import com.resid.manager.dto.TicketUpdateRequest
+import com.resid.manager.dto.TicketUrgencyDto
+import com.resid.manager.dto.UserRole
 import com.resid.manager.network.ApiClient
 import com.resid.manager.viewmodel.LoginViewModel
-import io.ktor.client.request.*
 import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
-import io.ktor.http.contentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.contentType
 import kotlinx.coroutines.launch
 
 @Composable
@@ -104,7 +155,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
         tickets.filter { t ->
             val matchStatus = if (statusFilter != "ALL") t.status.name == statusFilter else true
             val matchUrgency = if (urgencyFilter != "ALL") t.urgency.name == urgencyFilter else true
-            val matchResidenceUnit = if (residenceUnitFilterId.isNotEmpty()) t.residenceUnitId == residenceUnitFilterId else true
+            val matchResidenceUnit = if (residenceUnitFilterId.isNotEmpty()) t.unitId == residenceUnitFilterId else true
             matchStatus && matchUrgency && matchResidenceUnit
         }
     }
@@ -246,8 +297,8 @@ fun TicketsPage(viewModel: LoginViewModel) {
                 modifier = Modifier.fillMaxWidth().weight(1f)
             ) {
                 items(filteredTickets) { ticket ->
-                    val matchedResidenceUnit = uiState.residenceUnits.firstOrNull { it.id == ticket.residenceUnitId }
-                    val matchedResidenceUnitName = matchedResidenceUnit?.name ?: "Logement ${ticket.residenceUnitId.take(5)}"
+                    val matchedResidenceUnit = uiState.residenceUnits.firstOrNull { it.id == ticket.unitId }
+                    val matchedResidenceUnitName = matchedResidenceUnit?.name ?: "Logement ${ticket.unitId.take(5)}"
                     
                     val (statusColor, statusBg) = when (ticket.status) {
                         TicketStatusDto.OPEN -> Color(0xFFBA1A1A) to Color(0xFFFDE8E8)
@@ -524,7 +575,7 @@ fun TicketsPage(viewModel: LoginViewModel) {
                         coroutineScope.launch {
                             try {
                                 val req = TicketCreateRequest(
-                                    residenceUnitId = formResidenceUnitId,
+                                    unitId = formResidenceUnitId,
                                     categoryId = formCategoryId,
                                     title = formTitle,
                                     description = formDescription,

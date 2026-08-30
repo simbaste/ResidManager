@@ -10,6 +10,12 @@ enum class TicketStatusDto {
 }
 
 @Serializable
+data class TicketCategoryRequest(
+    val key: String,
+    val label: String
+)
+
+@Serializable
 data class TicketCategoryDto(
     val id: String,
     val key: String,
@@ -27,7 +33,7 @@ enum class TicketUrgencyDto {
 @Serializable
 data class TicketDto(
     val id: String,
-    val residenceUnitId: String,
+    val unitId: String,
     val creatorId: String,
     val category: TicketCategoryDto,
     val title: String,
@@ -41,7 +47,7 @@ data class TicketDto(
 
 @Serializable
 data class TicketCreateRequest(
-    val residenceUnitId: String,
+    val unitId: String,
     val categoryId: String, // foreign key id of selected category
     val title: String,
     val description: String,
