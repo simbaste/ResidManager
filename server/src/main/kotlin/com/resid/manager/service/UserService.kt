@@ -22,7 +22,6 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.or
-import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -30,12 +29,10 @@ import java.util.UUID
 
 object UserService {
 
-    fun createUser(request: RegisterRequest) = transaction {
-        val alreadyExists = transaction {
-            User.find { Users.email eq request.email }.count() > 0
-        }
+    suspend fun createUser(request: RegisterRequest): UserDto = dbQuery {
+        val alreadyExists = User.find { Users.email eq request.email }.count() > 0
 
-        if (alreadyExists) throw HttpError(HttpStatusCode.Conflict, "Un utilisateur existe déjà ave cet email")
+        if (alreadyExists) throw HttpError(HttpStatusCode.Conflict, "Un utilisateur existe déjà avec cet email")
 
         // Validate the password complexity
         if (!AuthValidator.isValidPassword(request.passwordPlain)) {
@@ -57,32 +54,34 @@ object UserService {
                 null
             }
         }
-        User.new {
+        val now = LocalDateTime.now(Clock.systemUTC())
+        val newUser = User.new {
             email = request.email
             passwordHash = hashedPassword
             firstName = request.firstName
             lastName = request.lastName
             birthDate = parsedBirthDate
             phone = request.phone
-            createdAt = LocalDateTime.now(Clock.systemUTC())
-            updatedAt = LocalDateTime.now(Clock.systemUTC())
-        }.also { it.flush() }.let { newUser ->
-            UserDto(
-                id = newUser.id.value.toString(),
-                email = newUser.email,
-                firstName = newUser.firstName,
-                lastName = newUser.lastName,
-                phone = newUser.phone,
-                birthDate = newUser.birthDate?.toString(),
-                createdAt = newUser.createdAt.toString(),
-                updatedAt = newUser.createdAt.toString()
-            )
+            createdAt = now
+            updatedAt = now
         }
+        newUser.flush()
+
+        UserDto(
+            id = newUser.id.value.toString(),
+            email = newUser.email,
+            firstName = newUser.firstName,
+            lastName = newUser.lastName,
+            phone = newUser.phone,
+            birthDate = newUser.birthDate?.toString(),
+            createdAt = newUser.createdAt.toString(),
+            updatedAt = newUser.updatedAt.toString()
+        )
     }
 
     // To be updated so only super admin can use this in future
-    fun getAllUsers() = transaction {
-        User.all().toMutableList().map { user ->
+    suspend fun getAllUsers(): List<UserDto> = dbQuery {
+        User.all().map { user ->
             UserDto(
                 id = user.id.value.toString(),
                 email = user.email,
@@ -96,7 +95,7 @@ object UserService {
         }
     }
 
-    fun getUserProfile(userId: UUID): UserDto = transaction {
+    suspend fun getUserProfile(userId: UUID): UserDto = dbQuery {
         val dbUser = User.findById(userId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Utilisateur introuvable.")
 
@@ -112,10 +111,10 @@ object UserService {
         )
     }
 
-    fun updateUserPassword(
+    suspend fun updateUserPassword(
         userId: UUID,
         request: UserPasswordUpdateRequest,
-    ) = transaction {
+    ) = dbQuery {
         val dbUser = User.findById(userId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Utilisateur introuvable.")
 
@@ -139,7 +138,7 @@ object UserService {
         dbUser.flush()
     }
 
-    fun updateUserProfile(userId: UUID, request: UserUpdateRequest): UserDto = transaction {
+    suspend fun updateUserProfile(userId: UUID, request: UserUpdateRequest): UserDto = dbQuery {
         val dbUser = User.findById(userId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Utilisateur introuvable.")
 
@@ -183,17 +182,17 @@ object UserService {
         )
     }
 
-    fun deleteUser(userId: UUID) = transaction {
+    suspend fun deleteUser(userId: UUID) = dbQuery {
         User.findById(userId)?.let {
             Users.deleteWhere { id eq userId }
         } ?: throw HttpError(HttpStatusCode.NotFound, "Utilisateur introuvable.")
     }
 
-    fun searchUsers(
+    suspend fun searchUsers(
         query: String?,
         residenceId: UUID?,
         role: Role?
-    ): List<UserSearchDto> = transaction {
+    ): List<UserSearchDto> = dbQuery {
         val searchQuery = query?.trim() ?: ""
 
         if (residenceId != null) {

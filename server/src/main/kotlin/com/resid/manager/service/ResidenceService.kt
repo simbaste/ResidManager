@@ -11,6 +11,7 @@ import com.resid.manager.data.ResidenceMembers
 import com.resid.manager.data.ResidenceUnits
 import com.resid.manager.data.Residences
 import com.resid.manager.data.Role
+import com.resid.manager.data.Users
 import com.resid.manager.data.convert
 import com.resid.manager.data.isAdmin
 import com.resid.manager.data.isOwner
@@ -19,6 +20,7 @@ import com.resid.manager.dto.ElectricityStatementDto
 import com.resid.manager.dto.MemberStatusUpdateRequest
 import com.resid.manager.dto.ResidenceCreateRequest
 import com.resid.manager.dto.ResidenceDirectoryDTO
+import com.resid.manager.dto.ResidenceMemberSummaryDto
 import com.resid.manager.dto.ResidenceSummaryItemDto
 import io.ktor.http.HttpStatusCode
 import org.jetbrains.exposed.sql.SortOrder
@@ -29,7 +31,6 @@ import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
 import java.time.Clock
 import java.time.LocalDateTime
@@ -37,7 +38,7 @@ import java.util.UUID
 
 object ResidenceService {
 
-    fun isResidenceAdmin(userId: UUID, residenceId: UUID): Boolean = transaction {
+    suspend fun isResidenceAdmin(userId: UUID, residenceId: UUID): Boolean = dbQuery {
         ResidenceMembers.select(ResidenceMembers.role)
             .where {
                 (ResidenceMembers.userId eq userId) and
@@ -46,7 +47,7 @@ object ResidenceService {
             }.any { it[ResidenceMembers.role].isAdmin() }
     }
 
-    fun isResidenceOwner(userId: UUID, residenceId: UUID): Boolean = transaction {
+    suspend fun isResidenceOwner(userId: UUID, residenceId: UUID): Boolean = dbQuery {
         ResidenceMembers.select(ResidenceMembers.role)
             .where {
                 (ResidenceMembers.userId eq userId) and
@@ -55,7 +56,7 @@ object ResidenceService {
             }.any { it[ResidenceMembers.role].isOwner() }
     }
 
-    fun getDirectory(userId: UUID): ResidenceDirectoryDTO = transaction {
+    suspend fun getDirectory(userId: UUID): ResidenceDirectoryDTO = dbQuery {
         // Query memberships for this user
         val memberships = (ResidenceMembers innerJoin Residences innerJoin Currencies)
             .select(
@@ -128,7 +129,7 @@ object ResidenceService {
         )
     }
 
-    fun getResidenceById(userId: UUID, residenceId: UUID): ResidenceSummaryItemDto = transaction {
+    suspend fun getResidenceById(userId: UUID, residenceId: UUID): ResidenceSummaryItemDto = dbQuery {
         // Verify user is a member
         val isMember = ResidenceMembers.select(ResidenceMembers.role)
             .where {
@@ -160,7 +161,7 @@ object ResidenceService {
         )
     }
 
-    fun createResidence(userId: UUID, request: ResidenceCreateRequest): ResidenceSummaryItemDto = transaction {
+    suspend fun createResidence(userId: UUID, request: ResidenceCreateRequest): ResidenceSummaryItemDto = dbQuery {
         val selectedCurrency = CurrencyEntity.find { Currencies.code eq request.currency.convert() }.firstOrNull()
             ?: throw HttpError(HttpStatusCode.BadRequest, "Devise non reconnue.")
 
@@ -200,7 +201,7 @@ object ResidenceService {
         )
     }
 
-    fun updateResidence(userId: UUID, residenceId: UUID, request: ResidenceCreateRequest): ResidenceSummaryItemDto = transaction {
+    suspend fun updateResidence(userId: UUID, residenceId: UUID, request: ResidenceCreateRequest): ResidenceSummaryItemDto = dbQuery {
         val dbResidence = Residence.findById(residenceId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Résidence introuvable.")
 
@@ -241,7 +242,7 @@ object ResidenceService {
         )
     }
 
-    fun deleteResidence(userId: UUID, residenceId: UUID) = transaction {
+    suspend fun deleteResidence(userId: UUID, residenceId: UUID) = dbQuery {
         Residence.findById(residenceId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Résidence introuvable.")
 
@@ -252,7 +253,7 @@ object ResidenceService {
         Residences.deleteWhere { id eq residenceId }
     }
 
-    fun searchResidences(searchName: String): List<ResidenceSummaryItemDto> = transaction {
+    suspend fun searchResidences(searchName: String): List<ResidenceSummaryItemDto> = dbQuery {
         val query = if (searchName.isNotBlank()) {
             Residences.select(Residences.id, Residences.name, Residences.address, Residences.photoUrl, Residences.currencyId)
                 .where { Residences.name.lowerCase() like "%${searchName.lowercase()}%" }
@@ -288,7 +289,7 @@ object ResidenceService {
         }
     }
 
-    fun exportElectricityPdf(residenceId: UUID, statementIdsParam: String?): Pair<ByteArray, String> = transaction {
+    suspend fun exportElectricityPdf(residenceId: UUID, statementIdsParam: String?): Pair<ByteArray, String> = dbQuery {
         val dbResidence = Residence.findById(residenceId)
             ?: throw HttpError(HttpStatusCode.BadRequest, "Résidence introuvable.")
 
@@ -323,12 +324,53 @@ object ResidenceService {
         pdfBytes to dbResidence.name
     }
 
-    fun adminUpdateMemberStatus(
+    suspend fun getResidenceMembers(
+        userId: UUID,
+        residenceId: UUID
+    ): List<ResidenceMemberSummaryDto> = dbQuery {
+        val isMember = ResidenceMembers
+            .select(ResidenceMembers.userId)
+            .where {
+                (ResidenceMembers.userId eq userId) and
+                (ResidenceMembers.residenceId eq residenceId) and
+                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
+            }
+            .count() > 0
+
+        if (!isMember) {
+            throw HttpError(HttpStatusCode.Forbidden, "Accès interdit : vous ne faites pas partie de cette résidence.")
+        }
+
+        (Users innerJoin ResidenceMembers)
+            .select(
+                Users.id,
+                Users.firstName,
+                Users.lastName,
+                Users.email,
+                Users.phone,
+                ResidenceMembers.role,
+                ResidenceMembers.status
+            )
+            .where { ResidenceMembers.residenceId eq residenceId }
+            .map { row ->
+                ResidenceMemberSummaryDto(
+                    userId = row[Users.id].value.toString(),
+                    firstName = row[Users.firstName],
+                    lastName = row[Users.lastName],
+                    email = row[Users.email],
+                    phone = row[Users.phone],
+                    roleDto = row[ResidenceMembers.role].convert(),
+                    status = row[ResidenceMembers.status].convert()
+                )
+            }
+    }
+
+    suspend fun adminUpdateMemberStatus(
         requesterId: UUID,
         residenceId: UUID,
         targetUserId: UUID,
         request: MemberStatusUpdateRequest
-    ) = transaction {
+    ) = dbQuery {
         if (!isResidenceAdmin(requesterId, residenceId)) {
             throw HttpError(HttpStatusCode.Forbidden, "Accès interdit: Seuls les propriétaires et administrateurs peuvent accepter/modifier les membres.")
         }

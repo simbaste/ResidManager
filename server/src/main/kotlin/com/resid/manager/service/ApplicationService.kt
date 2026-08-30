@@ -1,18 +1,34 @@
 package com.resid.manager.service
 
-import com.resid.manager.data.*
-import com.resid.manager.dto.*
+import com.resid.manager.data.ApplicationStatus
+import com.resid.manager.data.HttpError
+import com.resid.manager.data.InvitationStatus
+import com.resid.manager.data.Residence
+import com.resid.manager.data.ResidenceApplications
+import com.resid.manager.data.ResidenceMembers
+import com.resid.manager.data.Residences
+import com.resid.manager.data.Role
+import com.resid.manager.data.Users
+import com.resid.manager.data.convert
+import com.resid.manager.data.isAdmin
+import com.resid.manager.dto.ApplicationRequest
+import com.resid.manager.dto.ApplicationStatusDto
+import com.resid.manager.dto.ApplicationUpdateRequest
+import com.resid.manager.dto.ResidenceApplicationDto
 import io.ktor.http.HttpStatusCode
-import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.update
 import java.time.Clock
 import java.time.LocalDateTime
 import java.util.UUID
 
 object ApplicationService {
 
-    fun isResidenceAdmin(userId: UUID, residenceId: UUID): Boolean = transaction {
+    suspend fun isResidenceAdmin(userId: UUID, residenceId: UUID): Boolean = dbQuery {
         ResidenceMembers.select(ResidenceMembers.role)
             .where {
                 (ResidenceMembers.userId eq userId) and
@@ -21,13 +37,13 @@ object ApplicationService {
             }.any { it[ResidenceMembers.role].isAdmin() }
     }
 
-    fun getApplications(
+    suspend fun getApplications(
         requesterUuid: UUID,
         residenceUuid: UUID?,
         userUuid: UUID?,
         status: ApplicationStatus?,
         role: Role?
-    ): List<ResidenceApplicationDto> = transaction {
+    ): List<ResidenceApplicationDto> = dbQuery {
         if (residenceUuid != null) {
             val isAdmin = isResidenceAdmin(requesterUuid, residenceUuid)
             if (!isAdmin && requesterUuid != userUuid) {
@@ -67,12 +83,12 @@ object ApplicationService {
             }
     }
 
-    fun applyToResidence(
+    suspend fun applyToResidence(
         requesterUuid: UUID,
         targetUserUuid: UUID,
         residenceUuid: UUID,
         request: ApplicationRequest
-    ) = transaction {
+    ) = dbQuery {
         val isAdmin = isResidenceAdmin(requesterUuid, residenceUuid)
         if (requesterUuid != targetUserUuid && !isAdmin) {
             throw HttpError(HttpStatusCode.Forbidden, "Accès interdit.")
@@ -116,12 +132,12 @@ object ApplicationService {
         }
     }
 
-    fun updateApplication(
+    suspend fun updateApplication(
         requesterUuid: UUID,
         targetUserUuid: UUID,
         residenceUuid: UUID,
         request: ApplicationRequest
-    ) = transaction {
+    ) = dbQuery {
         val isAdmin = isResidenceAdmin(requesterUuid, residenceUuid)
         if (requesterUuid != targetUserUuid && !isAdmin) {
             throw HttpError(HttpStatusCode.Forbidden, "Accès interdit.")
@@ -138,12 +154,12 @@ object ApplicationService {
         if (updatedRows == 0) throw HttpError(HttpStatusCode.NotFound, "Candidature introuvable.")
     }
 
-    fun processApplication(
+    suspend fun processApplication(
         requesterUuid: UUID,
         targetUserUuid: UUID,
         residenceUuid: UUID,
         request: ApplicationUpdateRequest
-    ) = transaction {
+    ) = dbQuery {
         val isAdmin = isResidenceAdmin(requesterUuid, residenceUuid)
         if (!isAdmin) {
             throw HttpError(HttpStatusCode.Forbidden, "Accès interdit : seuls les administrateurs peuvent traiter une candidature.")
@@ -191,11 +207,11 @@ object ApplicationService {
         }
     }
 
-    fun deleteApplication(
+    suspend fun deleteApplication(
         requesterUuid: UUID,
         targetUserUuid: UUID,
         residenceUuid: UUID
-    ) = transaction {
+    ) = dbQuery {
         val isAdmin = isResidenceAdmin(requesterUuid, residenceUuid)
         if (requesterUuid != targetUserUuid && !isAdmin) {
             throw HttpError(HttpStatusCode.Forbidden, "Accès interdit.")

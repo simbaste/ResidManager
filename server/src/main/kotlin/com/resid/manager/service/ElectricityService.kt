@@ -29,7 +29,6 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -37,7 +36,7 @@ import java.util.UUID
 
 object ElectricityService {
 
-    fun isResidenceManager(userId: UUID, residenceId: UUID): Boolean = transaction {
+    suspend fun isResidenceManager(userId: UUID, residenceId: UUID): Boolean = dbQuery {
         ResidenceMembers.select(ResidenceMembers.role)
             .where {
                 (ResidenceMembers.userId eq userId) and
@@ -46,7 +45,7 @@ object ElectricityService {
             }.any { it[ResidenceMembers.role].isManager() }
     }
 
-    fun isResidenceMember(userId: UUID, residenceId: UUID): Boolean = transaction {
+    suspend fun isResidenceMember(userId: UUID, residenceId: UUID): Boolean = dbQuery {
         ResidenceMembers.select(ResidenceMembers.userId)
             .where {
                 (ResidenceMembers.userId eq userId) and
@@ -55,12 +54,12 @@ object ElectricityService {
             }.count() > 0
     }
 
-    fun getPreviousIndex(residenceUnitId: UUID): Double = transaction {
+    suspend fun getPreviousIndex(residenceUnitId: UUID): Double = dbQuery {
         val lastStatement = ElectricityStatement.find { 
             ElectricityStatements.residenceUnitId eq residenceUnitId
         }.orderBy(ElectricityStatements.statementDate to SortOrder.DESC).firstOrNull()
 
-        return@transaction if (lastStatement != null) {
+        if (lastStatement != null) {
             lastStatement.newIndex
         } else {
             val dbResidenceUnit = ResidenceUnit.findById(residenceUnitId)
@@ -69,10 +68,10 @@ object ElectricityService {
         }
     }
 
-    fun createStatement(
+    suspend fun createStatement(
         requesterId: UUID,
         request: ElectricityStatementCreateRequest
-    ): ElectricityStatementDto = transaction {
+    ): ElectricityStatementDto = dbQuery {
         val unitUuid = try {
             UUID.fromString(request.unitId)
         } catch (e: Exception) {
@@ -144,11 +143,11 @@ object ElectricityService {
         statement.toDto()
     }
 
-    fun updateStatement(
+    suspend fun updateStatement(
         requesterId: UUID,
         statementId: UUID,
         request: ElectricityStatementUpdateRequest
-    ): ElectricityStatementDto = transaction {
+    ): ElectricityStatementDto = dbQuery {
         val stmt = ElectricityStatement.findById(statementId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Relevé d'électricité introuvable.")
 
@@ -212,11 +211,11 @@ object ElectricityService {
         stmt.toDto()
     }
 
-    fun updateStatementStatus(
+    suspend fun updateStatementStatus(
         requesterId: UUID,
         statementId: UUID,
         request: ElectricityStatusUpdateRequest
-    ): ElectricityStatementDto = transaction {
+    ): ElectricityStatementDto = dbQuery {
         val stmt = ElectricityStatement.findById(statementId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Relevé d'électricité introuvable.")
 
@@ -249,14 +248,14 @@ object ElectricityService {
         stmt.toDto()
     }
 
-    fun getStatements(
+    suspend fun getStatements(
         requesterId: UUID,
         residenceUnitId: UUID?,
         residenceId: UUID?,
         tenantId: UUID?,
         status: ElectricityStatusDto?,
         floor: String?
-    ): List<ElectricityStatementDto> = transaction {
+    ): List<ElectricityStatementDto> = dbQuery {
         var conditions: Op<Boolean> = Op.TRUE
 
         if (residenceUnitId != null) {
@@ -317,7 +316,7 @@ object ElectricityService {
             .map { it.toDto() }
     }
 
-    fun deleteStatement(statementId: UUID) = transaction {
+    suspend fun deleteStatement(statementId: UUID) = dbQuery {
         ElectricityStatement.findById(statementId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Relevé d'électricité introuvable.")
         ElectricityStatements.deleteWhere {
