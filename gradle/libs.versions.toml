@@ -16,6 +16,7 @@ kotlin-wrappers = "2026.5.3"
 ktor = "3.4.3"
 logback = "1.5.32"
 material3 = "1.11.0-alpha07"
+tslib = "2.8.1"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
