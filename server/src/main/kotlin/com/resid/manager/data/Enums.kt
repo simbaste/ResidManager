@@ -224,6 +224,13 @@ fun TransactionType.convert(): TransactionTypeDto {
     }
 }
 
+fun TransactionTypeDto.convert(): TransactionType {
+    return when (this) {
+        TransactionTypeDto.INCOME -> TransactionType.INCOME
+        TransactionTypeDto.EXPENSE -> TransactionType.EXPENSE
+    }
+}
+
 enum class TransactionCategory {
     RENT, DEPOSIT, LEASE_PAYMENT, ELECTRICITY, MAINTENANCE, CLEANING, FUEL, SECURITY, TAXES, OTHER
 }
