@@ -1,20 +1,25 @@
 package com.resid.manager.service
 
-import com.resid.manager.data.*
+import com.resid.manager.data.FinancialTransactions
+import com.resid.manager.data.Lease
+import com.resid.manager.data.LeaseStatus
+import com.resid.manager.data.ResidenceUnits
+import com.resid.manager.data.TransactionType
+import com.resid.manager.data.UnitStatus
 import com.resid.manager.dto.DashboardDataDto
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.sum
 import java.time.LocalDate
 import java.util.UUID
 
 object DashboardService {
 
-    fun getDashboardData(
+    suspend fun getDashboardData(
         residenceId: UUID, 
         filterType: String, 
         customStart: String?, 
         customEnd: String?
-    ): DashboardDataDto {
+    ): DashboardDataDto = dbQuery {
         val now = LocalDate.now()
         val (startDate, endDate) = when (filterType.uppercase()) {
             "MONTH" -> {
@@ -46,65 +51,63 @@ object DashboardService {
             }
         }
 
-        return transaction {
-            // 1. REVENUES COLLECTED
-            val revenuesSum = FinancialTransactions
-                .select(FinancialTransactions.amount.sum())
-                .where { 
-                    (FinancialTransactions.residenceId eq residenceId) and 
-                    (FinancialTransactions.type eq TransactionType.INCOME) and
-                    (FinancialTransactions.transactionDate.between(startDate, endDate)) 
-                }
-                .map { it[FinancialTransactions.amount.sum()] }
-                .firstOrNull() ?: 0.0
+        // 1. REVENUES COLLECTED
+        val revenuesSum = FinancialTransactions
+            .select(FinancialTransactions.amount.sum())
+            .where { 
+                (FinancialTransactions.residenceId eq residenceId) and 
+                (FinancialTransactions.type eq TransactionType.INCOME) and
+                (FinancialTransactions.transactionDate.between(startDate, endDate)) 
+            }
+            .map { it[FinancialTransactions.amount.sum()] }
+            .firstOrNull() ?: 0.0
 
-            // 2. EXPENSES INCURRED
-            val expensesSum = FinancialTransactions
-                .select(FinancialTransactions.amount.sum())
-                .where { 
-                    (FinancialTransactions.residenceId eq residenceId) and 
-                    (FinancialTransactions.type eq TransactionType.EXPENSE) and
-                    (FinancialTransactions.transactionDate.between(startDate, endDate)) 
-                }
-                .map { it[FinancialTransactions.amount.sum()] }
-                .firstOrNull() ?: 0.0
+        // 2. EXPENSES INCURRED
+        val expensesSum = FinancialTransactions
+            .select(FinancialTransactions.amount.sum())
+            .where { 
+                (FinancialTransactions.residenceId eq residenceId) and 
+                (FinancialTransactions.type eq TransactionType.EXPENSE) and
+                (FinancialTransactions.transactionDate.between(startDate, endDate)) 
+            }
+            .map { it[FinancialTransactions.amount.sum()] }
+            .firstOrNull() ?: 0.0
 
-            val netCashflow = revenuesSum - expensesSum
+        val netCashflow = revenuesSum - expensesSum
 
-            // 3. Occupancy Rate (Instant picture)
-            val totalUnitsCount = ResidenceUnits
-                .select(ResidenceUnits.id)
-                .where { ResidenceUnits.residenceId eq residenceId }
-                .count()
+        // 3. Occupancy Rate (Instant picture)
+        val totalUnitsCount = ResidenceUnits
+            .select(ResidenceUnits.id)
+            .where { ResidenceUnits.residenceId eq residenceId }
+            .count()
 
-            val occupiedUnitsCount = ResidenceUnits
-                .select(ResidenceUnits.id)
-                .where { (ResidenceUnits.residenceId eq residenceId) and (ResidenceUnits.status eq UnitStatus.OCCUPIED) }
-                .count()
+        val occupiedUnitsCount = ResidenceUnits
+            .select(ResidenceUnits.id)
+            .where { (ResidenceUnits.residenceId eq residenceId) and (ResidenceUnits.status eq UnitStatus.OCCUPIED) }
+            .count()
 
-            val occupancyRate = if (totalUnitsCount > 0) {
-                (occupiedUnitsCount.toDouble() / totalUnitsCount) * 100.0
-            } else 0.0
+        val occupancyRate = if (totalUnitsCount > 0) {
+            (occupiedUnitsCount.toDouble() / totalUnitsCount) * 100.0
+        } else 0.0
 
-            // 4. Delinquency Rate
-            val bauxList = Lease.all().filter { it.residenceUnit.residence.id.value == residenceId }
-            val totalRentAmountGenerated = bauxList.sumOf { it.residenceUnit.nominalRent }
-            val unpaidRentAmount = bauxList.filter { 
-                it.status == LeaseStatus.PENDING_PAYMENT || it.status == LeaseStatus.DOWN_PAYMENT_PAID
-            }.sumOf { it.residenceUnit.nominalRent }
+        // 4. Delinquency Rate
+        val bauxList = Lease.all().filter { it.residenceUnit.residence.id.value == residenceId }
+        val totalRentAmountGenerated = bauxList.sumOf { it.residenceUnit.nominalRent }
+        val unpaidRentAmount = bauxList.filter { 
+            it.status == LeaseStatus.PENDING_PAYMENT || it.status == LeaseStatus.DOWN_PAYMENT_PAID
+        }.sumOf { it.residenceUnit.nominalRent }
 
-            val delinquencyRate = if (totalRentAmountGenerated > 0.0) {
-                (unpaidRentAmount / totalRentAmountGenerated) * 100.0
-            } else 0.0
+        val delinquencyRate = if (totalRentAmountGenerated > 0.0) {
+            (unpaidRentAmount / totalRentAmountGenerated) * 100.0
+        } else 0.0
 
-            DashboardDataDto(
-                residenceId = residenceId.toString(),
-                totalRevenuesCollected = revenuesSum,
-                totalExpensesIncurred = expensesSum,
-                netCashflow = netCashflow,
-                delinquencyRate = delinquencyRate,
-                occupancyRate = occupancyRate
-            )
-        }
+        DashboardDataDto(
+            residenceId = residenceId.toString(),
+            totalRevenuesCollected = revenuesSum,
+            totalExpensesIncurred = expensesSum,
+            netCashflow = netCashflow,
+            delinquencyRate = delinquencyRate,
+            occupancyRate = occupancyRate
+        )
     }
 }

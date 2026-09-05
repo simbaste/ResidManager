@@ -162,11 +162,35 @@ object InspectionReportItems : UUIDTable("inspection_report_items") {
 
 object FinancialTransactions : UUIDTable("financial_transactions") {
     val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE)
-    val type = enumerationByName("type", ENUM_NAME_COLUMN_LENGTH, TransactionType::class)
-    val category = enumerationByName("category", ENUM_NAME_COLUMN_LENGTH, TransactionCategory::class)
+    val type = customEnumeration(
+        name = "type",
+        sql = "VARCHAR($ENUM_NAME_COLUMN_LENGTH)",
+        fromDb = { value ->
+            val str = (value as? String)?.trim()?.uppercase() ?: TransactionType.INCOME.name
+            try { TransactionType.valueOf(str) } catch (_: Exception) { TransactionType.INCOME }
+        },
+        toDb = { it.name }
+    )
+    val category = customEnumeration(
+        name = "category",
+        sql = "VARCHAR($ENUM_NAME_COLUMN_LENGTH)",
+        fromDb = { value ->
+            val str = (value as? String)?.trim()?.replace(" ", "_")?.uppercase() ?: TransactionCategory.OTHER.name
+            try { TransactionCategory.valueOf(str) } catch (_: Exception) { TransactionCategory.OTHER }
+        },
+        toDb = { it.name }
+    )
     val amount = double("amount")
     val description = text("description")
-    val relatedEntityType = enumerationByName("related_entity_type", ENUM_NAME_COLUMN_LENGTH, EntityType::class).nullable()
+    val relatedEntityType = customEnumeration(
+        name = "related_entity_type",
+        sql = "VARCHAR($ENUM_NAME_COLUMN_LENGTH)",
+        fromDb = { value ->
+            val str = (value as? String)?.trim()?.replace(" ", "_")?.uppercase() ?: ""
+            try { EntityType.valueOf(str) } catch (_: Exception) { EntityType.BAIL }
+        },
+        toDb = { it.name }
+    ).nullable()
     val relatedEntityId = uuid("related_entity_id").nullable()
     val transactionDate = date("transaction_date")
     val createdAt = datetime("created_at")

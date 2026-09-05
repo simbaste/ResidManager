@@ -23,8 +23,17 @@ data class FinanceTransactionDto(
 
 @Serializable
 data class ExpenseRecordRequest(
-    val category: String,
+    val category: TransactionCategoryDto,
     val amount: Double,
     val description: String,
     val transactionDate: String
 )
+
+@Serializable
+data class TransactionUpdateRequest(
+    val category: String? = null,
+    val amount: Double? = null,
+    val description: String? = null,
+    val transactionDate: String? = null
+)
+
