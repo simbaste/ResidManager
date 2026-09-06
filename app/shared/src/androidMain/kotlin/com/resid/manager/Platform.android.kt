@@ -9,3 +9,6 @@ class AndroidPlatform : Platform {
 actual fun getPlatform(): Platform = AndroidPlatform()
 
 actual fun getBaseUrl(): String = "https://residmanager-api-1043005566320.europe-west1.run.app"
+
+actual fun createPlatformSessionStorage(): SessionStorage? = null
+

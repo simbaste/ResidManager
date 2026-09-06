@@ -1,8 +1,13 @@
 package com.resid.manager.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 // Light Scheme based on Emerald & Slate values, tuned for professional high-contrast SaaS
@@ -57,15 +62,74 @@ private val DarkColorScheme = darkColorScheme(
     onErrorContainer = Color(0xFFFFDAD6) // on-error-container
 )
 
+// Luxury Estate Custom Theme Extension Tokens
+data class ResidCustomColors(
+    val cardBackground: Color,
+    val cardBorder: Color,
+    val inputBackground: Color,
+    val inputBorder: Color,
+    val dividerColor: Color,
+    val ambientGlowAlpha: Float,
+    val secondaryGlowAlpha: Float,
+    val gridAlpha: Float,
+    val cardShadowElevation: Float
+)
+
+val LocalResidColors = staticCompositionLocalOf {
+    ResidCustomColors(
+        cardBackground = Color(0xF2031427),
+        cardBorder = Color(0x593D4A42),
+        inputBackground = Color(0x8026364A),
+        inputBorder = Color(0x7387948B),
+        dividerColor = Color(0x4D3D4A42),
+        ambientGlowAlpha = 0.22f,
+        secondaryGlowAlpha = 0.18f,
+        gridAlpha = 0.035f,
+        cardShadowElevation = 0.6f
+    )
+}
+
+val MaterialTheme.residColors: ResidCustomColors
+    @Composable
+    @ReadOnlyComposable
+    get() = LocalResidColors.current
+
+private val LightResidCustomColors = ResidCustomColors(
+    cardBackground = Color(0xF5FFFFFF),
+    cardBorder = Color(0xA6CBD5E1),
+    inputBackground = Color(0x66E2E8F0),
+    inputBorder = Color(0xA694A3B8),
+    dividerColor = Color(0x80CBD5E1),
+    ambientGlowAlpha = 0.12f,
+    secondaryGlowAlpha = 0.10f,
+    gridAlpha = 0.025f,
+    cardShadowElevation = 0.15f
+)
+
+private val DarkResidCustomColors = ResidCustomColors(
+    cardBackground = Color(0xE0031427),
+    cardBorder = Color(0x593D4A42),
+    inputBackground = Color(0x8026364A),
+    inputBorder = Color(0x7387948B),
+    dividerColor = Color(0x4D3D4A42),
+    ambientGlowAlpha = 0.22f,
+    secondaryGlowAlpha = 0.18f,
+    gridAlpha = 0.035f,
+    cardShadowElevation = 0.6f
+)
+
 @Composable
 fun ResidTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val customColors = if (darkTheme) DarkResidCustomColors else LightResidCustomColors
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        content = content
-    )
+    CompositionLocalProvider(LocalResidColors provides customColors) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            content = content
+        )
+    }
 }

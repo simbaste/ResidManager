@@ -50,12 +50,14 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
+            implementation(libs.androidx.activity.compose)
         }
         commonMain.dependencies {
             api(projects.core)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            implementation(libs.compose.material3.windowSizeClass)
             implementation(libs.compose.materialIcons)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
@@ -66,6 +68,7 @@ kotlin {
             implementation(libs.ktor.clientCore)
             implementation(libs.ktor.clientContentNegotiation)
             implementation(libs.ktor.clientSerializationKotlinxJson)
+            implementation(libs.navigation3.ui)
             api(libs.koin.core)
             api(libs.koin.compose)
         }
