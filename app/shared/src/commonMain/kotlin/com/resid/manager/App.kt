@@ -112,7 +112,16 @@ fun App() {
                             }
                             AppNavKey.Register -> NavEntry(key) {
                                 RegisterScreen(
-                                    viewModel = viewModel,
+                                    uiState = uiState,
+                                    onFirstNameChanged = viewModel::onFirstNameChanged,
+                                    onLastNameChanged = viewModel::onLastNameChanged,
+                                    onBirthDateChanged = viewModel::onBirthDateChanged,
+                                    onPhoneChanged = viewModel::onPhoneChanged,
+                                    onEmailChanged = viewModel::onEmailChanged,
+                                    onPasswordChanged = viewModel::onPasswordChanged,
+                                    togglePasswordVisibility = viewModel::togglePasswordVisibility,
+                                    toggleTheme = viewModel::toggleTheme,
+                                    onRegister = viewModel::register,
                                     onNavigateToLogin = {
                                         backStack.removeLastOrNull()
                                         viewModel.navigateToLogin()
