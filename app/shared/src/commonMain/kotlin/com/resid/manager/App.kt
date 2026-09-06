@@ -98,7 +98,12 @@ fun App() {
                         when (key) {
                             AppNavKey.Login -> NavEntry(key) {
                                 LoginScreen(
-                                    viewModel = viewModel,
+                                    uiState = uiState,
+                                    onEmailChanged = viewModel::onEmailChanged,
+                                    onPasswordChanged = viewModel::onPasswordChanged,
+                                    togglePasswordVisibility = viewModel::togglePasswordVisibility,
+                                    toggleTheme = viewModel::toggleTheme,
+                                    onLogin = viewModel::login,
                                     onNavigateToRegister = {
                                         backStack.add(AppNavKey.Register)
                                         viewModel.navigateToRegister()
