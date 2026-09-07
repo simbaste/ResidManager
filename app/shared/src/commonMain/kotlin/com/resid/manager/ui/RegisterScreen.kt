@@ -1,5 +1,6 @@
 package com.resid.manager.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apartment
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
@@ -43,6 +45,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -67,6 +71,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -78,9 +84,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.resid.manager.getDefaultCountryCode
+import com.resid.manager.ui.components.SupportedCountryPhoneCodes
+import com.resid.manager.ui.components.findCountryOrDefault
+import com.resid.manager.ui.components.imageDropTarget
+import com.resid.manager.ui.components.rememberImagePickerLauncher
 import com.resid.manager.ui.theme.ResidTheme
 import com.resid.manager.ui.theme.residColors
 import com.resid.manager.viewmodel.LoginUiState
+import org.jetbrains.compose.resources.decodeToImageBitmap
 
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -138,8 +150,8 @@ fun RegisterScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .widthIn(min = 520.dp, max = 730.dp)
-                        .fillMaxWidth(if (isCompact) 1f else if (isLarge) 0.50f else 0.70f)
+                        .widthIn(min = 500.dp, max = 860.dp)
+                        .fillMaxWidth(if (isCompact) 1f else 0.85f)
                         .shadow(
                             elevation = 28.dp,
                             shape = RoundedCornerShape(24.dp),
@@ -410,36 +422,78 @@ fun RegisterCardHeader(
 }
 
 /**
- * Profile Photo Upload Section (Optional).
+ * Profile Photo Upload Section with Click-to-Pick and Drag-and-Drop (Images only).
  */
 @Composable
-fun RegisterProfilePhotoSection(modifier: Modifier = Modifier) {
+fun RegisterProfilePhotoSection(
+    selectedImage: ImageBitmap?,
+    onImageSelected: (ByteArray) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var isDraggingOver by remember { mutableStateOf(false) }
+    val imagePicker = rememberImagePickerLauncher { bytes ->
+        onImageSelected(bytes)
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(MaterialTheme.residColors.inputBackground, RoundedCornerShape(16.dp))
-            .border(1.dp, MaterialTheme.residColors.inputBorder, RoundedCornerShape(16.dp))
+            .background(
+                if (isDraggingOver) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+                else MaterialTheme.residColors.inputBackground,
+                RoundedCornerShape(16.dp)
+            )
+            .border(
+                width = if (isDraggingOver) 2.dp else 1.dp,
+                color = if (isDraggingOver) MaterialTheme.colorScheme.primary else MaterialTheme.residColors.inputBorder,
+                shape = RoundedCornerShape(16.dp)
+            )
+            .imageDropTarget(
+                onImageDropped = { bytes ->
+                    onImageSelected(bytes)
+                },
+                onDragStateChanged = { dragging ->
+                    isDraggingOver = dragging
+                }
+            )
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(72.dp)
+                .size(76.dp)
+                .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
-                .border(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), CircleShape),
+                .border(
+                    width = 2.dp,
+                    color = if (selectedImage != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                    shape = CircleShape
+                )
+                .clickable { imagePicker.launch() },
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "Portrait",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(36.dp)
-            )
+            if (selectedImage != null) {
+                Image(
+                    bitmap = selectedImage,
+                    contentDescription = "Photo de profil",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Portrait",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(38.dp)
+                )
+            }
+
+            // Hover / Action Overlay with Camera Icon
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.25f), CircleShape),
+                    .background(Color.Black.copy(alpha = if (selectedImage != null) 0.25f else 0.15f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -451,7 +505,11 @@ fun RegisterProfilePhotoSection(modifier: Modifier = Modifier) {
             }
         }
 
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clickable { imagePicker.launch() }
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = "Photo de profil",
@@ -460,20 +518,21 @@ fun RegisterProfilePhotoSection(modifier: Modifier = Modifier) {
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "(Optionnel)",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp
+                    text = if (selectedImage != null) "(Photo ajoutée)" else "(Optionnel)",
+                    color = if (selectedImage != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp,
+                    fontWeight = if (selectedImage != null) FontWeight.Medium else FontWeight.Normal
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Glissez-déposez ou cliquez pour importer votre portrait.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = if (isDraggingOver) "Déposez votre image ici..." else "Glissez-déposez ou cliquez pour importer votre portrait.",
+                color = if (isDraggingOver) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
                 lineHeight = 16.sp
             )
             Text(
-                text = "Format JPG, PNG • Max 5 Mo",
+                text = "Format JPG, PNG, WebP • Images uniquement",
                 color = MaterialTheme.colorScheme.primary,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium
@@ -510,6 +569,7 @@ fun RegisterForm(
     var confirmPassword by remember { mutableStateOf("") }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     var termsAccepted by remember { mutableStateOf(true) }
+    var avatarBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     val focusManager = LocalFocusManager.current
     val colorScheme = MaterialTheme.colorScheme
 
@@ -524,8 +584,17 @@ fun RegisterForm(
     }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // Optional Profile Photo Section
-        RegisterProfilePhotoSection()
+        // Optional Profile Photo Section with click & drop
+        RegisterProfilePhotoSection(
+            selectedImage = avatarBitmap,
+            onImageSelected = { bytes ->
+                try {
+                    avatarBitmap = bytes.decodeToImageBitmap()
+                } catch (_: Exception) {
+                    // Ignore non-supported/corrupt image bytes
+                }
+            }
+        )
 
         // Name Fields (Side by side on medium/large, stacked on compact)
         if (isCompact) {
@@ -572,20 +641,16 @@ fun RegisterForm(
             }
         }
 
-        // Contact Fields (BirthDate & Phone)
+        // Contact Fields (BirthDate & Phone with Country Code Picker)
         if (isCompact) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 RegisterDateOfBirthPickerField(
                     value = birthDate,
                     onDateSelected = onBirthDateChanged
                 )
-                RegisterTextField(
-                    label = "TÉLÉPHONE",
+                RegisterPhoneNumberField(
                     value = phone,
-                    placeholder = "+22501020304",
-                    onValueChange = onPhoneChanged,
-                    keyboardType = KeyboardType.Phone,
-                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                    onPhoneChanged = onPhoneChanged,
                     imeAction = ImeAction.Next
                 )
             }
@@ -598,13 +663,9 @@ fun RegisterForm(
                     )
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                    RegisterTextField(
-                        label = "TÉLÉPHONE",
+                    RegisterPhoneNumberField(
                         value = phone,
-                        placeholder = "+22501020304",
-                        onValueChange = onPhoneChanged,
-                        keyboardType = KeyboardType.Phone,
-                        leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                        onPhoneChanged = onPhoneChanged,
                         imeAction = ImeAction.Next
                     )
                 }
@@ -890,7 +951,7 @@ fun RegisterDateOfBirthPickerField(
                 readOnly = true,
                 placeholder = {
                     Text(
-                        "AAAA-MM-JJ (Choisir)",
+                        "AAAA-MM-JJ",
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                         fontSize = 14.sp
                     )
@@ -974,6 +1035,217 @@ fun RegisterDateOfBirthPickerField(
                     selectedDayContentColor = MaterialTheme.colorScheme.onPrimary,
                     todayDateBorderColor = MaterialTheme.colorScheme.primary,
                     todayContentColor = MaterialTheme.colorScheme.primary
+                )
+            )
+        }
+    }
+}
+
+/**
+ * Responsive Phone Number input with Country Code Selector (Flag + ISO + Dial Code).
+ * Defaults to the user's location country (best effort) or existing country in phone value.
+ */
+@Composable
+fun RegisterPhoneNumberField(
+    value: String,
+    onPhoneChanged: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    imeAction: ImeAction = ImeAction.Next
+) {
+    // Detect initial country either from existing value prefix or device location
+    val detectedIso = remember { getDefaultCountryCode() }
+    val initialCountry = remember {
+        SupportedCountryPhoneCodes.firstOrNull { value.startsWith(it.dialCode) }
+            ?: findCountryOrDefault(detectedIso)
+    }
+
+    var selectedCountry by remember { mutableStateOf(initialCountry) }
+    var expanded by remember { mutableStateOf(false) }
+
+    // Strip dial code from initial display text if present
+    var localNumber by remember(value) {
+        val numberPart = if (value.startsWith(selectedCountry.dialCode)) {
+            value.removePrefix(selectedCountry.dialCode).trim()
+        } else {
+            value.trim()
+        }
+        mutableStateOf(numberPart)
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            text = "TÉLÉPHONE",
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.8.sp,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Country Prefix Picker Button & Dropdown
+            Box {
+                Box(
+                    modifier = Modifier
+                        .height(56.dp)
+                        .background(MaterialTheme.residColors.inputBackground, RoundedCornerShape(12.dp))
+                        .border(1.dp, MaterialTheme.residColors.inputBorder, RoundedCornerShape(12.dp))
+                        .clickable { expanded = true }
+                        .padding(horizontal = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        // Stylized Country Badge Pill (reliable across Web/Desktop/Mobile)
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                    shape = RoundedCornerShape(6.dp)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                    shape = RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = selectedCountry.iso,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Text(
+                            text = selectedCountry.dialCode,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Choisir le pays",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier
+                        .background(MaterialTheme.residColors.cardBackground)
+                        .widthIn(min = 220.dp, max = 300.dp)
+                ) {
+                    SupportedCountryPhoneCodes.forEach { country ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .background(
+                                                color = if (country.iso == selectedCountry.iso) {
+                                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                                } else {
+                                                    MaterialTheme.colorScheme.surfaceVariant
+                                                },
+                                                shape = RoundedCornerShape(4.dp)
+                                            )
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = country.iso,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (country.iso == selectedCountry.iso) {
+                                                MaterialTheme.colorScheme.primary
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurfaceVariant
+                                            }
+                                        )
+                                    }
+                                    Text(
+                                        text = "${country.name} (${country.dialCode})",
+                                        color = if (country.iso == selectedCountry.iso) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface
+                                        },
+                                        fontSize = 13.sp,
+                                        fontWeight = if (country.iso == selectedCountry.iso) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            },
+                            onClick = {
+                                selectedCountry = country
+                                expanded = false
+                                val fullPhone = if (localNumber.isNotBlank()) {
+                                    "${country.dialCode}${localNumber.filter { it.isDigit() }}"
+                                } else {
+                                    country.dialCode
+                                }
+                                onPhoneChanged(fullPhone)
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Local Phone Number Input
+            OutlinedTextField(
+                value = localNumber,
+                onValueChange = { input ->
+                    localNumber = input
+                    val digits = input.filter { it.isDigit() }
+                    val fullNumber = if (digits.isNotBlank()) {
+                        "${selectedCountry.dialCode}$digits"
+                    } else {
+                        ""
+                    }
+                    onPhoneChanged(fullNumber)
+                },
+                placeholder = {
+                    Text(
+                        "6 12 34 56 78",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        fontSize = 14.sp
+                    )
+                },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    focusedContainerColor = MaterialTheme.residColors.inputBackground,
+                    unfocusedContainerColor = MaterialTheme.residColors.inputBackground,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.residColors.inputBorder,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                ),
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Phone,
+                        contentDescription = "Téléphone",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Phone,
+                    imeAction = imeAction
                 )
             )
         }
@@ -1281,3 +1553,17 @@ fun RegisterFormPreview() {
         }
     }
 }
+
+@Preview
+@Composable
+fun RegisterPhoneNumberFieldPreview() {
+    ResidTheme(darkTheme = true) {
+        Box(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background).padding(16.dp)) {
+            RegisterPhoneNumberField(
+                value = "+33612345678",
+                onPhoneChanged = {}
+            )
+        }
+    }
+}
+

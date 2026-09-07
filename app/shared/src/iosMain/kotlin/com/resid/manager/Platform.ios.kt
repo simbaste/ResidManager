@@ -1,5 +1,8 @@
 package com.resid.manager
 
+import platform.Foundation.NSLocale
+import platform.Foundation.countryCode
+import platform.Foundation.currentLocale
 import platform.UIKit.UIDevice
 
 class IOSPlatform: Platform {
@@ -11,4 +14,9 @@ actual fun getPlatform(): Platform = IOSPlatform()
 actual fun getBaseUrl(): String = "https://residmanager-api-1043005566320.europe-west1.run.app"
 
 actual fun createPlatformSessionStorage(): SessionStorage? = null
+
+actual fun getDefaultCountryCode(): String = NSLocale.currentLocale.countryCode ?: "FR"
+
+
+
 

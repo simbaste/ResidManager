@@ -53,3 +53,14 @@ class WebSessionStorage : SessionStorage {
 
 actual fun createPlatformSessionStorage(): SessionStorage? = WebSessionStorage()
 
+actual fun getDefaultCountryCode(): String {
+    val lang = window.navigator.language // e.g. "fr-FR", "fr-CI", "en-US"
+    val parts = lang.split("-", "_")
+    return if (parts.size > 1 && parts[1].length == 2) {
+        parts[1].uppercase()
+    } else {
+        "FR"
+    }
+}
+
+

@@ -10,3 +10,6 @@ actual fun getBaseUrl(): String = "https://residmanager-api-1043005566320.europe
 
 actual fun createPlatformSessionStorage(): SessionStorage? = null
 
+actual fun getDefaultCountryCode(): String = "FR"
+
+
