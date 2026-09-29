@@ -3,26 +3,70 @@ package com.resid.manager.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import com.resid.manager.dto.*
+import com.resid.manager.dto.InlineTenantCreateRequest
+import com.resid.manager.dto.LeaseCreateRequest
+import com.resid.manager.dto.LeaseDto
+import com.resid.manager.dto.LeaseStatus
+import com.resid.manager.dto.UserRole
+import com.resid.manager.dto.UserSearchDto
 import com.resid.manager.network.ApiClient
 import com.resid.manager.ui.i18n.LocalStrings
 import com.resid.manager.viewmodel.LoginViewModel
-import io.ktor.client.request.*
 import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import kotlinx.coroutines.launch
 
 @Composable
@@ -129,6 +173,9 @@ fun LeasesPage(viewModel: LoginViewModel) {
                                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                                 Text("Loyer de base : ${lease.monthlyRentAtSign} XOF / mois", style = MaterialTheme.typography.bodyLarge)
+                                if ((matchedLogement?.serviceCharges ?: 0.0) > 0.0) {
+                                    Text("Charges fixes d'entretien : ${matchedLogement?.serviceCharges} XOF / mois", style = MaterialTheme.typography.bodyMedium)
+                                }
                                 Text("Caution requise : ${lease.depositAmount} XOF", style = MaterialTheme.typography.bodyLarge)
                             }
                         }
@@ -205,7 +252,8 @@ fun LeasesPage(viewModel: LoginViewModel) {
 
                         val isAnnual = lease.paymentFrequency == "ANNUAL"
                         val rentMonthsRequired = if (isAnnual) 12 else lease.advanceMonths
-                        val totalRequiredRent = rentMonthsRequired * lease.monthlyRentAtSign
+                        val monthlyCharges = matchedLogement?.serviceCharges ?: 0.0
+                        val totalRequiredRent = rentMonthsRequired * (lease.monthlyRentAtSign + monthlyCharges)
 
                         val totalPaidCaution = lease.payments.filter { it.category == "CAUTION" }.sumOf { it.amount }
                         val totalPaidRent = lease.payments.filter { it.category == "LOYER" }.sumOf { it.amount }
@@ -214,8 +262,9 @@ fun LeasesPage(viewModel: LoginViewModel) {
                         val remainingRent = maxOf(0.0, totalRequiredRent - totalPaidRent)
                         val totalRemaining = remainingCaution + remainingRent
 
-                        val isFullyPaid = lease.status == LeaseStatus.PENDING_SIGNATURE || lease.status == LeaseStatus.SIGNED_ACTIVE || lease.status == LeaseStatus.TERMINATED || totalRemaining <= 0.0
-                        val isReadyToSign = lease.status == LeaseStatus.PENDING_SIGNATURE || totalRemaining <= 0.0
+                        // Strictly require all sums to be paid (totalRemaining <= 0) before considering ready to sign
+                        val isFullyPaid = isLocked || isTerminated || totalRemaining <= 0.0
+                        val isReadyToSign = !isLocked && !isTerminated && totalRemaining <= 0.0
 
                         // Display contract locked or current state progress
                         if (isTerminated) {
@@ -1006,6 +1055,10 @@ fun LeaseWizardDialog(
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                             Text("TOTAL REQUIS (Caution + Loyers) :", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                                             Text("$totalRequiredToPay XOF", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                                        }
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                            Text("Acompte versé :", style = MaterialTheme.typography.bodyMedium)
+                                            Text("$acompteVal XOF", style = MaterialTheme.typography.bodyMedium)
                                         }
                                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                             Text("RESTE À PAYER :", style = MaterialTheme.typography.titleMedium, color = if (remainingToPay > 0.0) Color(0xFFBA1A1A) else Color(0xFF006948))

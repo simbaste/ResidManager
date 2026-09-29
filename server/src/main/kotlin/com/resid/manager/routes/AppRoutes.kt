@@ -2,24 +2,85 @@ package com.resid.manager.routes
 
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.resid.manager.auth.JwtConfig
-import com.resid.manager.data.*
-import com.resid.manager.dto.*
+import com.resid.manager.data.Baux
+import com.resid.manager.data.Currencies
+import com.resid.manager.data.CurrencyEntity
+import com.resid.manager.data.ElectricityStatement
+import com.resid.manager.data.Equipement
+import com.resid.manager.data.FinancialTransaction
+import com.resid.manager.data.FinancialTransactions
+import com.resid.manager.data.Lease
+import com.resid.manager.data.Logement
+import com.resid.manager.data.Logements
+import com.resid.manager.data.Residence
+import com.resid.manager.data.ResidenceMembers
+import com.resid.manager.data.Residences
+import com.resid.manager.data.Ticket
+import com.resid.manager.data.TicketCategories
+import com.resid.manager.data.TicketCategoryEntity
+import com.resid.manager.data.User
+import com.resid.manager.data.Users
+import com.resid.manager.dto.AssociatedResidenceItem
+import com.resid.manager.dto.AuthResponse
+import com.resid.manager.dto.ElectricityStatementCreateRequest
+import com.resid.manager.dto.ElectricityStatementDto
+import com.resid.manager.dto.ElectricityStatementUpdateRequest
+import com.resid.manager.dto.EquipementDto
+import com.resid.manager.dto.ErrorResponse
+import com.resid.manager.dto.ExpenseRecordRequest
+import com.resid.manager.dto.InviteMemberRequest
+import com.resid.manager.dto.LeaseCreateRequest
+import com.resid.manager.dto.LeaseDto
+import com.resid.manager.dto.LeasePaymentDto
+import com.resid.manager.dto.LeasePaymentRequest
+import com.resid.manager.dto.LeaseStatus
+import com.resid.manager.dto.LeaseUpdateRequest
+import com.resid.manager.dto.LogementCreateRequest
+import com.resid.manager.dto.LogementDto
+import com.resid.manager.dto.MemberStatusUpdateRequest
+import com.resid.manager.dto.RegisterRequest
+import com.resid.manager.dto.ResidenceCreateRequest
+import com.resid.manager.dto.ResidenceDirectoryDTO
+import com.resid.manager.dto.ResidenceMemberSummary
+import com.resid.manager.dto.ResidenceSummaryItem
+import com.resid.manager.dto.StatementStatus
+import com.resid.manager.dto.TicketCategoryDto
+import com.resid.manager.dto.TicketCreateRequest
+import com.resid.manager.dto.TicketDto
+import com.resid.manager.dto.TicketStatus
+import com.resid.manager.dto.TicketUpdateRequest
+import com.resid.manager.dto.TicketUrgency
+import com.resid.manager.dto.UserDto
+import com.resid.manager.dto.UserSearchDto
+import com.resid.manager.dto.UserUpdateRequest
+import com.resid.manager.service.DashboardService
 import com.resid.manager.service.ElectricityService
+import com.resid.manager.service.FinanceOperationService
 import com.resid.manager.service.PdfService
 import com.resid.manager.service.TicketService
-import com.resid.manager.service.DashboardService
-import com.resid.manager.service.FinanceOperationService
 import com.resid.manager.validation.AuthValidator
-import io.ktor.http.*
-import io.ktor.server.application.*
-import io.ktor.server.auth.*
-import io.ktor.server.auth.jwt.*
-import io.ktor.server.request.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
-import org.jetbrains.exposed.sql.*
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.application.Application
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.auth.principal
+import io.ktor.server.request.receive
+import io.ktor.server.response.respond
+import io.ktor.server.response.respondBytes
+import io.ktor.server.routing.delete
+import io.ktor.server.routing.get
+import io.ktor.server.routing.post
+import io.ktor.server.routing.put
+import io.ktor.server.routing.routing
+import org.jetbrains.exposed.sql.SizedCollection
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
@@ -146,7 +207,7 @@ fun Application.configureAppRoutes() {
                     val dbResidence = Residence.findById(UUID.fromString(residenceId))
                         ?: throw Exception("Résidence introuvable.")
 
-                    val statementsToPrint = if (!statementIdsParam.isNullOrBlank()) {
+                    val receiptsToPrint = if (!statementIdsParam.isNullOrBlank()) {
                         val uuids = statementIdsParam.split(",").map { UUID.fromString(it.trim()) }
                         ElectricityStatement.all().filter { it.id.value in uuids }
                     } else {
@@ -154,22 +215,38 @@ fun Application.configureAppRoutes() {
                             .filter { it.logement.residence.id.value == UUID.fromString(residenceId) }
                             .sortedByDescending { it.statementDate }
                             .take(4)
-                    }.map {
-                        ElectricityStatementDto(
-                            id = it.id.value.toString(),
-                            logementId = it.logement.id.value.toString(),
-                            previousIndex = it.oldIndex,
-                            newIndex = it.newIndex,
-                            kWhPriceApplied = it.kWhPriceApplied,
-                            amountDue = it.amountDue,
-                            statementDate = it.statementDate.toString(),
-                            status = if (it.status == "PAID") StatementStatus.PAID else StatementStatus.UNPAID,
-                            createdAt = it.createdAt.toString(),
-                            updatedAt = it.updatedAt.toString()
+                    }.map { stmt ->
+                        val log = stmt.logement
+                        val activeLease = Lease.find {
+                            (Baux.logementId eq log.id) and (Baux.status eq "SIGNED_ACTIVE")
+                        }.firstOrNull() ?: Lease.find {
+                            Baux.logementId eq log.id
+                        }.firstOrNull()
+
+                        val tenantName = activeLease?.let { lease ->
+                            "${lease.tenant.firstName} ${lease.tenant.lastName}".trim()
+                        }
+
+                        val dto = ElectricityStatementDto(
+                            id = stmt.id.value.toString(),
+                            logementId = log.id.value.toString(),
+                            previousIndex = stmt.oldIndex,
+                            newIndex = stmt.newIndex,
+                            kWhPriceApplied = stmt.kWhPriceApplied,
+                            amountDue = stmt.amountDue,
+                            statementDate = stmt.statementDate.toString(),
+                            status = if (stmt.status == "PAID") StatementStatus.PAID else StatementStatus.UNPAID,
+                            createdAt = stmt.createdAt.toString(),
+                            updatedAt = stmt.updatedAt.toString()
+                        )
+                        com.resid.manager.service.ElectricityReceiptItem(
+                            statement = dto,
+                            logementName = log.name,
+                            tenantName = tenantName
                         )
                     }
 
-                    PdfService.generateEcoPrintPdf(statementsToPrint, dbResidence.name)
+                    PdfService.generateEcoPrintPdf(receiptsToPrint, dbResidence.name)
                 }
 
                 call.respondBytes(pdfBytes, ContentType.Application.Pdf)
@@ -1488,6 +1565,30 @@ fun Application.configureAppRoutes() {
                     val updatedLeaseDto = transaction {
                         val dbLease = Lease.findById(UUID.fromString(leaseId)) 
                             ?: throw Exception("Contrat de bail introuvable.")
+
+                        // Security check: cannot transition to SIGNED_ACTIVE if sums are not fully paid
+                        if (request.status == LeaseStatus.SIGNED_ACTIVE) {
+                            val paidCaution = FinancialTransaction.find { 
+                                (FinancialTransactions.relatedEntityType eq "BAIL") and 
+                                (FinancialTransactions.relatedEntityId eq dbLease.id.value) and 
+                                (FinancialTransactions.type eq "INCOME") and
+                                (FinancialTransactions.category eq "Deposit")
+                            }.sumOf { it.amount }
+
+                            val paidRent = FinancialTransaction.find { 
+                                (FinancialTransactions.relatedEntityType eq "BAIL") and 
+                                (FinancialTransactions.relatedEntityId eq dbLease.id.value) and 
+                                (FinancialTransactions.type eq "INCOME") and
+                                ((FinancialTransactions.category eq "Rent") or (FinancialTransactions.category eq "Lease Payment"))
+                            }.sumOf { it.amount }
+
+                            val requiredRent = dbLease.advanceMonths * (dbLease.logement.nominalRent + dbLease.logement.serviceCharges)
+                            val remainingTotal = maxOf(0.0, dbLease.depositAmount - paidCaution) + maxOf(0.0, requiredRent - paidRent)
+
+                            if (remainingTotal > 0.0) {
+                                throw Exception("Impossible de signer le contrat : il reste encore ${remainingTotal.toLong()} XOF à régler.")
+                            }
+                        }
 
                         request.status?.let { 
                             dbLease.status = it.name 

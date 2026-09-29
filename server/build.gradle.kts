@@ -48,3 +48,21 @@ tasks.withType<Jar>().configureEach {
 tasks.named<Sync>("installDist") {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
+
+// Tâche pour lancer le serveur pointant sur la base de données locale DEVELOP (Docker port 5433)
+tasks.register<JavaExec>("runDevelop") {
+    group = "application"
+    description = "Runs the server connected to the local develop database (Docker port 5433)"
+    mainClass.set("com.resid.manager.ApplicationKt")
+    classpath = sourceSets["main"].runtimeClasspath
+    environment("JDBC_DATABASE_URL", "jdbc:postgresql://localhost:5433/residmanager_db")
+}
+
+// Tâche pour lancer le serveur pointant sur la base de données locale reproduisant MAIN (Docker port 5434)
+tasks.register<JavaExec>("runMain") {
+    group = "application"
+    description = "Runs the server connected to the local main replica database (Docker port 5434)"
+    mainClass.set("com.resid.manager.ApplicationKt")
+    classpath = sourceSets["main"].runtimeClasspath
+    environment("JDBC_DATABASE_URL", "jdbc:postgresql://localhost:5434/residmanager_db")
+}

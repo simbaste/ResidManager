@@ -1,8 +1,11 @@
 package com.resid.manager.service
 
-import com.resid.manager.data.*
+import com.resid.manager.data.FinancialTransaction
+import com.resid.manager.data.FinancialTransactions
+import com.resid.manager.data.Residence
 import com.resid.manager.dto.FinanceTransactionDto
-import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.andWhere
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
@@ -92,8 +95,11 @@ object FinanceOperationService {
             query = query.andWhere { FinancialTransactions.description.like("%$text%") }
         }
 
-        // Sort by transactionDate descending
-        query = query.orderBy(FinancialTransactions.transactionDate to SortOrder.DESC)
+        // Sort by transactionDate descending, and then by createdAt descending for transactions on the same day
+        query = query.orderBy(
+            FinancialTransactions.transactionDate to SortOrder.DESC,
+            FinancialTransactions.createdAt to SortOrder.DESC
+        )
 
         return query.map { row ->
             FinanceTransactionDto(

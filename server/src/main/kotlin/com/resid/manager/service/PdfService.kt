@@ -1,16 +1,31 @@
 package com.resid.manager.service
 
-import com.lowagie.text.*
+import com.lowagie.text.Document
+import com.lowagie.text.Element
+import com.lowagie.text.Font
+import com.lowagie.text.FontFactory
+import com.lowagie.text.PageSize
+import com.lowagie.text.Paragraph
+import com.lowagie.text.Rectangle
 import com.lowagie.text.pdf.PdfPCell
 import com.lowagie.text.pdf.PdfPTable
 import com.lowagie.text.pdf.PdfWriter
 import com.resid.manager.dto.ElectricityStatementDto
-import java.io.ByteArrayOutputStream
 import java.awt.Color
+import java.io.ByteArrayOutputStream
+
+data class ElectricityReceiptItem(
+    val statement: ElectricityStatementDto,
+    val logementName: String,
+    val tenantName: String?
+)
 
 object PdfService {
 
-    fun generateEcoPrintPdf(statements: List<ElectricityStatementDto>, residenceName: String): ByteArray {
+    fun generateEcoPrintPdf(
+        receipts: List<ElectricityReceiptItem>,
+        residenceName: String
+    ): ByteArray {
         val out = ByteArrayOutputStream()
         
         // Page A4 Portrait
@@ -26,13 +41,14 @@ object PdfService {
         
         // We will display exactly 4 statements. If the list is smaller, we fill with empty receipt templates.
         for (i in 0 until 4) {
-            val stmt = statements.getOrNull(i)
+            val item = receipts.getOrNull(i)
             val cell = PdfPCell()
             cell.fixedHeight = 390f
             cell.setPadding(15f)
             cell.border = Rectangle.NO_BORDER // We will draw cutting dashed lines instead
 
-            if (stmt != null) {
+            if (item != null) {
+                val stmt = item.statement
                 // Receipt Header
                 val header = Paragraph("$residenceName\nREÇU D'ÉLECTRICITÉ", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12f, Font.BOLD))
                 header.alignment = Element.ALIGN_CENTER
@@ -42,7 +58,8 @@ object PdfService {
                 
                 // Receipt details
                 cell.addElement(Paragraph("Date du relevé : ${stmt.statementDate}", FontFactory.getFont(FontFactory.HELVETICA, 10f)))
-                cell.addElement(Paragraph("Logement : Unité ${stmt.logementId.take(8).uppercase()}", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10f)))
+                cell.addElement(Paragraph("Logement : ${item.logementName}", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10f)))
+                cell.addElement(Paragraph("Locataire : ${item.tenantName ?: "Non assigné"}", FontFactory.getFont(FontFactory.HELVETICA, 10f)))
                 
                 cell.addElement(Paragraph("\nINDEXATION :", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9f, Font.UNDERLINE)))
                 cell.addElement(Paragraph("• Ancien Index : ${stmt.previousIndex} kWh", FontFactory.getFont(FontFactory.HELVETICA, 10f)))
