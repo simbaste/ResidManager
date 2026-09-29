@@ -1,0 +1,32 @@
+services:
+  # Base de données pour la branche main (reproduction fidèle de la prod)
+  postgres-main:
+    image: postgres:17-alpine
+    container_name: residmanager_db_main
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: residmanager_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata_main:/var/lib/postgresql/data
+
+  # Base de données pour la branche develop (nouvelles fonctionnalités & migrations)
+  postgres-dev:
+    image: postgres:17-alpine
+    container_name: residmanager_db_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: residmanager_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+
+volumes:
+  pgdata_main:
+  pgdata_dev:

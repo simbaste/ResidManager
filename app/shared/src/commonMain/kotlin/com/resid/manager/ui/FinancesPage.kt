@@ -112,7 +112,12 @@ fun FinancesPage(viewModel: LoginViewModel) {
                     header(HttpHeaders.Authorization, "Bearer ${uiState.jwtToken}")
                 }
                 if (response.status == io.ktor.http.HttpStatusCode.OK) {
-                    transactions = response.body()
+                    val rawTransactions: List<FinanceTransactionDto> = response.body()
+                    // Trie du plus récent au plus ancien par transactionDate puis createdAt
+                    transactions = rawTransactions.sortedWith(
+                        compareByDescending<FinanceTransactionDto> { it.transactionDate }
+                            .thenByDescending { it.createdAt }
+                    )
                 }
             } catch (e: Exception) {}
             isLoadingList = false
