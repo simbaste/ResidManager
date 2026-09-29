@@ -6,6 +6,9 @@ import com.resid.manager.data.ElectricityStatement
 import com.resid.manager.data.ElectricityStatements
 import com.resid.manager.data.HttpError
 import com.resid.manager.data.InvitationStatus
+import com.resid.manager.data.Lease
+import com.resid.manager.data.LeaseStatus
+import com.resid.manager.data.Leases
 import com.resid.manager.data.Residence
 import com.resid.manager.data.ResidenceMembers
 import com.resid.manager.data.ResidenceUnits
@@ -306,7 +309,18 @@ object ResidenceService {
                 .limit(4)
                 .let { ElectricityStatement.wrapRows(it).toList() }
         }.map {
-            ElectricityStatementDto(
+            val log = it.residenceUnit
+            val activeLease = Lease.find {
+                (Leases.residenceUnitId eq log.id) and (Leases.status eq LeaseStatus.SIGNED_ACTIVE)
+            }.firstOrNull() ?: Lease.find {
+                Leases.residenceUnitId eq log.id
+            }.firstOrNull()
+
+            val tenantName = activeLease?.let { lease ->
+                "${lease.tenant.firstName} ${lease.tenant.lastName}".trim()
+            }
+
+            val dto = ElectricityStatementDto(
                 id = it.id.value.toString(),
                 unitId = it.residenceUnit.id.value.toString(),
                 previousIndex = it.oldIndex,
@@ -317,6 +331,11 @@ object ResidenceService {
                 status = it.status.convert(),
                 createdAt = it.createdAt.toString(),
                 updatedAt = it.updatedAt.toString()
+            )
+            ElectricityReceiptItem(
+                statement = dto,
+                logementName = log.name,
+                tenantName = tenantName
             )
         }
 
