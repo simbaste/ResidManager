@@ -4,6 +4,7 @@ import com.resid.manager.SessionStorage
 import com.resid.manager.createPlatformSessionStorage
 import com.resid.manager.features.auth.di.authFeatureModule
 import com.resid.manager.features.dashboard.di.dashboardFeatureModule
+import com.resid.manager.features.electricity.di.electricityFeatureModule
 import com.resid.manager.features.leases.di.leasesFeatureModule
 import com.resid.manager.features.members.di.membersFeatureModule
 import com.resid.manager.features.residences.di.residencesFeatureModule
@@ -86,6 +87,7 @@ val sharedAppModule = module {
         unitsFeatureModule,
         leasesFeatureModule,
         membersFeatureModule,
+        electricityFeatureModule,
         viewModelModule
     )
 }

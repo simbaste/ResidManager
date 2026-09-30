@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.resid.manager.features.dashboard.ui.DashboardScreen
+import com.resid.manager.features.electricity.ui.ElectricityScreen
 import com.resid.manager.features.leases.ui.LeasesScreen
 import com.resid.manager.features.members.ui.MembersScreen
 import com.resid.manager.features.residences.ui.ResidencesScreen
@@ -129,7 +130,11 @@ fun AppShell(
                             jwtToken = uiState.jwtToken,
                             onCreateResidenceClick = { viewModel.setShowCreateResidenceDialog(true) }
                         )
-                        AppScreen.ELECTRICITY -> ElectricityPage(viewModel = viewModel)
+                        AppScreen.ELECTRICITY -> ElectricityScreen(
+                            activeResidence = uiState.selectedResidenceContext,
+                            jwtToken = uiState.jwtToken,
+                            residenceUnits = uiState.residenceUnits
+                        )
                         AppScreen.TICKETS -> TicketsPage(viewModel = viewModel)
                         AppScreen.FINANCES -> FinancesPage(viewModel = viewModel)
                         AppScreen.PROFILE -> ProfilePage(viewModel = viewModel)
