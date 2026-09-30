@@ -26,6 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.resid.manager.features.dashboard.ui.DashboardScreen
 import com.resid.manager.features.residences.ui.ResidencesScreen
+import com.resid.manager.features.units.ui.UnitsScreen
 import com.resid.manager.ui.theme.ResidTheme
 import com.resid.manager.viewmodel.AppScreen
 import com.resid.manager.viewmodel.LoginViewModel
@@ -102,7 +103,19 @@ fun AppShell(
                                 viewModel.navigateToAppScreen(AppScreen.DASHBOARD)
                             }
                         )
-                        AppScreen.LOGEMENTS -> LogementsPage(viewModel = viewModel)
+                        AppScreen.LOGEMENTS -> UnitsScreen(
+                            activeResidence = uiState.selectedResidenceContext,
+                            jwtToken = uiState.jwtToken,
+                            leases = uiState.leases,
+                            members = uiState.members,
+                            onAssignTenantClick = { unitId ->
+                                // Trigger lease assignment wizard
+                            },
+                            onCreateUnitClick = { viewModel.setShowCreateUnitDialog(true) },
+                            onEditUnitClick = { unit ->
+                                // Edit unit modal
+                            }
+                        )
                         AppScreen.BAUX -> LeasesPage(viewModel = viewModel)
                         AppScreen.MEMBERS -> MembersPage(viewModel = viewModel)
                         AppScreen.ELECTRICITY -> ElectricityPage(viewModel = viewModel)
