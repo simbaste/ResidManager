@@ -8,6 +8,7 @@ import com.resid.manager.features.electricity.di.electricityFeatureModule
 import com.resid.manager.features.finances.di.financesFeatureModule
 import com.resid.manager.features.leases.di.leasesFeatureModule
 import com.resid.manager.features.members.di.membersFeatureModule
+import com.resid.manager.features.profile.di.profileFeatureModule
 import com.resid.manager.features.residences.di.residencesFeatureModule
 import com.resid.manager.features.tickets.di.ticketsFeatureModule
 import com.resid.manager.features.units.di.unitsFeatureModule
@@ -92,6 +93,7 @@ val sharedAppModule = module {
         electricityFeatureModule,
         ticketsFeatureModule,
         financesFeatureModule,
+        profileFeatureModule,
         viewModelModule
     )
 }

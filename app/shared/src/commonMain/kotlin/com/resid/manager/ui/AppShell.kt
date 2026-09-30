@@ -29,6 +29,7 @@ import com.resid.manager.features.electricity.ui.ElectricityScreen
 import com.resid.manager.features.finances.ui.FinancesScreen
 import com.resid.manager.features.leases.ui.LeasesScreen
 import com.resid.manager.features.members.ui.MembersScreen
+import com.resid.manager.features.profile.ui.ProfileScreen
 import com.resid.manager.features.residences.ui.ResidencesScreen
 import com.resid.manager.features.tickets.ui.TicketsScreen
 import com.resid.manager.features.units.ui.UnitsScreen
@@ -146,7 +147,16 @@ fun AppShell(
                             activeResidence = uiState.selectedResidenceContext,
                             jwtToken = uiState.jwtToken
                         )
-                        AppScreen.PROFILE -> ProfilePage(viewModel = viewModel)
+                        AppScreen.PROFILE -> ProfileScreen(
+                            user = uiState.loggedInUser,
+                            firstName = uiState.firstName,
+                            lastName = uiState.lastName,
+                            phone = uiState.phone,
+                            activeResidence = uiState.selectedResidenceContext,
+                            jwtToken = uiState.jwtToken,
+                            onLogout = { viewModel.logout() },
+                            onUserUpdated = { viewModel.updateUserProfile(it) }
+                        )
                     }
                 }
             }
