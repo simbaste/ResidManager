@@ -36,11 +36,11 @@ L'application utilise un thème **Dark Mode par défaut**, professionnel et épu
 
 ---
 
-## 2. Structure Canonique d'un Écran MVI
+## 2. Structure Canonique d'une Feature MVI
 
-Chaque écran doit respecter le découpage suivant :
+Chaque feature (ex: `features/residences/`, `features/leases/`, etc.) doit respecter le découpage suivant :
 
-### A. Définition du Contrat MVI (`<Feature>Contract.kt` ou en tête de ViewModel)
+### A. Définition du Contrat MVI (`features/<feature>/mvi/<Feature>Contract.kt`)
 ```kotlin
 // 1. État complet de l'écran (Immutable data class)
 data class FeatureUiState(
@@ -65,7 +65,7 @@ sealed interface FeatureEffect {
 }
 ```
 
-### B. Le ViewModel
+### B. Le ViewModel (`features/<feature>/<Feature>ViewModel.kt`)
 ```kotlin
 class FeatureViewModel(
     private val getItemsUseCase: GetItemsUseCase,
@@ -92,7 +92,7 @@ class FeatureViewModel(
 }
 ```
 
-### C. Le Screen Composable (Séparation Stateful / Stateless avec Koin et Navigation 3)
+### C. Le Screen Composable (`features/<feature>/ui/<Feature>Screen.kt`)
 Pour assurer la testabilité, l'injection propre et la prévisualisation, séparez toujours le point d'entrée connecté au ViewModel de l'UI pure :
 
 ```kotlin
@@ -131,11 +131,17 @@ fun FeatureContent(
         if (state.isLoading) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
         } else {
-            // Rendu des composants...
+            // Rendu des sous-composants situés dans features/<feature>/ui/components/
         }
     }
 }
 ```
+
+### D. Organisation des sous-composants (`features/<feature>/ui/components/`)
+Afin de respecter la limite stricte de **250 lignes par fichier** :
+- Les cartes de listes : `features/<feature>/ui/components/<Feature>Card.kt`.
+- Les boîtes de dialogue / modales : `features/<feature>/ui/components/Create<Feature>Dialog.kt`.
+- Les filtres et barres d'action : `features/<feature>/ui/components/<Feature>FilterBar.kt`.
 
 ### D. Enregistrement dans Navigation 3 (`NavEntry`)
 Dans l'orchestrateur de navigation racine (`NavDisplay`) :

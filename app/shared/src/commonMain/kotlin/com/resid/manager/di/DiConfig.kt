@@ -2,6 +2,7 @@ package com.resid.manager.di
 
 import com.resid.manager.SessionStorage
 import com.resid.manager.createPlatformSessionStorage
+import com.resid.manager.features.auth.di.authFeatureModule
 import com.resid.manager.repository.AuthRepository
 import com.resid.manager.repository.AuthRepositoryImpl
 import com.resid.manager.repository.LeaseRepository
@@ -69,7 +70,14 @@ val viewModelModule = module {
 }
 
 val sharedAppModule = module {
-    includes(networkModule, repositoryModule, useCaseModule, sessionStorageModule, viewModelModule)
+    includes(
+        networkModule,
+        repositoryModule,
+        useCaseModule,
+        sessionStorageModule,
+        authFeatureModule,
+        viewModelModule
+    )
 }
 
 fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {

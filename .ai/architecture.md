@@ -75,7 +75,74 @@ UiEffect)    │ ▼
 
 ---
 
-## 3. Architecture Backend (`:server`)
+## 3. Organisation du Code Client par Feature (`feature-first`)
+
+Afin de garantir une forte cohésion et un couplage faible, le code du module client (`:app:shared`) **DOIT** être organisé **par Feature**. L'ancien découpage horizontal (`ui/`, `viewmodel/`) est abandonné au profit d'une structure modulaire par domaine d'usage :
+
+```text
+app/shared/src/commonMain/kotlin/com/resid/manager/
+│
+├── features/
+│   ├── auth/                          # Feature Authentification (Login, Register)
+│   │   ├── navigation/                # Clés Navigation 3 (AuthNavKey : NavKey)
+│   │   ├── mvi/                       # AuthContract.kt (UiState, Intent, Effect)
+│   │   ├── AuthViewModel.kt           # MviViewModel
+│   │   ├── ui/                        # Composables de la feature
+│   │   │   ├── LoginScreen.kt
+│   │   │   ├── RegisterScreen.kt
+│   │   │   └── components/            # Sous-composants dédiés (AuthHeader, LoginForm...)
+│   │   └── usecase/                   # LoginUseCase, RegisterUseCase...
+│   │
+│   ├── dashboard/                     # Feature Dashboard (KPIs, Résumés)
+│   │   ├── mvi/                       # DashboardContract.kt
+│   │   ├── DashboardViewModel.kt
+│   │   └── ui/
+│   │       ├── DashboardScreen.kt
+│   │       └── components/            # Widgets, KpiCards, RecentActivityList...
+│   │
+│   ├── residences/                    # Feature Résidences
+│   │   ├── mvi/                       # ResidencesContract.kt
+│   │   ├── ResidencesViewModel.kt
+│   │   ├── ui/
+│   │   │   ├── ResidencesScreen.kt
+│   │   │   └── components/            # ResidenceCard, CreateResidenceDialog...
+│   │   └── usecase/                   # GetResidencesUseCase, CreateResidenceUseCase...
+│   │
+│   ├── units/                         # Feature Logements / Lots (Units)
+│   │   ├── mvi/
+│   │   ├── UnitsViewModel.kt
+│   │   └── ui/
+│   │       ├── UnitsScreen.kt
+│   │       └── components/            # UnitCard, AddUnitModal...
+│   │
+│   ├── leases/                        # Feature Baux & Contrats
+│   ├── electricity/                   # Feature Électricité & Compteurs
+│   ├── finances/                      # Feature Finances & Transactions
+│   ├── tickets/                       # Feature Tickets de Maintenance
+│   ├── members/                       # Feature Membres & Rôles
+│   └── profile/                       # Feature Profil & Préférences
+│
+└── core/                              # Socle commun transverse
+    ├── base/                          # MviViewModel.kt
+    ├── di/                            # DiConfig.kt (Koin)
+    ├── navigation/                    # Root NavKey & PlatformBackHandler
+    ├── network/                       # ApiClient.kt (Ktor client)
+    ├── session/                       # SessionStorage.kt
+    └── ui/                            # Design System, Layout global & I18n
+        ├── theme/                     # ResidTheme, Color, Type
+        ├── layout/                    # AppShell.kt, SidebarContent.kt, HeaderBar.kt
+        ├── components/                # ImagePicker, AppButton, AppTextField, Badges génériques...
+        └── i18n/                      # AppStrings, FrStrings, EnStrings
+```
+
+### Règles d'or du packaging Feature-First :
+1. **Autonomie d'une Feature** : Tout ce qui concerne une feature (State, ViewModel, UseCases, Composables, Dialogs) réside dans son dossier `features/<nom>/`.
+2. **Réutilisabilité** : Si un composant UI ou un utilitaire est utilisé par plus de deux features indépendantes, il doit être extrait vers `core/ui/components/` ou `core/`.
+3. **Module Koin par Feature** : Chaque feature déclare idéalement son module Koin (ex. `val authModule = module { ... }`), assemblé ensuite dans `DiConfig.kt`.
+
+---
+
+## 4. Architecture Backend (`:server`)
 
 Le backend suit une architecture en 3 couches distinctes :
 
@@ -107,22 +174,24 @@ Le backend suit une architecture en 3 couches distinctes :
 
 ---
 
-## 4. Règles de Découpage et Qualité de Code
+## 5. Règles de Découpage et Qualité de Code
 
-- **Taille des fichiers UI** : Aucun fichier Composable ne doit dépasser **250 lignes**. Dès qu'un écran grossit, extraire les sous-composants, formulaires, dialogs et tables dans des fichiers dédiés (ex. `ui/leases/components/...`).
+- **Taille des fichiers UI** : Aucun fichier Composable ne doit dépasser **250 lignes**. Dès qu'un écran grossit, extraire systématiquement les sous-composants, formulaires, dialogs et tables dans le sous-dossier `features/<feature>/ui/components/`.
 - **Nommage des fichiers** :
-  - Écrans : `<Feature>Screen.kt` ou `<Feature>Page.kt`.
-  - Contrats MVI : regrouper `State`, `Intent`, `Effect` dans le même fichier que le ViewModel ou dans un fichier `<Feature>Contract.kt`.
-  - DTOs : `<Entity>Dto.kt` ou `<Action><Entity>Request.kt`.
+  - Écrans racines : `<Feature>Screen.kt`.
+  - Sous-composants : `<Concept>Card.kt`, `<Action>Dialog.kt`, `<Feature>Table.kt`.
+  - Contrats MVI : `<Feature>Contract.kt` contenant `UiState`, `Intent`, `Effect`.
+  - ViewModels : `<Feature>ViewModel.kt`.
+  - UseCases : `<Verbe><Entite>UseCase.kt`.
 - **Gestion des Dépendances & DI (Koin)** :
   - Déclaration centralisée via Version Catalog (`gradle/libs.versions.toml`).
   - **Injection de dépendances obligatoire avec Koin** (`DiConfig.kt`).
-  - Les ViewModels, UseCases, Repositories, Clients HTTP et Stockages sont déclarés dans des modules Koin dédiés (`viewModelModule`, `useCaseModule`, `repositoryModule`, `networkModule`).
+  - Les ViewModels, UseCases, Repositories, Clients HTTP et Stockages sont déclarés dans des modules Koin dédiés (`authModule`, `residencesModule`, `repositoryModule`, `networkModule`, etc.).
   - Dans les Composables Compose Multiplatform, la récupération des ViewModels ou services se fait impérativement via Koin (`koinInject()` ou `koinViewModel()`).
 
 ---
 
-## 5. Navigation avec Navigation 3 (`androidx.navigation3`)
+## 6. Navigation avec Navigation 3 (`androidx.navigation3`)
 
 La navigation dans `:app:shared` **DOIT** être implémentée à l'aide de **Jetpack Navigation 3** :
 

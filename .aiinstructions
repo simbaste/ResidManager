@@ -18,11 +18,12 @@ Pour toute tâche, vous **DEVEZ** consulter et respecter les documents spéciali
 
 ## 🎯 Directives Générales de Développement
 
-1. **Pattern MVI Strict & Clean Architecture (Côté Client `:app:shared`) :**
-   - Tout nouvel écran ou refactorisation d'écran existant **DOIT** implémenter le pattern MVI en héritant de `com.resid.manager.base.MviViewModel<State, Intent, Effect>`.
-   - Les composants graphiques émettent des `Intent` et observent un `UiState` immuable ainsi que des `Effect` (navigation, notifications).
-   - Les appels de données et règles métier passent obligatoirement par des **UseCases** dédiés (`operator fun invoke`).
-   - Les fichiers de composants Compose ne doivent pas devenir monolithiques : découper dès que la taille approche ou dépasse **250 lignes**.
+1. **Organisation par Feature (`feature-first`) & MVI Strict (Côté Client `:app:shared`) :**
+   - Le code client est organisé par fonctionnalité : `features/<nom_feature>/` (`auth`, `dashboard`, `residences`, `units`, `leases`, `electricity`, `finances`, `tickets`, `members`, `profile`).
+   - Chaque feature regroupe ses composants UI (`ui/`), sous-composants (`ui/components/`), contrat MVI (`mvi/`), ViewModel (`<Feature>ViewModel.kt`) et UseCases (`usecase/`).
+   - Le code commun partagé se trouve sous `core/` (`core/base`, `core/di`, `core/network`, `core/ui/theme`, etc.).
+   - Tout ViewModel hérite obligatoirement de `com.resid.manager.base.MviViewModel<State, Intent, Effect>`.
+   - Limite stricte : les fichiers de composants Compose ne doivent pas dépasser **250 lignes** (extraire systématiquement les formulaires, dialogs, cards et widgets dans `ui/components/`).
 
 2. **Navigation avec Jetpack Navigation 3 & Injection de Dépendances (Koin) :**
    - La navigation dans l'application cliente repose exclusivement sur **Jetpack Navigation 3** (`androidx.navigation3`).

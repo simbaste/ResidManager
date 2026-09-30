@@ -242,6 +242,10 @@ class LoginViewModel(
     fun navigateToLogin() {
         updateState { it.copy(currentScreen = AuthScreen.LOGIN, errorMessage = null) }
     }
+    fun navigateToMain() {
+        updateState { it.copy(currentScreen = AuthScreen.MAIN, errorMessage = null) }
+        fetchResidences()
+    }
     fun setShowCreateResidenceDialog(show: Boolean) {
         updateState { it.copy(showCreateResidenceDialog = show, errorMessage = null) }
     }
