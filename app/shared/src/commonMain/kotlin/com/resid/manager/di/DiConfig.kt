@@ -3,6 +3,7 @@ package com.resid.manager.di
 import com.resid.manager.SessionStorage
 import com.resid.manager.createPlatformSessionStorage
 import com.resid.manager.features.auth.di.authFeatureModule
+import com.resid.manager.features.dashboard.di.dashboardFeatureModule
 import com.resid.manager.repository.AuthRepository
 import com.resid.manager.repository.AuthRepositoryImpl
 import com.resid.manager.repository.LeaseRepository
@@ -76,6 +77,7 @@ val sharedAppModule = module {
         useCaseModule,
         sessionStorageModule,
         authFeatureModule,
+        dashboardFeatureModule,
         viewModelModule
     )
 }

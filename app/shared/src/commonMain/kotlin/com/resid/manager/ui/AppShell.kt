@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.resid.manager.features.dashboard.ui.DashboardScreen
 import com.resid.manager.ui.theme.ResidTheme
 import com.resid.manager.viewmodel.AppScreen
 import com.resid.manager.viewmodel.LoginViewModel
@@ -81,7 +82,17 @@ fun AppShell(
                 // Central Dynamic Panel Content
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     when (uiState.currentAppScreen) {
-                        AppScreen.DASHBOARD -> DashboardPage(viewModel = viewModel)
+                        AppScreen.DASHBOARD -> DashboardScreen(
+                            activeResidence = uiState.selectedResidenceContext,
+                            firstName = uiState.firstName,
+                            jwtToken = uiState.jwtToken,
+                            onCreateResidenceClick = { viewModel.setShowCreateResidenceDialog(true) },
+                            onJoinResidenceClick = { viewModel.setShowJoinResidenceDialog(true) },
+                            onNewUnitClick = { viewModel.setShowCreateUnitDialog(true) },
+                            onNewLeaseClick = { viewModel.navigateToAppScreen(AppScreen.BAUX) },
+                            onNewExpenseClick = { viewModel.navigateToAppScreen(AppScreen.FINANCES) },
+                            onViewReportsClick = { viewModel.navigateToAppScreen(AppScreen.FINANCES) }
+                        )
                         AppScreen.RESIDENCES -> ResidencesPage(viewModel = viewModel)
                         AppScreen.LOGEMENTS -> LogementsPage(viewModel = viewModel)
                         AppScreen.BAUX -> LeasesPage(viewModel = viewModel)
