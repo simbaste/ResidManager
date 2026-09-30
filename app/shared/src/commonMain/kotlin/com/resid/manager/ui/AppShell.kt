@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.resid.manager.features.dashboard.ui.DashboardScreen
+import com.resid.manager.features.residences.ui.ResidencesScreen
 import com.resid.manager.ui.theme.ResidTheme
 import com.resid.manager.viewmodel.AppScreen
 import com.resid.manager.viewmodel.LoginViewModel
@@ -93,7 +94,14 @@ fun AppShell(
                             onNewExpenseClick = { viewModel.navigateToAppScreen(AppScreen.FINANCES) },
                             onViewReportsClick = { viewModel.navigateToAppScreen(AppScreen.FINANCES) }
                         )
-                        AppScreen.RESIDENCES -> ResidencesPage(viewModel = viewModel)
+                        AppScreen.RESIDENCES -> ResidencesScreen(
+                            jwtToken = uiState.jwtToken,
+                            userId = uiState.loggedInUser?.id,
+                            onNavigateToDashboard = { residence ->
+                                viewModel.selectResidence(residence)
+                                viewModel.navigateToAppScreen(AppScreen.DASHBOARD)
+                            }
+                        )
                         AppScreen.LOGEMENTS -> LogementsPage(viewModel = viewModel)
                         AppScreen.BAUX -> LeasesPage(viewModel = viewModel)
                         AppScreen.MEMBERS -> MembersPage(viewModel = viewModel)
