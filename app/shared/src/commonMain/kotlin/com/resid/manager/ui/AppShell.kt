@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.resid.manager.features.dashboard.ui.DashboardScreen
+import com.resid.manager.features.leases.ui.LeasesScreen
 import com.resid.manager.features.residences.ui.ResidencesScreen
 import com.resid.manager.features.units.ui.UnitsScreen
 import com.resid.manager.ui.theme.ResidTheme
@@ -116,7 +117,12 @@ fun AppShell(
                                 // Edit unit modal
                             }
                         )
-                        AppScreen.BAUX -> LeasesPage(viewModel = viewModel)
+                        AppScreen.BAUX -> LeasesScreen(
+                            activeResidence = uiState.selectedResidenceContext,
+                            jwtToken = uiState.jwtToken,
+                            residenceUnits = uiState.residenceUnits,
+                            members = uiState.members
+                        )
                         AppScreen.MEMBERS -> MembersPage(viewModel = viewModel)
                         AppScreen.ELECTRICITY -> ElectricityPage(viewModel = viewModel)
                         AppScreen.TICKETS -> TicketsPage(viewModel = viewModel)
