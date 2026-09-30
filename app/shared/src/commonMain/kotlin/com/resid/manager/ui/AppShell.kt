@@ -29,6 +29,7 @@ import com.resid.manager.features.electricity.ui.ElectricityScreen
 import com.resid.manager.features.leases.ui.LeasesScreen
 import com.resid.manager.features.members.ui.MembersScreen
 import com.resid.manager.features.residences.ui.ResidencesScreen
+import com.resid.manager.features.tickets.ui.TicketsScreen
 import com.resid.manager.features.units.ui.UnitsScreen
 import com.resid.manager.ui.theme.ResidTheme
 import com.resid.manager.viewmodel.AppScreen
@@ -135,7 +136,11 @@ fun AppShell(
                             jwtToken = uiState.jwtToken,
                             residenceUnits = uiState.residenceUnits
                         )
-                        AppScreen.TICKETS -> TicketsPage(viewModel = viewModel)
+                        AppScreen.TICKETS -> TicketsScreen(
+                            activeResidence = uiState.selectedResidenceContext,
+                            jwtToken = uiState.jwtToken,
+                            residenceUnits = uiState.residenceUnits
+                        )
                         AppScreen.FINANCES -> FinancesPage(viewModel = viewModel)
                         AppScreen.PROFILE -> ProfilePage(viewModel = viewModel)
                     }
