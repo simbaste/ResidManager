@@ -67,6 +67,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.ktor.clientCore)
+            implementation(libs.ktor.clientCio)
             implementation(libs.ktor.clientContentNegotiation)
             implementation(libs.ktor.clientSerializationKotlinxJson)
             implementation(libs.navigation3.ui)

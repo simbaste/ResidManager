@@ -29,8 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.DashboardDataDto
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun DashboardBentoKpis(
@@ -172,3 +174,22 @@ fun BentoKpiCard(
         }
     }
 }
+
+@Preview
+@Composable
+fun DashboardBentoKpisPreview() {
+    ResidTheme {
+        DashboardBentoKpis(
+            data = DashboardDataDto(
+                residenceId = "residence-1",
+                totalRevenuesCollected = 1250000.0,
+                totalExpensesIncurred = 450000.0,
+                netCashflow = 800000.0,
+                delinquencyRate = 4.5,
+                occupancyRate = 92.0
+            ),
+            currencySymbol = "FCFA"
+        )
+    }
+}
+

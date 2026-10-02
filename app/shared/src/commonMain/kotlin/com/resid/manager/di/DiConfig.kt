@@ -31,6 +31,7 @@ import kotlinx.serialization.json.Json
 import org.koin.core.context.startKoin
 import org.koin.dsl.KoinAppDeclaration
 import org.koin.dsl.module
+import org.koin.mp.KoinPlatformTools
 
 val networkModule = module {
     single {
@@ -98,9 +99,13 @@ val sharedAppModule = module {
     )
 }
 
-fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
-    appDeclaration()
-    modules(sharedAppModule)
+fun initKoin(appDeclaration: KoinAppDeclaration = {}) {
+    if (KoinPlatformTools.defaultContext().getOrNull() == null) {
+        startKoin {
+            appDeclaration()
+            modules(sharedAppModule)
+        }
+    }
 }
 
-fun initKoinHelper() = initKoin {}
+fun initKoinHelper() = initKoin()
