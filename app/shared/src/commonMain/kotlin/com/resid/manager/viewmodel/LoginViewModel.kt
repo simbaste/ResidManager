@@ -279,7 +279,7 @@ class LoginViewModel(
                                 residenceId = it.id,
                                 residenceName = it.name,
                                 residenceAddress = it.address,
-                                userRoleInResidence = UserRole.ADMIN,
+                                userRoleInResidence = UserRole.OWNER,
                                 totalUnits = it.totalUnits,
                                 currencySymbol = it.currencySymbol.label,
                                 currencyCode = it.currencyCode.name

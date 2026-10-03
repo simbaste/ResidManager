@@ -6,7 +6,7 @@ import com.resid.manager.dto.toUserRole
 import com.resid.manager.repository.ResidenceRepository
 
 class FetchResidencesUseCase(
-    private val residenceRepository: ResidenceRepository
+    private val residenceRepository: ResidenceRepository,
 ) {
     suspend operator fun invoke(token: String): Result<List<ResidenceContext>> {
         if (token.isBlank()) {
@@ -19,10 +19,10 @@ class FetchResidencesUseCase(
                     residenceId = it.id,
                     residenceName = it.name,
                     residenceAddress = it.address,
-                    userRoleInResidence = UserRole.ADMIN,
+                    userRoleInResidence = UserRole.OWNER,
                     totalUnits = it.totalUnits,
                     currencySymbol = it.currencySymbol.label,
-                    currencyCode = it.currencyCode.name
+                    currencyCode = it.currencyCode.name,
                 )
             }
             val associated = directory.associatedResidences.map {
@@ -33,7 +33,7 @@ class FetchResidencesUseCase(
                     userRoleInResidence = it.roleDto.toUserRole(),
                     totalUnits = it.totalUnits,
                     currencySymbol = it.currencySymbol.label,
-                    currencyCode = it.currencyCode.name
+                    currencyCode = it.currencyCode.name,
                 )
             }
             owned + associated
