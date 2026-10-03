@@ -1,18 +1,56 @@
 package com.resid.manager.ui
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.onFocusEvent
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceSummaryItemDto
+import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.viewmodel.LoginViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun CreateResidenceDialog(
@@ -227,17 +265,97 @@ fun CreateLogementDialog(
         onDismissRequest = onDismiss,
         title = { Text("Ajouter un logement") },
         text = {
+            val scrollState = rememberScrollState()
+            val coroutineScope = rememberCoroutineScope()
+            val currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: "XOF"
+            val focusManager = LocalFocusManager.current
+
             Column(
-                modifier = Modifier.widthIn(max = 500.dp).heightIn(max = 450.dp).verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .widthIn(max = 500.dp)
+                    .heightIn(max = 450.dp)
+                    .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                val currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: "XOF"
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom / Numéro d'unité *") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = floor, onValueChange = { floor = it }, label = { Text("Étage / Bloc *") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Type d'unité *") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = nominalRent, onValueChange = { nominalRent = it }, label = { Text("Loyer mensuel nominal ($currencySymbol) *") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = serviceCharges, onValueChange = { serviceCharges = it }, label = { Text("Charges fixes d'entretien *") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = initialElectricityIndex, onValueChange = { initialElectricityIndex = it }, label = { Text("Index Électricité initial (kWh)") }, modifier = Modifier.fillMaxWidth())
+                val nameRequester = remember { BringIntoViewRequester() }
+                val floorRequester = remember { BringIntoViewRequester() }
+                val typeRequester = remember { BringIntoViewRequester() }
+                val rentRequester = remember { BringIntoViewRequester() }
+                val chargesRequester = remember { BringIntoViewRequester() }
+                val electricityIndexRequester = remember { BringIntoViewRequester() }
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nom / Numéro d'unité *") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(nameRequester)
+                        .onFocusEvent { if (it.isFocused) coroutineScope.launch { nameRequester.bringIntoView() } }
+                )
+                OutlinedTextField(
+                    value = floor,
+                    onValueChange = { floor = it },
+                    label = { Text("Étage / Bloc *") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(floorRequester)
+                        .onFocusEvent { if (it.isFocused) coroutineScope.launch { floorRequester.bringIntoView() } }
+                )
+                OutlinedTextField(
+                    value = type,
+                    onValueChange = { type = it },
+                    label = { Text("Type d'unité *") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(typeRequester)
+                        .onFocusEvent { if (it.isFocused) coroutineScope.launch { typeRequester.bringIntoView() } }
+                )
+                OutlinedTextField(
+                    value = nominalRent,
+                    onValueChange = { nominalRent = it },
+                    label = { Text("Loyer mensuel nominal ($currencySymbol) *") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(rentRequester)
+                        .onFocusEvent { if (it.isFocused) coroutineScope.launch { rentRequester.bringIntoView() } }
+                )
+                OutlinedTextField(
+                    value = serviceCharges,
+                    onValueChange = { serviceCharges = it },
+                    label = { Text("Charges fixes d'entretien *") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(chargesRequester)
+                        .onFocusEvent { if (it.isFocused) coroutineScope.launch { chargesRequester.bringIntoView() } }
+                )
+                OutlinedTextField(
+                    value = initialElectricityIndex,
+                    onValueChange = { initialElectricityIndex = it },
+                    label = { Text("Index Électricité initial (kWh)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(electricityIndexRequester)
+                        .onFocusEvent { if (it.isFocused) coroutineScope.launch { electricityIndexRequester.bringIntoView() } }
+                )
                 
                 // Predefined Equipements list picker
                 if (uiState.availableEquipements.isNotEmpty()) {
@@ -308,17 +426,97 @@ fun EditLogementDialog(
         onDismissRequest = onDismiss,
         title = { Text("Modifier le logement") },
         text = {
+            val scrollState = rememberScrollState()
+            val coroutineScope = rememberCoroutineScope()
+            val currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: "XOF"
+            val focusManager = LocalFocusManager.current
+
             Column(
-                modifier = Modifier.widthIn(max = 500.dp).heightIn(max = 450.dp).verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .widthIn(max = 500.dp)
+                    .heightIn(max = 450.dp)
+                    .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                val currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: "XOF"
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom d'unité *") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = floor, onValueChange = { floor = it }, label = { Text("Étage *") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("Type d'unité *") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = nominalRent, onValueChange = { nominalRent = it }, label = { Text("Loyer de base ($currencySymbol) *") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = serviceCharges, onValueChange = { serviceCharges = it }, label = { Text("Charges fixes *") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = initialElectricityIndex, onValueChange = { initialElectricityIndex = it }, label = { Text("Index Elec initial *") }, modifier = Modifier.fillMaxWidth())
+                val nameRequester = remember { BringIntoViewRequester() }
+                val floorRequester = remember { BringIntoViewRequester() }
+                val typeRequester = remember { BringIntoViewRequester() }
+                val rentRequester = remember { BringIntoViewRequester() }
+                val chargesRequester = remember { BringIntoViewRequester() }
+                val electricityIndexRequester = remember { BringIntoViewRequester() }
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Nom d'unité *") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(nameRequester)
+                        .onFocusEvent { if (it.isFocused) coroutineScope.launch { nameRequester.bringIntoView() } }
+                )
+                OutlinedTextField(
+                    value = floor,
+                    onValueChange = { floor = it },
+                    label = { Text("Étage *") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(floorRequester)
+                        .onFocusEvent { if (it.isFocused) coroutineScope.launch { floorRequester.bringIntoView() } }
+                )
+                OutlinedTextField(
+                    value = type,
+                    onValueChange = { type = it },
+                    label = { Text("Type d'unité *") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(typeRequester)
+                        .onFocusEvent { if (it.isFocused) coroutineScope.launch { typeRequester.bringIntoView() } }
+                )
+                OutlinedTextField(
+                    value = nominalRent,
+                    onValueChange = { nominalRent = it },
+                    label = { Text("Loyer de base ($currencySymbol) *") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(rentRequester)
+                        .onFocusEvent { if (it.isFocused) coroutineScope.launch { rentRequester.bringIntoView() } }
+                )
+                OutlinedTextField(
+                    value = serviceCharges,
+                    onValueChange = { serviceCharges = it },
+                    label = { Text("Charges fixes *") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(chargesRequester)
+                        .onFocusEvent { if (it.isFocused) coroutineScope.launch { chargesRequester.bringIntoView() } }
+                )
+                OutlinedTextField(
+                    value = initialElectricityIndex,
+                    onValueChange = { initialElectricityIndex = it },
+                    label = { Text("Index Elec initial *") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .bringIntoViewRequester(electricityIndexRequester)
+                        .onFocusEvent { if (it.isFocused) coroutineScope.launch { electricityIndexRequester.bringIntoView() } }
+                )
                 
                 // Predefined Equipements list picker
                 if (uiState.availableEquipements.isNotEmpty()) {

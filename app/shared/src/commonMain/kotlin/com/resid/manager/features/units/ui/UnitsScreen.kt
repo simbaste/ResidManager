@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -33,8 +35,9 @@ import com.resid.manager.features.units.ui.components.UnitDetailHeader
 import com.resid.manager.features.units.ui.components.UnitDetailMediaGallery
 import com.resid.manager.features.units.ui.components.UnitDetailTechSpecs
 import com.resid.manager.features.units.ui.components.UnitDetailTenantAndStats
-import com.resid.manager.features.units.ui.components.UnitsGridHeader
 import com.resid.manager.features.units.ui.components.UnitsStatsRow
+import com.resid.manager.ui.components.ResidAppBarAction
+import com.resid.manager.ui.components.ResidTopAppBar
 import org.koin.compose.koinInject
 
 @Composable
@@ -51,7 +54,11 @@ fun UnitsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val token = jwtToken ?: ""
     val residenceId = activeResidence?.residenceId ?: ""
-    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
+    val isAuthorized = activeResidence != null && (
+        activeResidence.userRoleInResidence == UserRole.ADMIN ||
+        activeResidence.userRoleInResidence == UserRole.OWNER ||
+        activeResidence.userRoleInResidence == UserRole.MANAGER
+    )
 
     LaunchedEffect(token, residenceId) {
         if (token.isNotBlank() && residenceId.isNotBlank()) {
@@ -140,11 +147,21 @@ fun UnitsGridContent(
         horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        // 1. En-tête & Bouton
+        // 1. En-tête TopAppBar
         item(span = { GridItemSpan(maxLineSpan) }) {
-            UnitsGridHeader(
-                isAuthorized = isAuthorized,
-                onAddUnitClick = onAddUnitClick
+            ResidTopAppBar(
+                title = "Gestion des Logements",
+                actions = if (isAuthorized) {
+                    listOf(
+                        ResidAppBarAction(
+                            title = "Ajouter un logement",
+                            icon = Icons.Default.Add,
+                            onClick = onAddUnitClick,
+                        )
+                    )
+                } else {
+                    emptyList()
+                }
             )
         }
 
