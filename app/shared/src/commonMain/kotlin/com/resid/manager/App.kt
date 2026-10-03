@@ -20,6 +20,7 @@ import com.resid.manager.features.auth.ui.LoginScreen
 import com.resid.manager.features.auth.ui.RegisterScreen
 import com.resid.manager.navigation.AppNavKey
 import com.resid.manager.navigation.PlatformBackHandler
+import com.resid.manager.network.AuthEvents
 import com.resid.manager.ui.AppShell
 import com.resid.manager.ui.i18n.EnStrings
 import com.resid.manager.ui.i18n.FrStrings
@@ -64,6 +65,15 @@ fun App() {
             } else {
                 backStack.add(targetKey)
             }
+        }
+    }
+
+    // Auto-logout when backend returns 401 Unauthorized (e.g. expired JWT token)
+    LaunchedEffect(Unit) {
+        AuthEvents.onUnauthorized.collect {
+            viewModel.logout()
+            backStack.clear()
+            backStack.add(AppNavKey.Login)
         }
     }
 

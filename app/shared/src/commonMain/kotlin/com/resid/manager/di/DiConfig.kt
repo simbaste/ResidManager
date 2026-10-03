@@ -12,6 +12,7 @@ import com.resid.manager.features.profile.di.profileFeatureModule
 import com.resid.manager.features.residences.di.residencesFeatureModule
 import com.resid.manager.features.tickets.di.ticketsFeatureModule
 import com.resid.manager.features.units.di.unitsFeatureModule
+import com.resid.manager.network.AuthEvents
 import com.resid.manager.repository.AuthRepository
 import com.resid.manager.repository.AuthRepositoryImpl
 import com.resid.manager.repository.LeaseRepository
@@ -25,7 +26,9 @@ import com.resid.manager.repository.ResidenceUnitRepositoryImpl
 import com.resid.manager.usecase.SearchResidencesUseCase
 import com.resid.manager.viewmodel.LoginViewModel
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpResponseValidator
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.core.context.startKoin
@@ -42,6 +45,16 @@ val networkModule = module {
                     prettyPrint = true
                     isLenient = true
                 })
+            }
+            HttpResponseValidator {
+                validateResponse { response ->
+                    if (response.status == HttpStatusCode.Unauthorized) {
+                        val path = response.call.request.url.encodedPath
+                        if (!path.endsWith("/api/auth/login") && !path.endsWith("/api/auth/register")) {
+                            AuthEvents.emitUnauthorized()
+                        }
+                    }
+                }
             }
         }
     }
