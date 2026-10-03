@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -24,7 +23,7 @@ import com.resid.manager.dto.UserRole
 fun AssociatedPropertyCard(
     residence: ResidenceContext,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val role = residence.userRoleInResidence
     val badgeColor = when (role) {
@@ -40,12 +39,12 @@ fun AssociatedPropertyCard(
 
     Card(
         onClick = onClick,
-        modifier = modifier.width(280.dp).height(180.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
+        modifier = modifier.height(180.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
     ) {
         Column(
             modifier = Modifier.padding(16.dp).fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
