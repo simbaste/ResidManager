@@ -3,18 +3,40 @@ package com.resid.manager.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import com.resid.manager.ui.i18n.LocalStrings
 import com.resid.manager.viewmodel.AppScreen
 
@@ -72,8 +94,8 @@ fun SidebarContent(
                 val icon = when (item) {
                     AppScreen.DASHBOARD -> Icons.Default.Home
                     AppScreen.RESIDENCES -> Icons.Default.LocationOn
-                    AppScreen.LOGEMENTS -> Icons.Default.Build
-                    AppScreen.BAUX -> Icons.Default.DateRange
+                    AppScreen.UNITS -> Icons.Default.Build
+                    AppScreen.LEASES -> Icons.Default.DateRange
                     AppScreen.MEMBERS -> Icons.Default.Person
                     AppScreen.ELECTRICITY -> Icons.Default.Settings
                     AppScreen.TICKETS -> Icons.Default.Warning
@@ -84,8 +106,8 @@ fun SidebarContent(
                 val itemTitle = when (item) {
                     AppScreen.DASHBOARD -> strings.dashboard
                     AppScreen.RESIDENCES -> strings.residences
-                    AppScreen.LOGEMENTS -> strings.logements
-                    AppScreen.BAUX -> strings.leases
+                    AppScreen.UNITS -> strings.logements
+                    AppScreen.LEASES -> strings.leases
                     AppScreen.MEMBERS -> strings.members
                     AppScreen.ELECTRICITY -> strings.electricity
                     AppScreen.TICKETS -> strings.tickets

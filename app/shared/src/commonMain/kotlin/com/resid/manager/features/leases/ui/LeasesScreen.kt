@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,6 +27,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.ui.NavDisplay
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.LeaseStatusDto
 import com.resid.manager.dto.ResidenceContext
@@ -40,9 +45,13 @@ import com.resid.manager.features.leases.ui.components.LeaseDetailHeader
 import com.resid.manager.features.leases.ui.components.LeaseDetailInfoAndLedger
 import com.resid.manager.features.leases.ui.components.LeaseTerminateDialog
 import com.resid.manager.features.leases.ui.components.LeasesFilterCapsuleBar
-import com.resid.manager.features.leases.ui.components.LeasesGridHeader
 import com.resid.manager.features.leases.ui.components.wizard.LeaseWizardDialog
+import com.resid.manager.navigation.PlatformBackHandler
+import com.resid.manager.ui.components.ResidAppBarAction
+import com.resid.manager.ui.components.ResidTopAppBar
 import org.koin.compose.koinInject
+
+
 
 @Composable
 fun LeasesScreen(
@@ -55,7 +64,11 @@ fun LeasesScreen(
     val uiState by viewModel.uiState.collectAsState()
     val token = jwtToken ?: ""
     val residenceId = activeResidence?.residenceId ?: ""
-    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
+    val isAuthorized = activeResidence != null && (
+        activeResidence.userRoleInResidence == UserRole.OWNER ||
+        activeResidence.userRoleInResidence == UserRole.ADMIN ||
+        activeResidence.userRoleInResidence == UserRole.MANAGER
+    )
 
     LaunchedEffect(token, residenceId) {
         if (token.isNotBlank() && residenceId.isNotBlank()) {
@@ -63,58 +76,111 @@ fun LeasesScreen(
         }
     }
 
-    if (uiState.selectedLeaseForDetail != null) {
-        val lease = uiState.selectedLeaseForDetail!!
-        val matchedUnit = residenceUnits.firstOrNull { it.id == lease.residenceUnitId }
-        val matchedTenant = members.firstOrNull { it.userId == lease.tenantId }
+    val subBackStack = remember { NavBackStack<LeasesNavKey>(LeasesNavKey.List) }
 
-        Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            LeaseDetailHeader(
-                lease = lease,
-                onBackClick = { viewModel.onIntent(LeasesIntent.SelectLeaseForDetail(null)) }
-            )
-
-            HorizontalDivider()
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                LeaseDetailInfoAndLedger(
-                    lease = lease,
-                    matchedUnit = matchedUnit,
-                    matchedTenant = matchedTenant,
-                    modifier = Modifier.weight(1.2f)
-                )
-
-                LeaseDetailAdminActions(
-                    lease = lease,
-                    matchedUnit = matchedUnit,
-                    onRecordPayment = { amount, category ->
-                        viewModel.onIntent(LeasesIntent.RecordPayment(token, residenceId, lease.id, amount, category))
-                    },
-                    onSignContract = {
-                        viewModel.onIntent(LeasesIntent.UpdateStatus(token, residenceId, lease.id, LeaseStatusDto.SIGNED_ACTIVE))
-                    },
-                    onTerminateClick = {
-                        viewModel.onIntent(LeasesIntent.SetShowTerminateConfirmation(true))
-                    },
-                    modifier = Modifier.weight(0.8f)
-                )
-            }
+    PlatformBackHandler(enabled = subBackStack.size > 1) {
+        subBackStack.removeLastOrNull()
+        val currentKey = subBackStack.lastOrNull()
+        if (currentKey is LeasesNavKey.Detail) {
+            viewModel.onIntent(LeasesIntent.SelectLeaseForDetail(uiState.leases.firstOrNull { it.id == currentKey.leaseId }))
+        } else {
+            viewModel.onIntent(LeasesIntent.SelectLeaseForDetail(null))
         }
-    } else {
-        LeasesGridContent(
-            uiState = uiState,
-            residenceUnits = residenceUnits,
-            members = members,
-            isAuthorized = isAuthorized,
-            onNewLeaseClick = { viewModel.onIntent(LeasesIntent.SetShowWizard(true)) },
-            onFilterSelected = { filter -> viewModel.onIntent(LeasesIntent.SetFilter(filter)) },
-            onLeaseClick = { lease -> viewModel.onIntent(LeasesIntent.SelectLeaseForDetail(lease)) }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavDisplay(
+            backStack = subBackStack,
+            onBack = {
+                if (subBackStack.size > 1) {
+                    subBackStack.removeLastOrNull()
+                    val currentKey = subBackStack.lastOrNull()
+                    if (currentKey is LeasesNavKey.Detail) {
+                        viewModel.onIntent(LeasesIntent.SelectLeaseForDetail(uiState.leases.firstOrNull { it.id == currentKey.leaseId }))
+                    } else {
+                        viewModel.onIntent(LeasesIntent.SelectLeaseForDetail(null))
+                    }
+                }
+            },
+            entryProvider = { key: LeasesNavKey ->
+                when (key) {
+                    LeasesNavKey.List -> NavEntry(key) {
+                        LeasesGridContent(
+                            uiState = uiState,
+                            residenceUnits = residenceUnits,
+                            members = members,
+                            isAuthorized = isAuthorized,
+                            onNewLeaseClick = { viewModel.onIntent(LeasesIntent.SetShowWizard(true)) },
+                            onFilterSelected = { filter -> viewModel.onIntent(LeasesIntent.SetFilter(filter)) },
+                            onLeaseClick = { lease ->
+                                viewModel.onIntent(LeasesIntent.SelectLeaseForDetail(lease))
+                                subBackStack.add(LeasesNavKey.Detail(lease.id))
+                            }
+                        )
+                    }
+
+                    is LeasesNavKey.Detail -> NavEntry(key) {
+                        val lease = uiState.leases.firstOrNull { it.id == key.leaseId }
+                            ?: uiState.selectedLeaseForDetail
+
+                        if (lease != null) {
+                            val matchedUnit = residenceUnits.firstOrNull { it.id == lease.residenceUnitId }
+                            val matchedTenant = members.firstOrNull { it.userId == lease.tenantId }
+
+                            Column(
+                                modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(20.dp)
+                            ) {
+                                LeaseDetailHeader(
+                                    lease = lease,
+                                    onBackClick = {
+                                        viewModel.onIntent(LeasesIntent.SelectLeaseForDetail(null))
+                                        if (subBackStack.size > 1) {
+                                            subBackStack.removeLastOrNull()
+                                        }
+                                    }
+                                )
+
+                                HorizontalDivider()
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(24.dp)
+                                ) {
+                                    LeaseDetailInfoAndLedger(
+                                        lease = lease,
+                                        matchedUnit = matchedUnit,
+                                        matchedTenant = matchedTenant,
+                                        modifier = Modifier.weight(1.2f)
+                                    )
+
+                                    LeaseDetailAdminActions(
+                                        lease = lease,
+                                        matchedUnit = matchedUnit,
+                                        onRecordPayment = { amount, category ->
+                                            viewModel.onIntent(LeasesIntent.RecordPayment(token, residenceId, lease.id, amount, category))
+                                        },
+                                        onSignContract = {
+                                            viewModel.onIntent(LeasesIntent.UpdateStatus(token, residenceId, lease.id, LeaseStatusDto.SIGNED_ACTIVE))
+                                        },
+                                        onTerminateClick = {
+                                            viewModel.onIntent(LeasesIntent.SetShowTerminateConfirmation(true))
+                                        },
+                                        errorMessage = uiState.errorMessage,
+                                        modifier = Modifier.weight(0.8f)
+                                    )
+                                }
+                            }
+                        } else {
+                            LaunchedEffect(key.leaseId) {
+                                if (subBackStack.size > 1) {
+                                    subBackStack.removeLastOrNull()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         )
     }
 
@@ -175,9 +241,17 @@ fun LeasesGridContent(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
-            LeasesGridHeader(
-                isAuthorized = isAuthorized,
-                onNewLeaseClick = onNewLeaseClick
+            ResidTopAppBar(
+                title = "Contrats de Bail (Baux)",
+                actions = if (isAuthorized) {
+                    listOf(
+                        ResidAppBarAction(
+                            title = "Nouveau Bail",
+                            icon = Icons.Default.Add,
+                            onClick = onNewLeaseClick
+                        )
+                    )
+                } else emptyList()
             )
         }
 

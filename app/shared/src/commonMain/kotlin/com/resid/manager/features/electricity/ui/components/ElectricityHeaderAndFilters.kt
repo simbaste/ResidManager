@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -19,7 +19,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -127,19 +126,21 @@ fun ElectricityFilterBar(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = floorFilterText,
                     onValueChange = onFloorFilterChanged,
-                    placeholder = { Text("Filtrer par étage...") },
-                    modifier = Modifier.height(50.dp),
-                    singleLine = true
+                    label = "Étage",
+                    placeholder = "Filtrer par étage...",
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                    modifier = Modifier.width(180.dp)
                 )
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = tenantFilterText,
                     onValueChange = onTenantFilterChanged,
-                    placeholder = { Text("Filtrer par locataire...") },
-                    modifier = Modifier.height(50.dp),
-                    singleLine = true
+                    label = "Locataire",
+                    placeholder = "Filtrer par locataire...",
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                    modifier = Modifier.width(200.dp)
                 )
             }
         }

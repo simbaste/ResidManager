@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.resid.manager.dto.UserDto
 import com.resid.manager.features.auth.AuthViewModel
 import com.resid.manager.features.auth.mvi.AuthEffect
 import com.resid.manager.features.auth.mvi.AuthIntent
@@ -45,7 +46,7 @@ import org.koin.compose.koinInject
 fun RegisterScreen(
     viewModel: AuthViewModel = koinInject(),
     onNavigateToLogin: () -> Unit = {},
-    onNavigateToMain: (String) -> Unit = {},
+    onNavigateToMain: (String, UserDto) -> Unit = { _, _ -> },
     onToggleTheme: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -53,7 +54,7 @@ fun RegisterScreen(
     LaunchedEffect(viewModel) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                is AuthEffect.NavigateToMain -> onNavigateToMain(effect.token)
+                is AuthEffect.NavigateToMain -> onNavigateToMain(effect.token, effect.user)
                 is AuthEffect.NavigateToLogin -> onNavigateToLogin()
                 else -> {}
             }

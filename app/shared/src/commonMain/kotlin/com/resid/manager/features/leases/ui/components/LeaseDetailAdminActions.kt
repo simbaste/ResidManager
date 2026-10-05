@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
@@ -21,7 +20,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.LeaseCategory
 import com.resid.manager.dto.LeaseDto
@@ -46,6 +43,7 @@ fun LeaseDetailAdminActions(
     onRecordPayment: (Double, String) -> Unit,
     onSignContract: () -> Unit,
     onTerminateClick: () -> Unit,
+    errorMessage: String? = null,
     modifier: Modifier = Modifier
 ) {
     var paymentAmountText by remember { mutableStateOf("") }
@@ -157,13 +155,13 @@ fun LeaseDetailAdminActions(
                         )
                     }
 
-                    OutlinedTextField(
+                    com.resid.manager.ui.components.AmountTextField(
                         value = paymentAmountText,
                         onValueChange = { paymentAmountText = it },
-                        label = { Text("Montant reçu (XOF)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        label = "Montant reçu",
+                        currencySymbol = "XOF",
+                        placeholder = "0.0",
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     Button(
@@ -184,8 +182,9 @@ fun LeaseDetailAdminActions(
                         Text("Enregistrer le Versement", color = Color.White)
                     }
 
-                    if (localError != null) {
-                        Text(text = localError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    val displayError = localError ?: errorMessage
+                    if (displayError != null) {
+                        Text(text = displayError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                 }
 

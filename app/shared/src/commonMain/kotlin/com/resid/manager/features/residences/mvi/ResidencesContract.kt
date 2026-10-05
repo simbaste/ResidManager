@@ -39,5 +39,6 @@ sealed interface ResidencesIntent {
 
 sealed interface ResidencesEffect {
     data class NavigateToDashboard(val residence: ResidenceContext) : ResidencesEffect
+    data class ResidenceCreated(val newResidenceId: String) : ResidencesEffect
     data class ShowToast(val message: String) : ResidencesEffect
 }

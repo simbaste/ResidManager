@@ -166,12 +166,22 @@ NavDisplay(
 
 ## 3. Bonnes Pratiques & Interdictions Compose
 
-1. **Pas de logique métier dans l'UI** : Les validations complexes, calculs financiers ou appels réseau ne doivent jamais figurer dans un Composable. L'UI se contente d'émettre `onIntent(Intent)`.
-2. **Découpage des fichiers (> 250 lignes)** :
-   - Extraire les formulaires et les dialogues dans un package `components/` ou `dialogs/` dédié.
+1. **Navigation 3 stricte au lieu de variables d'état** :
+   - Toujours utiliser Jetpack Navigation 3 (`androidx.navigation3.runtime.NavKey`, `NavBackStack`, `NavDisplay`) pour orchestrer la navigation entre écrans et flux.
+   - Ne jamais utiliser de variables d'état locales ou globales (ex: `var currentScreen by remember { mutableStateOf(...) }`, `when (activeTab) { ... }`) pour commuter des écrans complets.
+2. **Séparation des écrans par fichier distinct** :
+   - Chaque écran (`Screen.kt`) doit obligatoirement être déclaré dans son propre fichier dédié.
+   - Ne jamais déclarer plusieurs écrans ou sous-écrans dans le même fichier.
+3. **Découpage en composants réutilisables (Limite stricte de 250 lignes)** :
+   - Toujours scinder la vue en composants réutilisables et autonomes dans `features/<feature>/ui/components/`.
+   - Extraire systématiquement les list items, cartes, formulaires, barres de filtres, widgets et dialogues dans des fichiers séparés.
    - Ne pas empiler tous les éléments graphiques d'une page dans un seul fichier géant.
-3. **Responsive Web & Mobile** :
+4. **Icônes Material Design obligatoires (Zéro Emoji)** :
+   - Ne jamais utiliser d'emojis pour des icônes, des indicateurs visuels ou des boutons d'action dans l'UI (ex: ❌, ✅, 🏠, ⚡, 📋).
+   - Utiliser exclusivement les icônes Material (`androidx.compose.material.icons.Icons.Default.*` ou `.AutoMirrored.*`).
+5. **Pas de logique métier dans l'UI** : Les validations complexes, calculs financiers ou appels réseau ne doivent jamais figurer dans un Composable. L'UI se contente d'émettre `onIntent(Intent)`.
+6. **Responsive Web & Mobile** :
    - Prévoir des dispositions flexibles (`BoxWithConstraints` ou adaptive layouts) pour supporter aussi bien les écrans desktop (grille 12 colonnes, sidebar 260px) que les écrans mobiles (colonne unique, barre de navigation basse ou drawer).
-4. **Accessibilité & Feedback** :
+7. **Accessibilité & Feedback** :
    - Chaque action asynchrone doit avoir un indicateur de chargement (`CircularProgressIndicator` ou skeleton).
    - Les formulaires doivent afficher des messages d'erreur clairs sous chaque champ invalide.

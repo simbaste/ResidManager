@@ -13,6 +13,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        AndroidAppContextHolder.appContext = applicationContext
         initKoin()
 
         setContent {

@@ -23,7 +23,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -88,26 +87,26 @@ fun UserAccountTab(
 
                 if (isEditingProfile) {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedTextField(
+                        com.resid.manager.ui.components.AppTextField(
                             value = editFirstName,
                             onValueChange = onFirstNameChanged,
-                            label = { Text("Prénom *") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            label = "Prénom *",
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Next,
+                            modifier = Modifier.fillMaxWidth()
                         )
-                        OutlinedTextField(
+                        com.resid.manager.ui.components.AppTextField(
                             value = editLastName,
                             onValueChange = onLastNameChanged,
-                            label = { Text("Nom *") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            label = "Nom *",
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Next,
+                            modifier = Modifier.fillMaxWidth()
                         )
-                        OutlinedTextField(
+                        com.resid.manager.ui.components.PhoneTextField(
                             value = editPhone,
-                            onValueChange = onPhoneChanged,
-                            label = { Text("Téléphone") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
+                            onPhoneChanged = onPhoneChanged,
+                            label = "Téléphone",
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                            modifier = Modifier.fillMaxWidth()
                         )
 
                         profileError?.let {

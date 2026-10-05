@@ -31,7 +31,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -88,20 +87,20 @@ fun ResidenceConfigTab(
 
                     HorizontalDivider()
 
-                    OutlinedTextField(
+                    com.resid.manager.ui.components.AppTextField(
                         value = formCategoryKey,
                         onValueChange = onCategoryKeyChanged,
-                        label = { Text("Clé Unique (ex: PAINTING) *") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        label = "Clé Unique (ex: PAINTING) *",
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Next,
+                        modifier = Modifier.fillMaxWidth()
                     )
 
-                    OutlinedTextField(
+                    com.resid.manager.ui.components.AppTextField(
                         value = formCategoryLabel,
                         onValueChange = onCategoryLabelChanged,
-                        label = { Text("Libellé d'affichage (ex: Peinture) *") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        label = "Libellé d'affichage (ex: Peinture) *",
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     categoryError?.let {

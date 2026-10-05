@@ -64,7 +64,7 @@ class UnitsViewModel(
                 nominalRent = intent.rent,
                 serviceCharges = intent.charges,
                 initialElectricityIndex = intent.initialIndex,
-                equipementIds = intent.equipmentIds
+                equipmentIds = intent.equipmentIds
             )
                 .onSuccess {
                     updateState { it.copy(showCreateDialog = false) }
@@ -89,7 +89,7 @@ class UnitsViewModel(
                 nominalRent = intent.rent,
                 serviceCharges = intent.charges,
                 initialElectricityIndex = intent.initialIndex,
-                equipementIds = intent.equipmentIds
+                equipmentIds = intent.equipmentIds
             )
                 .onSuccess { updated ->
                     updateState {

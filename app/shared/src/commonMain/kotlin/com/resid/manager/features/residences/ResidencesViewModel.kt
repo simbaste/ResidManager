@@ -69,8 +69,9 @@ class ResidencesViewModel(
         viewModelScope.launch {
             updateState { it.copy(isLoading = true, errorMessage = null) }
             createResidenceUseCase(token, name, address, defaultCurrency, kWhPrice)
-                .onSuccess {
-                    updateState { it.copy(showCreateDialog = false) }
+                .onSuccess { createdDto ->
+                    updateState { it.copy(isLoading = false, showCreateDialog = false, errorMessage = null) }
+                    emitEffect(ResidencesEffect.ResidenceCreated(createdDto.id))
                     loadResidences(token)
                 }
                 .onFailure { error ->

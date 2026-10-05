@@ -9,7 +9,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -31,12 +30,13 @@ fun EditCategoryDialog(
         title = { Text("Modifier le Libellé de la Catégorie") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = categoryLabel,
                     onValueChange = onLabelChanged,
-                    label = { Text("Nouveau libellé *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Nouveau libellé *",
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                    onImeAction = onSubmit,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 if (errorMessage != null) {

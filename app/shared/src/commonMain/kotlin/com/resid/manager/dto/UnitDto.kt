@@ -36,5 +36,5 @@ data class ResidenceUnitCreateRequest(
     val nominalRent: Double,
     val serviceCharges: Double,
     val initialElectricityIndex: Double,
-    val equipementIds: List<String> = emptyList()
+    val equipmentIds: List<String> = emptyList()
 )

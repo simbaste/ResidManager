@@ -17,7 +17,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.UserDto
@@ -28,6 +27,7 @@ import com.resid.manager.features.profile.mvi.ProfileIntent
 import com.resid.manager.features.profile.ui.components.EditCategoryDialog
 import com.resid.manager.features.profile.ui.components.ResidenceConfigTab
 import com.resid.manager.features.profile.ui.components.UserAccountTab
+import com.resid.manager.ui.components.ResidTopAppBar
 import org.koin.compose.koinInject
 
 @Composable
@@ -45,7 +45,11 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     val token = jwtToken ?: ""
     val residenceId = activeResidence?.residenceId
-    val isManagement = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
+    val isManagement = activeResidence != null && (
+        activeResidence.userRoleInResidence == UserRole.OWNER ||
+        activeResidence.userRoleInResidence == UserRole.ADMIN ||
+        activeResidence.userRoleInResidence == UserRole.MANAGER
+    )
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
@@ -60,10 +64,8 @@ fun ProfileScreen(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Text(
-            text = "Mon Espace Personnel",
-            style = MaterialTheme.typography.headlineLarge,
-            color = Color(0xFF006948)
+        ResidTopAppBar(
+            title = "Mon Espace Personnel"
         )
 
         TabRow(

@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,8 +24,9 @@ import com.resid.manager.features.members.mvi.MembersIntent
 import com.resid.manager.features.members.mvi.MembersUiState
 import com.resid.manager.features.members.ui.components.InviteMemberDialog
 import com.resid.manager.features.members.ui.components.MembersEmptyState
-import com.resid.manager.features.members.ui.components.MembersHeader
 import com.resid.manager.features.members.ui.components.MembersTable
+import com.resid.manager.ui.components.ResidAppBarAction
+import com.resid.manager.ui.components.ResidTopAppBar
 import org.koin.compose.koinInject
 
 @Composable
@@ -36,7 +39,11 @@ fun MembersScreen(
     val uiState by viewModel.uiState.collectAsState()
     val token = jwtToken ?: ""
     val residenceId = activeResidence?.residenceId ?: ""
-    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
+    val isAuthorized = activeResidence != null && (
+        activeResidence.userRoleInResidence == UserRole.OWNER ||
+        activeResidence.userRoleInResidence == UserRole.ADMIN ||
+        activeResidence.userRoleInResidence == UserRole.MANAGER
+    )
 
     LaunchedEffect(token, residenceId) {
         if (token.isNotBlank() && residenceId.isNotBlank()) {
@@ -103,9 +110,17 @@ fun MembersContent(
         modifier = modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        MembersHeader(
-            isAuthorized = isAuthorized,
-            onInviteClick = onInviteClick
+        ResidTopAppBar(
+            title = "Membres & Habilitations",
+            actions = if (isAuthorized) {
+                listOf(
+                    ResidAppBarAction(
+                        title = "Inviter un membre",
+                        icon = Icons.Default.PersonAdd,
+                        onClick = onInviteClick
+                    )
+                )
+            } else emptyList()
         )
 
         MembersTable(

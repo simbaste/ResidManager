@@ -29,6 +29,10 @@ ResidManager/
 4. **`:app:androidApp`, `:app:webApp`, `:app:iosApp`** :
    - Points d'entrée légers qui délèguent l'exécution au composable principal d'`app:shared` (`App()`).
 
+### Convention linguistique du code
+- **Anglais strict** : Tout le code source (fichiers, packages, classes, fonctions, variables, constantes, interfaces, signatures, schémas de base de données, tables Exposed, endpoints API) ainsi que la documentation technique (KDoc, commentaires de code, logs) doivent être **exclusivement en anglais**.
+- Les libellés d'interface utilisateur (UI strings, messages d'erreur présentés au client final) peuvent être en français ou gérés par un système de ressources/i18n.
+
 ---
 
 ## 2. Principes Clean Architecture & MVI (Côté Client `:app:shared`)

@@ -4,12 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,11 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun CreateResidenceDialog(
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
     onDismiss: () -> Unit,
     onSubmit: (String, String, String, Double) -> Unit,
 ) {
@@ -41,45 +40,31 @@ fun CreateResidenceDialog(
         title = { Text("Créer une nouvelle résidence") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nom de la résidence *") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        imeAction = ImeAction.Next,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onNext = { focusManager.moveFocus(FocusDirection.Down) },
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
+                    label = "Nom de la résidence *",
+                    imeAction = ImeAction.Next,
+                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                    modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = address,
                     onValueChange = { address = it },
-                    label = { Text("Adresse *") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        imeAction = ImeAction.Next,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onNext = { focusManager.moveFocus(FocusDirection.Down) },
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
+                    label = "Adresse *",
+                    imeAction = ImeAction.Next,
+                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+                    modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
+                com.resid.manager.ui.components.AmountTextField(
                     value = kWhPrice,
                     onValueChange = { kWhPrice = it },
-                    label = { Text("Prix du kWh (XOF) *") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal,
-                        imeAction = ImeAction.Done,
-                    ),
-                    keyboardActions = KeyboardActions(
-                        onDone = { focusManager.clearFocus() },
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
+                    label = "Prix du kWh *",
+                    currencySymbol = defaultCurrency,
+                    placeholder = "150.0",
+                    imeAction = ImeAction.Done,
+                    onImeAction = { focusManager.clearFocus() },
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Text("Devise principale :")
@@ -95,6 +80,14 @@ fun CreateResidenceDialog(
                         )
                     }
                 }
+
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -103,13 +96,13 @@ fun CreateResidenceDialog(
                     val price = kWhPrice.toDoubleOrNull() ?: 150.0
                     onSubmit(name, address, defaultCurrency, price)
                 },
-                enabled = name.isNotBlank() && address.isNotBlank(),
+                enabled = name.isNotBlank() && address.isNotBlank() && !isLoading,
             ) {
-                Text("Créer")
+                Text(if (isLoading) "Création..." else "Créer")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Annuler") }
+            TextButton(onClick = onDismiss, enabled = !isLoading) { Text("Annuler") }
         },
     )
 }

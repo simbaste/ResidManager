@@ -54,7 +54,8 @@ fun ResidencesScreen(
     jwtToken: String?,
     userId: String?,
     viewModel: ResidencesViewModel = koinInject(),
-    onNavigateToDashboard: (ResidenceContext) -> Unit = {}
+    onNavigateToDashboard: (ResidenceContext) -> Unit = {},
+    onResidenceCreated: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -67,7 +68,8 @@ fun ResidencesScreen(
         viewModel.effect.collect { effect ->
             when (effect) {
                 is ResidencesEffect.NavigateToDashboard -> onNavigateToDashboard(effect.residence)
-                else -> {}
+                is ResidencesEffect.ResidenceCreated -> onResidenceCreated(effect.newResidenceId)
+                is ResidencesEffect.ShowToast -> {}
             }
         }
     }
@@ -85,6 +87,8 @@ fun ResidencesScreen(
 
     if (uiState.showCreateDialog) {
         CreateResidenceDialog(
+            isLoading = uiState.isLoading,
+            errorMessage = uiState.errorMessage,
             onDismiss = { viewModel.onIntent(ResidencesIntent.SetShowCreateDialog(false)) },
             onSubmit = { name, address, currency, price ->
                 viewModel.onIntent(ResidencesIntent.CreateResidence(token, name, address, currency, price))
@@ -121,6 +125,9 @@ fun ResidencesScreen(
             isSearching = uiState.isSearching,
             isLoading = uiState.isLoading,
             errorMessage = uiState.errorMessage,
+            existingResidenceIds = remember(uiState.residences) {
+                uiState.residences.map { it.residenceId }.toSet()
+            },
             onSearchQueryChanged = { query ->
                 viewModel.onIntent(ResidencesIntent.SearchResidences(token, query))
             },

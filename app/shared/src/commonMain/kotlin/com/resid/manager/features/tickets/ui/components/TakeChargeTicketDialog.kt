@@ -15,7 +15,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -52,19 +51,23 @@ fun TakeChargeTicketDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
 
-                OutlinedTextField(
+                com.resid.manager.ui.components.AmountTextField(
                     value = formInterventionCostText,
                     onValueChange = { formInterventionCostText = it },
-                    label = { Text("Frais engagés immédiatement (XOF) - Optionnel") },
+                    label = "Frais engagés immédiatement - Optionnel",
+                    currencySymbol = "XOF",
+                    placeholder = "0.0",
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = formCommentText,
                     onValueChange = { formCommentText = it },
-                    label = { Text("Commentaire de prise en charge - Optionnel") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 2
+                    label = "Commentaire de prise en charge - Optionnel",
+                    singleLine = false,
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 if (costVal > 0.0) {

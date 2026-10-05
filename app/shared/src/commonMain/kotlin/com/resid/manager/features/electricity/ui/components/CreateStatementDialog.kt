@@ -26,7 +26,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -86,12 +85,12 @@ fun CreateStatementDialog(
             ) {
                 Text("Rechercher l'unité concernée * :", style = MaterialTheme.typography.titleSmall)
 
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = residenceUnitSearchQuery,
                     onValueChange = { residenceUnitSearchQuery = it },
-                    label = { Text("Saisissez le nom ou l'étage...") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Saisissez le nom ou l'étage...",
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 if (filteredResidenceUnits.isNotEmpty()) {
@@ -131,39 +130,40 @@ fun CreateStatementDialog(
                 if (isLoadingPreviousIndex) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp).align(Alignment.CenterHorizontally))
                 } else if (formPreviousIndex != null) {
-                    OutlinedTextField(
+                    com.resid.manager.ui.components.AppTextField(
                         value = "${formPreviousIndex} kWh",
                         onValueChange = {},
-                        label = { Text("Ancien Index Compteur (Lecture Seule)") },
-                        readOnly = true,
+                        label = "Ancien Index Compteur (Lecture Seule)",
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
 
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = formNewIndexText,
                     onValueChange = { formNewIndexText = it },
-                    label = { Text("Nouveau Relevé d'Index (kWh) *") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Nouveau Relevé d'Index (kWh) *",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Next,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
+                com.resid.manager.ui.components.AmountTextField(
                     value = formKWhPriceText,
                     onValueChange = { formKWhPriceText = it },
-                    label = { Text("Prix Unitaire Appliqué du kWh (XOF) *") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Prix Unitaire Appliqué du kWh *",
+                    currencySymbol = "XOF",
+                    placeholder = "150.0",
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Next,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = formStatementDate,
                     onValueChange = { formStatementDate = it },
-                    label = { Text("Date du Relevé (AAAA-MM-JJ) *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Date du Relevé (AAAA-MM-JJ) *",
+                    placeholder = "AAAA-MM-JJ",
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 // Résumé du montant calculé

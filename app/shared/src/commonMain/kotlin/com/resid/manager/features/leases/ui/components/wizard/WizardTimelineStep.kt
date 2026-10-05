@@ -7,12 +7,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.resid.manager.ui.components.DateRangePickerField
 
 @Composable
 fun WizardTimelineStep(
@@ -25,17 +25,14 @@ fun WizardTimelineStep(
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Étape 4 sur 4 : Calendrier & Durée", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
 
-        OutlinedTextField(
-            value = draftStartDate,
-            onValueChange = onStartDateChanged,
-            label = { Text("Date de début (AAAA-MM-JJ) *") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        OutlinedTextField(
-            value = draftEndDate,
-            onValueChange = onEndDateChanged,
-            label = { Text("Date de fin (AAAA-MM-JJ) *") },
+        DateRangePickerField(
+            startDate = draftStartDate,
+            endDate = draftEndDate,
+            onDateRangeSelected = { start, end ->
+                onStartDateChanged(start)
+                onEndDateChanged(end)
+            },
+            label = "Période du bail *",
             modifier = Modifier.fillMaxWidth()
         )
 

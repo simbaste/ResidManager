@@ -1,11 +1,16 @@
 package com.resid.manager.features.finances.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -21,6 +26,7 @@ import com.resid.manager.features.finances.ui.components.FinancesFilterBar
 import com.resid.manager.features.finances.ui.components.QuickExpenseForm
 import com.resid.manager.features.finances.ui.components.TraceabilityDialog
 import com.resid.manager.features.finances.ui.components.TransactionsLedger
+import com.resid.manager.ui.components.ResidTopAppBar
 import org.koin.compose.koinInject
 
 @Composable
@@ -32,7 +38,11 @@ fun FinancesScreen(
     val uiState by viewModel.uiState.collectAsState()
     val token = jwtToken ?: ""
     val residenceId = activeResidence?.residenceId ?: ""
-    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
+    val isAuthorized = activeResidence != null && (
+        activeResidence.userRoleInResidence == UserRole.OWNER ||
+        activeResidence.userRoleInResidence == UserRole.ADMIN ||
+        activeResidence.userRoleInResidence == UserRole.MANAGER
+    )
 
     LaunchedEffect(token, residenceId) {
         if (token.isNotBlank() && residenceId.isNotBlank()) {
@@ -75,45 +85,97 @@ fun FinancesContent(
     onTraceabilityClick: (Pair<String, String>) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier.fillMaxSize().padding(24.dp),
-        horizontalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
-        // Zone A: Formulaire de Saisie Rapide (Left Column, fixed width)
-        QuickExpenseForm(
-            isAuthorized = isAuthorized,
-            formCategory = uiState.formCategory,
-            formAmountText = uiState.formAmountText,
-            formDescription = uiState.formDescription,
-            formDate = uiState.formDate,
-            isSubmittingExpense = uiState.isSubmittingExpense,
-            formError = uiState.formError,
-            formSuccess = uiState.formSuccess,
-            onCategoryChanged = onCategoryChanged,
-            onAmountChanged = onAmountChanged,
-            onDescriptionChanged = onDescriptionChanged,
-            onDateChanged = onDateChanged,
-            onSubmit = onSubmitExpense
-        )
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val isSmallScreen = maxWidth < 900.dp
 
-        // Zone B: Le Grand Livre des Transactions (Right Column, expands)
         Column(
-            modifier = Modifier.weight(1f).fillMaxHeight(),
+            modifier = Modifier.fillMaxSize().padding(if (isSmallScreen) 16.dp else 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            FinancesFilterBar(
-                filterType = uiState.filterType,
-                filterQueryText = uiState.filterQueryText,
-                onFilterTypeChanged = onFilterTypeChanged,
-                onFilterQueryChanged = onFilterQueryChanged
+            ResidTopAppBar(
+                title = "Cashflow & Finances"
             )
 
-            TransactionsLedger(
-                transactions = uiState.transactions,
-                isLoading = uiState.isLoading,
-                onTraceabilityClick = onTraceabilityClick,
-                modifier = Modifier.weight(1f)
-            )
+            if (isSmallScreen) {
+                // Stack vertically on smaller screens
+                Column(
+                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    QuickExpenseForm(
+                        isAuthorized = isAuthorized,
+                        formCategory = uiState.formCategory,
+                        formAmountText = uiState.formAmountText,
+                        formDescription = uiState.formDescription,
+                        formDate = uiState.formDate,
+                        isSubmittingExpense = uiState.isSubmittingExpense,
+                        formError = uiState.formError,
+                        formSuccess = uiState.formSuccess,
+                        onCategoryChanged = onCategoryChanged,
+                        onAmountChanged = onAmountChanged,
+                        onDescriptionChanged = onDescriptionChanged,
+                        onDateChanged = onDateChanged,
+                        onSubmit = onSubmitExpense,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    FinancesFilterBar(
+                        filterType = uiState.filterType,
+                        filterQueryText = uiState.filterQueryText,
+                        onFilterTypeChanged = onFilterTypeChanged,
+                        onFilterQueryChanged = onFilterQueryChanged
+                    )
+
+                    TransactionsLedger(
+                        transactions = uiState.transactions,
+                        isLoading = uiState.isLoading,
+                        onTraceabilityClick = onTraceabilityClick,
+                        modifier = Modifier.fillMaxWidth().height(450.dp)
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    // Zone A: Formulaire de Saisie Rapide (Left Column, fixed width)
+                    QuickExpenseForm(
+                        isAuthorized = isAuthorized,
+                        formCategory = uiState.formCategory,
+                        formAmountText = uiState.formAmountText,
+                        formDescription = uiState.formDescription,
+                        formDate = uiState.formDate,
+                        isSubmittingExpense = uiState.isSubmittingExpense,
+                        formError = uiState.formError,
+                        formSuccess = uiState.formSuccess,
+                        onCategoryChanged = onCategoryChanged,
+                        onAmountChanged = onAmountChanged,
+                        onDescriptionChanged = onDescriptionChanged,
+                        onDateChanged = onDateChanged,
+                        onSubmit = onSubmitExpense
+                    )
+
+                    // Zone B: Le Grand Livre des Transactions (Right Column, expands)
+                    Column(
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        FinancesFilterBar(
+                            filterType = uiState.filterType,
+                            filterQueryText = uiState.filterQueryText,
+                            onFilterTypeChanged = onFilterTypeChanged,
+                            onFilterQueryChanged = onFilterQueryChanged
+                        )
+
+                        TransactionsLedger(
+                            transactions = uiState.transactions,
+                            isLoading = uiState.isLoading,
+                            onTraceabilityClick = onTraceabilityClick,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
         }
     }
 }

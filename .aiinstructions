@@ -18,6 +18,13 @@ Pour toute tâche, vous **DEVEZ** consulter et respecter les documents spéciali
 
 ## 🎯 Directives Générales de Développement
 
+0. **Règles Fondamentales d'Implémentation UI & Composants :**
+   - **Langue du Code (Anglais strict)** : Tout le code source, identifiants, noms de classes, interfaces, fonctions, variables, constantes, propriétés, commits et commentaires de code doivent être **exclusivement rédigés en anglais**. (Seuls les textes/labels affichés à l'utilisateur final peuvent être traduits/internationalisés).
+   - **Navigation 3 stricte** : Toujours utiliser Jetpack Navigation 3 (`androidx.navigation3`, `NavKey`, `NavBackStack`, `NavDisplay`) au lieu d'une navigation basée sur des variables d'état (ex: `var currentScreen`, `when (tab) { ... }`).
+   - **Séparation stricte des écrans par fichier** : Chaque écran doit obligatoirement résider dans son propre fichier dédié (ne jamais regrouper plusieurs écrans dans un même fichier).
+   - **Découpage en composants réutilisables** : Toujours scinder la vue en composants réutilisables distincts (`ui/components/` : cards, barres d'action, formulaires, dialogs, widgets), avec une limite stricte de **250 lignes par fichier**.
+   - **Icônes Material uniquement (aucun Emoji)** : Ne jamais utiliser d'emojis pour représenter des icônes ou des actions dans l'UI. Toujours utiliser les icônes Material Design (`androidx.compose.material.icons.Icons`).
+
 1. **Organisation par Feature (`feature-first`) & MVI Strict (Côté Client `:app:shared`) :**
    - Le code client est organisé par fonctionnalité : `features/<nom_feature>/` (`auth`, `dashboard`, `residences`, `units`, `leases`, `electricity`, `finances`, `tickets`, `members`, `profile`).
    - Chaque feature regroupe ses composants UI (`ui/`), sous-composants (`ui/components/`), contrat MVI (`mvi/`), ViewModel (`<Feature>ViewModel.kt`) et UseCases (`usecase/`).

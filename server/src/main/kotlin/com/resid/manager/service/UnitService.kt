@@ -86,8 +86,8 @@ object UnitService {
             this.status = UnitStatus.AVAILABLE
         }
 
-        if (request.equipementIds.isNotEmpty()) {
-            val selectedEq = request.equipementIds.mapNotNull { eqId ->
+        if (request.equipmentIds.isNotEmpty()) {
+            val selectedEq = request.equipmentIds.mapNotNull { eqId ->
                 try {
                     Equipment.findById(UUID.fromString(eqId))
                 } catch (_: Exception) {
@@ -160,8 +160,8 @@ object UnitService {
         dbUnit.initialElectricityIndex = request.initialElectricityIndex
         dbUnit.updatedAt = LocalDateTime.now(Clock.systemUTC())
 
-        if (request.equipementIds.isNotEmpty()) {
-            val selectedEq = request.equipementIds.mapNotNull { eqId ->
+        if (request.equipmentIds.isNotEmpty()) {
+            val selectedEq = request.equipmentIds.mapNotNull { eqId ->
                 try {
                     Equipment.findById(UUID.fromString(eqId))
                 } catch (_: Exception) {

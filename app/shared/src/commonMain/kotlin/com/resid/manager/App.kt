@@ -48,7 +48,7 @@ fun App() {
             AuthScreen.REGISTER -> AppNavKey.Register
             AuthScreen.MAIN -> AppNavKey.Main
         }
-        NavBackStack<AppNavKey>(initialKey)
+        NavBackStack(initialKey)
     }
 
     // Keep Nav3 backstack synchronized when ViewModel changes currentScreen
@@ -83,8 +83,7 @@ fun App() {
             when (backStack.lastOrNull()) {
                 AppNavKey.Login -> viewModel.navigateToLogin()
                 AppNavKey.Register -> viewModel.navigateToRegister()
-                AppNavKey.Main -> { /* in main dashboard */ }
-                null -> {}
+                else -> { /* in main flow */ }
             }
         }
     }
@@ -112,10 +111,10 @@ fun App() {
                                         backStack.add(AppNavKey.Register)
                                         viewModel.navigateToRegister()
                                     },
-                                    onNavigateToMain = {
+                                    onNavigateToMain = { token, user ->
                                         backStack.clear()
                                         backStack.add(AppNavKey.Main)
-                                        viewModel.navigateToMain()
+                                        viewModel.navigateToMain(token = token, user = user)
                                     },
                                     onToggleTheme = viewModel::toggleTheme
                                 )
@@ -126,15 +125,15 @@ fun App() {
                                         backStack.removeLastOrNull()
                                         viewModel.navigateToLogin()
                                     },
-                                    onNavigateToMain = {
+                                    onNavigateToMain = { token, user ->
                                         backStack.clear()
                                         backStack.add(AppNavKey.Main)
-                                        viewModel.navigateToMain()
+                                        viewModel.navigateToMain(token = token, user = user)
                                     },
                                     onToggleTheme = viewModel::toggleTheme
                                 )
                             }
-                            AppNavKey.Main -> NavEntry(key) {
+                            else -> NavEntry(key) {
                                 AppShell(viewModel = viewModel)
                             }
                         }

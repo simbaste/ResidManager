@@ -128,7 +128,10 @@ fun Application.module() {
 
     // 2. Install ContentNegotiation
     install(ContentNegotiation) {
-        json()
+        json(kotlinx.serialization.json.Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        })
     }
 
     // Install CORS for Multiplatform client access (Web browser)

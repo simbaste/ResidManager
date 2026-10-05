@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -34,7 +36,8 @@ import com.resid.manager.features.tickets.ui.components.CreateTicketDialog
 import com.resid.manager.features.tickets.ui.components.TakeChargeTicketDialog
 import com.resid.manager.features.tickets.ui.components.TicketCard
 import com.resid.manager.features.tickets.ui.components.TicketsFilterPanel
-import com.resid.manager.features.tickets.ui.components.TicketsHeader
+import com.resid.manager.ui.components.ResidAppBarAction
+import com.resid.manager.ui.components.ResidTopAppBar
 import org.koin.compose.koinInject
 
 @Composable
@@ -47,7 +50,11 @@ fun TicketsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val token = jwtToken ?: ""
     val residenceId = activeResidence?.residenceId ?: ""
-    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
+    val isAuthorized = activeResidence != null && (
+        activeResidence.userRoleInResidence == UserRole.OWNER ||
+        activeResidence.userRoleInResidence == UserRole.ADMIN ||
+        activeResidence.userRoleInResidence == UserRole.MANAGER
+    )
 
     LaunchedEffect(token, residenceId) {
         if (token.isNotBlank() && residenceId.isNotBlank()) {
@@ -149,7 +156,16 @@ fun TicketsContent(
         modifier = modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        TicketsHeader(onOpenTicketClick = onOpenTicketClick)
+        ResidTopAppBar(
+            title = "Tickets d'Intervention",
+            actions = listOf(
+                ResidAppBarAction(
+                    title = "Nouveau Ticket",
+                    icon = Icons.Default.Add,
+                    onClick = onOpenTicketClick
+                )
+            )
+        )
 
         TicketsFilterPanel(
             statusFilter = uiState.statusFilter,

@@ -27,6 +27,7 @@ class WebSessionStorage : SessionStorage {
     private val tokenKey = "jwt_token"
     private val userFnameKey = "user_fname"
     private val userLNameKey = "user_lname"
+    private val lastSelectedResidenceKey = "last_selected_residence_id"
 
     override fun saveSession(token: String, fName: String, lName: String) {
         kotlinx.browser.localStorage.setItem(tokenKey, token)
@@ -48,6 +49,15 @@ class WebSessionStorage : SessionStorage {
         kotlinx.browser.localStorage.removeItem(tokenKey)
         kotlinx.browser.localStorage.removeItem(userFnameKey)
         kotlinx.browser.localStorage.removeItem(userLNameKey)
+        kotlinx.browser.localStorage.removeItem(lastSelectedResidenceKey)
+    }
+
+    override fun saveLastSelectedResidenceId(residenceId: String) {
+        kotlinx.browser.localStorage.setItem(lastSelectedResidenceKey, residenceId)
+    }
+
+    override fun loadLastSelectedResidenceId(): String? {
+        return kotlinx.browser.localStorage.getItem(lastSelectedResidenceKey)
     }
 }
 

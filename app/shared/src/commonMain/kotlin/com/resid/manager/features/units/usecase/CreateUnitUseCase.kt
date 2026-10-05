@@ -16,19 +16,39 @@ class CreateUnitUseCase(
         nominalRent: Double,
         serviceCharges: Double,
         initialElectricityIndex: Double,
-        equipementIds: List<String> = emptyList()
+        equipmentIds: List<String> = emptyList()
     ): Result<ResidenceUnitDto> {
-        if (name.isBlank()) {
-            return Result.failure(IllegalArgumentException("Le nom du logement est obligatoire"))
+        val trimmedName = name.trim()
+        val trimmedFloor = floor.trim()
+        val trimmedType = type.trim()
+
+        if (trimmedName.isBlank()) {
+            return Result.failure(IllegalArgumentException("Le nom du logement est obligatoire."))
         }
+        if (trimmedFloor.isBlank()) {
+            return Result.failure(IllegalArgumentException("L'étage ou le bloc est obligatoire."))
+        }
+        if (trimmedType.isBlank()) {
+            return Result.failure(IllegalArgumentException("Le type de logement est obligatoire."))
+        }
+        if (nominalRent < 0.0) {
+            return Result.failure(IllegalArgumentException("Le loyer nominal ne peut pas être négatif."))
+        }
+        if (serviceCharges < 0.0) {
+            return Result.failure(IllegalArgumentException("Les charges fixes ne peuvent pas être négatives."))
+        }
+        if (initialElectricityIndex < 0.0) {
+            return Result.failure(IllegalArgumentException("L'index initial d'électricité ne peut pas être négatif."))
+        }
+
         val request = ResidenceUnitCreateRequest(
-            name = name.trim(),
-            floor = floor.trim(),
-            type = type.trim(),
+            name = trimmedName,
+            floor = trimmedFloor,
+            type = trimmedType,
             nominalRent = nominalRent,
             serviceCharges = serviceCharges,
             initialElectricityIndex = initialElectricityIndex,
-            equipementIds = equipementIds
+            equipmentIds = equipmentIds
         )
         return residenceUnitRepository.createResidenceUnit(token, residenceId, request)
     }

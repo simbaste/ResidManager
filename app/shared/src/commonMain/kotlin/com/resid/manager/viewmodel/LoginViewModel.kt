@@ -41,16 +41,16 @@ enum class AuthScreen {
     MAIN
 }
 
-enum class AppScreen(val title: String) {
-    DASHBOARD("Tableau de bord"),
-    RESIDENCES("Propriétés & Résidences"),
-    LOGEMENTS("Unités / Logements"),
-    BAUX("Contrats de bail"),
-    MEMBERS("Membres & Habilitations"),
-    ELECTRICITY("Facturation Électricité"),
-    TICKETS("Tickets d'Intervention"),
-    FINANCES("Cashflow & Finances"),
-    PROFILE("Mon Compte")
+enum class AppScreen(val title: String, val navPath: String) {
+    DASHBOARD("Tableau de bord", "dashboard"),
+    RESIDENCES("Propriétés & Résidences", "residences"),
+    UNITS("Unités / Logements", "units"),
+    LEASES("Contrats de bail", "leases"),
+    MEMBERS("Membres & Habilitations", "members"),
+    ELECTRICITY("Facturation Électricité", "electricity"),
+    TICKETS("Tickets d'Intervention", "tickets"),
+    FINANCES("Cashflow & Finances", "finances"),
+    PROFILE("Mon Compte", "profil")
 }
 
 data class LoginUiState(
@@ -76,7 +76,7 @@ data class LoginUiState(
     
     // ResidenceUnits state
     val residenceUnits: List<ResidenceUnitDto> = emptyList(),
-    val showCreateLogementDialog: Boolean = false,
+    val showCreateUnitDialog: Boolean = false,
 
     // Real-time debounced search states for JoinResidence
     val searchQuery: String = "",
@@ -96,7 +96,7 @@ data class LoginUiState(
     val language: String = "fr",
 
     // Predefined equipments list
-    val availableEquipements: List<EquipmentDto> = emptyList()
+    val availableEquipments: List<EquipmentDto> = emptyList()
 )
 
 sealed interface LoginIntent {
@@ -110,8 +110,8 @@ sealed interface LoginIntent {
     data class DeleteResidence(val residenceId: String) : LoginIntent
     data class SelectResidence(val residence: ResidenceContext) : LoginIntent
     
-    data class CreateResidenceUnit(val name: String, val floor: String, val type: String, val nominalRent: Double, val serviceCharges: Double, val initialIndex: Double, val equipementIds: List<String> = emptyList()) : LoginIntent
-    data class UpdateResidenceUnit(val id: String, val name: String, val floor: String, val type: String, val rent: Double, val charges: Double, val initialIndex: Double, val equipementIds: List<String> = emptyList()) : LoginIntent
+    data class CreateResidenceUnit(val name: String, val floor: String, val type: String, val nominalRent: Double, val serviceCharges: Double, val initialIndex: Double, val equipmentIds: List<String> = emptyList()) : LoginIntent
+    data class UpdateResidenceUnit(val id: String, val name: String, val floor: String, val type: String, val rent: Double, val charges: Double, val initialIndex: Double, val equipmentIds: List<String> = emptyList()) : LoginIntent
     data class DeleteResidenceUnit(val id: String) : LoginIntent
     
     data class CreateLease(val residenceUnitId: String, val request: LeaseCreateRequest, val onSuccess: () -> Unit) : LoginIntent
@@ -122,7 +122,7 @@ sealed interface LoginIntent {
     data class NavigateToAppScreen(val screen: AppScreen) : LoginIntent
     data class SetShowCreateResidenceDialog(val show: Boolean) : LoginIntent
     data class SetShowJoinResidenceDialog(val show: Boolean) : LoginIntent
-    data class SetShowCreateLogementDialog(val show: Boolean) : LoginIntent
+    data class SetShowCreateUnitDialog(val show: Boolean) : LoginIntent
     data object ToggleTheme : LoginIntent
 }
 
@@ -143,7 +143,7 @@ class LoginViewModel(
     private var searchJob: kotlinx.coroutines.Job? = null
 
     init {
-        fetchEquipements()
+        fetchEquipments()
         // Load session if available on startup
         sessionStorage?.loadSession()?.let { (token, fName, lName) ->
             updateState {
@@ -179,8 +179,8 @@ class LoginViewModel(
             is LoginIntent.UpdateResidence -> updateResidence(intent.residenceId, intent.name, intent.address, intent.kWhPrice)
             is LoginIntent.DeleteResidence -> deleteResidence(intent.residenceId)
             is LoginIntent.SelectResidence -> selectResidence(intent.residence)
-            is LoginIntent.CreateResidenceUnit -> createResidenceUnit(intent.name, intent.floor, intent.type, intent.nominalRent, intent.serviceCharges, intent.initialIndex, intent.equipementIds)
-            is LoginIntent.UpdateResidenceUnit -> updateResidenceUnit(intent.id, intent.name, intent.floor, intent.type, intent.rent, intent.charges, intent.initialIndex, intent.equipementIds)
+            is LoginIntent.CreateResidenceUnit -> createResidenceUnit(intent.name, intent.floor, intent.type, intent.nominalRent, intent.serviceCharges, intent.initialIndex, intent.equipmentIds)
+            is LoginIntent.UpdateResidenceUnit -> updateResidenceUnit(intent.id, intent.name, intent.floor, intent.type, intent.rent, intent.charges, intent.initialIndex, intent.equipmentIds)
             is LoginIntent.DeleteResidenceUnit -> deleteResidenceUnit(intent.id)
             is LoginIntent.CreateLease -> createLease(intent.residenceUnitId, intent.request, intent.onSuccess)
             is LoginIntent.RecordLeasePayment -> recordLeasePayment(intent.leaseId, intent.amount, intent.category, intent.onResult)
@@ -189,7 +189,7 @@ class LoginViewModel(
             is LoginIntent.NavigateToAppScreen -> navigateToAppScreen(intent.screen)
             is LoginIntent.SetShowCreateResidenceDialog -> setShowCreateResidenceDialog(intent.show)
             is LoginIntent.SetShowJoinResidenceDialog -> setShowJoinResidenceDialog(intent.show)
-            is LoginIntent.SetShowCreateLogementDialog -> setShowCreateUnitDialog(intent.show)
+            is LoginIntent.SetShowCreateUnitDialog -> setShowCreateUnitDialog(intent.show)
             is LoginIntent.ToggleTheme -> toggleTheme()
         }
     }
@@ -202,13 +202,13 @@ class LoginViewModel(
         updateState { it.copy(language = lang) }
     }
 
-    fun fetchEquipements() {
+    fun fetchEquipments() {
         viewModelScope.launch {
             try {
                 val response = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/equipements")
                 if (response.status == io.ktor.http.HttpStatusCode.OK) {
                     val list = response.body<List<EquipmentDto>>()
-                    updateState { it.copy(availableEquipements = list) }
+                    updateState { it.copy(availableEquipments = list) }
                 }
             } catch (e: Exception) {}
         }
@@ -242,9 +242,20 @@ class LoginViewModel(
     fun navigateToLogin() {
         updateState { it.copy(currentScreen = AuthScreen.LOGIN, errorMessage = null) }
     }
-    fun navigateToMain() {
-        updateState { it.copy(currentScreen = AuthScreen.MAIN, errorMessage = null) }
-        fetchResidences()
+    fun navigateToMain(token: String? = null, user: UserDto? = null) {
+        val effectiveToken = token ?: uiState.value.jwtToken
+        val effectiveUser = user ?: uiState.value.loggedInUser
+        updateState { 
+            it.copy(
+                currentScreen = AuthScreen.MAIN, 
+                errorMessage = null,
+                jwtToken = effectiveToken ?: it.jwtToken,
+                loggedInUser = effectiveUser ?: it.loggedInUser,
+                firstName = effectiveUser?.firstName ?: it.firstName,
+                lastName = effectiveUser?.lastName ?: it.lastName
+            ) 
+        }
+        fetchResidences(tokenOverride = effectiveToken)
     }
     fun setShowCreateResidenceDialog(show: Boolean) {
         updateState { it.copy(showCreateResidenceDialog = show, errorMessage = null) }
@@ -261,14 +272,14 @@ class LoginViewModel(
         }
     }
     fun setShowCreateUnitDialog(show: Boolean) {
-        updateState { it.copy(showCreateLogementDialog = show, errorMessage = null) }
+        updateState { it.copy(showCreateUnitDialog = show, errorMessage = null) }
     }
 
     // Public actions to preserve classic direct UI invocations and support stateless screens
 
-    fun fetchResidences() {
-        fetchEquipements()
-        val token = uiState.value.jwtToken ?: return
+    fun fetchResidences(tokenOverride: String? = null, autoSelectResidenceId: String? = null) {
+        fetchEquipments()
+        val token = tokenOverride ?: uiState.value.jwtToken ?: return
         
         viewModelScope.launch {
             try {
@@ -298,10 +309,17 @@ class LoginViewModel(
                         }
                         
                         val allResidences = ownedContexts + associatedContexts
-                        updateState {
-                            it.copy(
+                        val savedResidenceId = autoSelectResidenceId ?: sessionStorage?.loadLastSelectedResidenceId()
+
+                        updateState { state ->
+                            val targetSelection = if (savedResidenceId != null) {
+                                allResidences.find { res -> res.residenceId == savedResidenceId } ?: state.selectedResidenceContext ?: allResidences.firstOrNull()
+                            } else {
+                                state.selectedResidenceContext ?: allResidences.firstOrNull()
+                            }
+                            state.copy(
                                 residences = allResidences,
-                                selectedResidenceContext = it.selectedResidenceContext ?: allResidences.firstOrNull()
+                                selectedResidenceContext = targetSelection
                             )
                         }
                         fetchResidenceUnits()
@@ -375,6 +393,7 @@ class LoginViewModel(
     }
 
     fun selectResidence(residence: ResidenceContext) {
+        sessionStorage?.saveLastSelectedResidenceId(residence.residenceId)
         updateState { it.copy(selectedResidenceContext = residence, residenceUnits = emptyList(), leases = emptyList(), members = emptyList()) }
         fetchResidenceUnits()
         fetchLeases()
@@ -393,8 +412,8 @@ class LoginViewModel(
             try {
                 residenceRepository.createResidence(token, ResidenceCreateRequest(name, address,
                     CurrencyCodeDto.valueOf(defaultCurrency), kWhPrice))
-                    .onSuccess {
-                        fetchResidences()
+                    .onSuccess { created ->
+                        fetchResidences(autoSelectResidenceId = created.id)
                         updateState { it.copy(isLoading = false, showCreateResidenceDialog = false, errorMessage = null) }
                     }
                     .onFailure { exception ->
@@ -488,7 +507,7 @@ class LoginViewModel(
         nominalRent: Double,
         serviceCharges: Double,
         initialElectricityIndex: Double,
-        equipementIds: List<String> = emptyList()
+        equipmentIds: List<String> = emptyList()
     ) {
         val token = uiState.value.jwtToken ?: return
         val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
@@ -496,11 +515,11 @@ class LoginViewModel(
 
         viewModelScope.launch {
             try {
-                val request = ResidenceUnitCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex, equipementIds)
+                val request = ResidenceUnitCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex, equipmentIds)
                 residenceUnitRepository.createResidenceUnit(token, residenceId, request)
                     .onSuccess {
                         fetchResidenceUnits()
-                        updateState { it.copy(isLoading = false, showCreateLogementDialog = false, errorMessage = null) }
+                        updateState { it.copy(isLoading = false, showCreateUnitDialog = false, errorMessage = null) }
                     }
                     .onFailure { exception ->
                         updateState { it.copy(isLoading = false, errorMessage = exception.message) }
@@ -540,7 +559,7 @@ class LoginViewModel(
         nominalRent: Double,
         serviceCharges: Double,
         initialElectricityIndex: Double,
-        equipementIds: List<String> = emptyList()
+        equipmentIds: List<String> = emptyList()
     ) {
         val token = uiState.value.jwtToken ?: return
         val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
@@ -548,7 +567,7 @@ class LoginViewModel(
 
         viewModelScope.launch {
             try {
-                val request = ResidenceUnitCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex, equipementIds)
+                val request = ResidenceUnitCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex, equipmentIds)
                 residenceUnitRepository.updateResidenceUnit(token, residenceId, residenceUnitId, request)
                     .onSuccess {
                         fetchResidenceUnits()

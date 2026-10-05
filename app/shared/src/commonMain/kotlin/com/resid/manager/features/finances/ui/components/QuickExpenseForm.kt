@@ -28,7 +28,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -118,30 +117,31 @@ fun QuickExpenseForm(
                 }
 
                 // Amount input field
-                OutlinedTextField(
+                com.resid.manager.ui.components.AmountTextField(
                     value = formAmountText,
                     onValueChange = onAmountChanged,
-                    label = { Text("Montant (XOF) *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Montant *",
+                    currencySymbol = "XOF",
+                    placeholder = "0.0",
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 // Date input field
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = formDate,
                     onValueChange = onDateChanged,
-                    label = { Text("Date d'opération (AAAA-MM-JJ) *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Date d'opération (AAAA-MM-JJ) *",
+                    placeholder = "AAAA-MM-JJ",
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 // Description text input
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = formDescription,
                     onValueChange = onDescriptionChanged,
-                    label = { Text("Description explicite de l'achat *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 2
+                    label = "Description explicite de l'achat *",
+                    singleLine = false,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 if (formError != null) {

@@ -10,12 +10,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.resid.manager.ui.components.DateRangePickerField
 
 @Composable
 fun DashboardPeriodFilterBar(
@@ -59,27 +59,17 @@ fun DashboardPeriodFilterBar(
                     }
                 }
 
-                // Custom Date inputs (Conditional visibility)
+                // Custom Date inputs with DateRangePicker
                 if (periodFilter == "CUSTOM") {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = customStartText,
-                            onValueChange = onCustomStartChanged,
-                            label = { Text("Du (AAAA-MM-JJ)") },
-                            modifier = Modifier.width(150.dp),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = customEndText,
-                            onValueChange = onCustomEndChanged,
-                            label = { Text("Au (AAAA-MM-JJ)") },
-                            modifier = Modifier.width(150.dp),
-                            singleLine = true
-                        )
-                    }
+                    DateRangePickerField(
+                        startDate = customStartText,
+                        endDate = customEndText,
+                        onDateRangeSelected = { start, end ->
+                            onCustomStartChanged(start)
+                            onCustomEndChanged(end)
+                        },
+                        modifier = Modifier.width(280.dp)
+                    )
                 }
             }
         }

@@ -27,7 +27,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -73,12 +72,12 @@ fun InviteMemberDialog(
                 )
 
                 // Champ de recherche en direct
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = userSearchQuery,
                     onValueChange = onUserSearchQueryChanged,
-                    label = { Text("Rechercher un utilisateur...") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Rechercher un utilisateur...",
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 if (isSearchingUsers) {

@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -21,10 +24,11 @@ import com.resid.manager.features.electricity.mvi.ElectricityIntent
 import com.resid.manager.features.electricity.mvi.ElectricityUiState
 import com.resid.manager.features.electricity.ui.components.CreateStatementDialog
 import com.resid.manager.features.electricity.ui.components.ElectricityFilterBar
-import com.resid.manager.features.electricity.ui.components.ElectricityHeader
 import com.resid.manager.features.electricity.ui.components.ElectricityStatementsGrid
 import com.resid.manager.features.electricity.ui.components.StatementPaymentDialog
 import com.resid.manager.network.ApiClient
+import com.resid.manager.ui.components.ResidAppBarAction
+import com.resid.manager.ui.components.ResidTopAppBar
 import org.koin.compose.koinInject
 
 @Composable
@@ -37,7 +41,11 @@ fun ElectricityScreen(
     val uiState by viewModel.uiState.collectAsState()
     val token = jwtToken ?: ""
     val residenceId = activeResidence?.residenceId ?: ""
-    val isAuthorized = activeResidence != null && (activeResidence.userRoleInResidence == UserRole.ADMIN || activeResidence.userRoleInResidence == UserRole.MANAGER)
+    val isAuthorized = activeResidence != null && (
+        activeResidence.userRoleInResidence == UserRole.OWNER ||
+        activeResidence.userRoleInResidence == UserRole.ADMIN ||
+        activeResidence.userRoleInResidence == UserRole.MANAGER
+    )
     val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(token, residenceId) {
@@ -151,11 +159,30 @@ fun ElectricityContent(
         modifier = modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        ElectricityHeader(
-            isAuthorized = isAuthorized,
-            selectedCount = selectedCount,
-            onAddStatementClick = onAddStatementClick,
-            onEcoPrintClick = onEcoPrintClick
+        val appActions = buildList {
+            if (isAuthorized) {
+                add(
+                    ResidAppBarAction(
+                        title = "Nouveau Relevé",
+                        icon = Icons.Default.Add,
+                        onClick = onAddStatementClick
+                    )
+                )
+            }
+            if (selectedCount > 0) {
+                add(
+                    ResidAppBarAction(
+                        title = "Export Eco-Print ($selectedCount)",
+                        icon = Icons.Default.PictureAsPdf,
+                        onClick = onEcoPrintClick
+                    )
+                )
+            }
+        }
+
+        ResidTopAppBar(
+            title = "Facturation Électricité",
+            actions = appActions
         )
 
         ElectricityFilterBar(

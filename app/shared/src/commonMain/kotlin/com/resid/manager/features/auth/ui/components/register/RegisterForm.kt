@@ -153,9 +153,10 @@ fun RegisterForm(
                     value = birthDate,
                     onDateSelected = onBirthDateChanged
                 )
-                RegisterPhoneNumberField(
+                com.resid.manager.ui.components.PhoneTextField(
                     value = phone,
                     onPhoneChanged = onPhoneChanged,
+                    label = "Téléphone",
                     imeAction = ImeAction.Next
                 )
             }
@@ -168,9 +169,10 @@ fun RegisterForm(
                     )
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                    RegisterPhoneNumberField(
+                    com.resid.manager.ui.components.PhoneTextField(
                         value = phone,
                         onPhoneChanged = onPhoneChanged,
+                        label = "Téléphone",
                         imeAction = ImeAction.Next
                     )
                 }

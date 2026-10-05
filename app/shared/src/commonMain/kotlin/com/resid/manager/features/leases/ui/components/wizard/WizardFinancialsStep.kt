@@ -15,14 +15,19 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceUnitDto
+import com.resid.manager.ui.components.AmountTextField
+import com.resid.manager.ui.components.AppTextField
 
 @Composable
 fun WizardFinancialsStep(
@@ -40,15 +45,19 @@ fun WizardFinancialsStep(
     modifier: Modifier = Modifier
 ) {
     val isAnnual = draftPaymentFrequency == "ANNUAL"
+    val focusManager = LocalFocusManager.current
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Étape 3 sur 4 : Conditions Financières", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
 
-        OutlinedTextField(
+        AmountTextField(
             value = draftDepositAmount,
             onValueChange = onDepositAmountChanged,
-            label = { Text("Montant du dépôt de garantie (Caution) *") },
+            label = "Montant du dépôt de garantie (Caution) *",
+            placeholder = "0.0",
             isError = (draftDepositAmount.toDoubleOrNull() ?: 0.0) < 0.0,
+            imeAction = if (isAnnual) ImeAction.Next else ImeAction.Next,
+            onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
             modifier = Modifier.fillMaxWidth()
         )
 
@@ -69,20 +78,27 @@ fun WizardFinancialsStep(
         }
 
         if (isAnnual) {
-            OutlinedTextField(
+            AppTextField(
                 value = draftAdvanceMonths,
                 onValueChange = onAdvanceMonthsChanged,
-                label = { Text("Nombre de mois d'avance payés (Défaut : 12) *") },
+                label = "Nombre de mois d'avance payés (Défaut : 12) *",
+                placeholder = "12",
                 isError = (draftAdvanceMonths.toIntOrNull() ?: 0) <= 0,
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                imeAction = ImeAction.Next,
+                onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
                 modifier = Modifier.fillMaxWidth()
             )
         }
 
-        OutlinedTextField(
+        AmountTextField(
             value = draftAdvancePaymentAmount,
             onValueChange = onAdvancePaymentAmountChanged,
-            label = { Text("Montant de l'acompte immédiat versé (XOF)") },
+            label = "Montant de l'acompte immédiat versé (XOF)",
+            placeholder = "0.0",
             isError = (draftAdvancePaymentAmount.toDoubleOrNull() ?: 0.0) < 0.0,
+            imeAction = ImeAction.Done,
+            onImeAction = { focusManager.clearFocus() },
             modifier = Modifier.fillMaxWidth()
         )
 

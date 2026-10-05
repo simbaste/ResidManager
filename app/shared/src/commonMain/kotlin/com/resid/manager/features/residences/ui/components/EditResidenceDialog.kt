@@ -2,9 +2,9 @@ package com.resid.manager.features.residences.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -12,8 +12,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceContext
+import com.resid.manager.ui.components.AmountTextField
+import com.resid.manager.ui.components.AppTextField
 
 @Composable
 fun EditResidenceDialog(
@@ -30,20 +33,25 @@ fun EditResidenceDialog(
         title = { Text("Modifier la résidence") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+                AppTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nom de la résidence *") }
+                    label = "Nom de la résidence *",
+                    modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
+                AppTextField(
                     value = address,
                     onValueChange = { address = it },
-                    label = { Text("Adresse *") }
+                    label = "Adresse *",
+                    modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
+                AmountTextField(
                     value = kWhPrice,
                     onValueChange = { kWhPrice = it },
-                    label = { Text("Prix du kWh (XOF) *") }
+                    label = "Prix du kWh *",
+                    currencySymbol = residence.currencySymbol,
+                    placeholder = "150.0",
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         },

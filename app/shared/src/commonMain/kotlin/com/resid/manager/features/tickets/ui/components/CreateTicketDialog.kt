@@ -28,7 +28,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -84,12 +83,12 @@ fun CreateTicketDialog(
             ) {
                 Text("Rechercher l'unité concernée * :", style = MaterialTheme.typography.titleSmall)
 
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = residenceUnitSearchQuery,
                     onValueChange = { residenceUnitSearchQuery = it },
-                    label = { Text("Saisissez le nom ou l'étage...") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    label = "Saisissez le nom ou l'étage...",
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 if (filteredResidenceUnits.isNotEmpty()) {
@@ -177,19 +176,21 @@ fun CreateTicketDialog(
 
                 HorizontalDivider()
 
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Titre de l'incident *") },
+                    label = "Titre de l'incident *",
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description complète de la panne *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
+                    label = "Description complète de la panne *",
+                    singleLine = false,
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 val err = localError ?: errorMessage

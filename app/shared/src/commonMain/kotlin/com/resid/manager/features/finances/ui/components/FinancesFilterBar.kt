@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -48,12 +47,12 @@ fun FinancesFilterBar(
                 }
 
                 // Keyword description search
-                OutlinedTextField(
+                com.resid.manager.ui.components.AppTextField(
                     value = filterQueryText,
                     onValueChange = onFilterQueryChanged,
-                    label = { Text("Rechercher dans description...") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
+                    label = "Rechercher dans description...",
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                    modifier = Modifier.weight(1f)
                 )
             }
         }

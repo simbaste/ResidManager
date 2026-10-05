@@ -14,6 +14,33 @@ sealed interface AppNavKey : NavKey {
 
     @Serializable
     data object Main : AppNavKey
+
+    @Serializable
+    data object Dashboard : AppNavKey
+
+    @Serializable
+    data object Residences : AppNavKey
+
+    @Serializable
+    data object Units : AppNavKey
+
+    @Serializable
+    data object Leases : AppNavKey
+
+    @Serializable
+    data object Members : AppNavKey
+
+    @Serializable
+    data object Electricity : AppNavKey
+
+    @Serializable
+    data object Tickets : AppNavKey
+
+    @Serializable
+    data object Finances : AppNavKey
+
+    @Serializable
+    data object Profile : AppNavKey
 }
 
 /**
