@@ -36,9 +36,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceUnitDto
+import com.resid.manager.ui.components.AmountTextField
+import com.resid.manager.ui.components.AppDatePickerField
+import com.resid.manager.ui.components.AppTextField
+import com.resid.manager.ui.components.formatAmount
 
 @Composable
 fun CreateStatementDialog(
@@ -46,6 +51,8 @@ fun CreateStatementDialog(
     formPreviousIndex: Double?,
     isLoadingPreviousIndex: Boolean,
     errorMessage: String?,
+    defaultKWhPrice: Double = 150.0,
+    currencySymbol: String = "XOF",
     onSelectUnitForPreviousIndex: (String) -> Unit,
     onDismiss: () -> Unit,
     onSubmit: (String, Double, Double, Double, String) -> Unit
@@ -55,8 +62,8 @@ fun CreateStatementDialog(
     var selectedResidenceUnitId by remember { mutableStateOf("") }
 
     var formNewIndexText by remember { mutableStateOf("") }
-    var formKWhPriceText by remember { mutableStateOf("120.0") }
-    var formStatementDate by remember { mutableStateOf("2025-02-17") }
+    var formKWhPriceText by remember(defaultKWhPrice) { mutableStateOf(if (defaultKWhPrice > 0.0) defaultKWhPrice.toString() else "") }
+    var formStatementDate by remember { mutableStateOf("") }
     var localError by remember { mutableStateOf<String?>(null) }
 
     val filteredResidenceUnits = remember(residenceUnits, residenceUnitSearchQuery, selectedResidenceUnitName) {
@@ -85,11 +92,11 @@ fun CreateStatementDialog(
             ) {
                 Text("Rechercher l'unité concernée * :", style = MaterialTheme.typography.titleSmall)
 
-                com.resid.manager.ui.components.AppTextField(
+                AppTextField(
                     value = residenceUnitSearchQuery,
                     onValueChange = { residenceUnitSearchQuery = it },
                     label = "Saisissez le nom ou l'étage...",
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                    imeAction = ImeAction.Search,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -130,7 +137,7 @@ fun CreateStatementDialog(
                 if (isLoadingPreviousIndex) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp).align(Alignment.CenterHorizontally))
                 } else if (formPreviousIndex != null) {
-                    com.resid.manager.ui.components.AppTextField(
+                    AppTextField(
                         value = "${formPreviousIndex} kWh",
                         onValueChange = {},
                         label = "Ancien Index Compteur (Lecture Seule)",
@@ -138,31 +145,29 @@ fun CreateStatementDialog(
                     )
                 }
 
-                com.resid.manager.ui.components.AppTextField(
+                AppTextField(
                     value = formNewIndexText,
                     onValueChange = { formNewIndexText = it },
                     label = "Nouveau Relevé d'Index (kWh) *",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Next,
+                    imeAction = ImeAction.Next,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                com.resid.manager.ui.components.AmountTextField(
+                AmountTextField(
                     value = formKWhPriceText,
                     onValueChange = { formKWhPriceText = it },
                     label = "Prix Unitaire Appliqué du kWh *",
-                    currencySymbol = "XOF",
+                    currencySymbol = currencySymbol,
                     placeholder = "150.0",
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Next,
+                    imeAction = ImeAction.Next,
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                com.resid.manager.ui.components.AppTextField(
-                    value = formStatementDate,
-                    onValueChange = { formStatementDate = it },
-                    label = "Date du Relevé (AAAA-MM-JJ) *",
-                    placeholder = "AAAA-MM-JJ",
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                AppDatePickerField(
+                    date = formStatementDate,
+                    onDateSelected = { formStatementDate = it },
+                    label = "Date du Relevé *",
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -174,7 +179,8 @@ fun CreateStatementDialog(
                     Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Consommation : ${(calculatedNewIndex - calculatedOldIndex).coerceAtLeast(0.0)} kWh", style = MaterialTheme.typography.bodyMedium)
                         HorizontalDivider()
-                        Text("MONTANT CALCULÉ : $calculatedAmountDue XOF", style = MaterialTheme.typography.titleMedium, color = Color(0xFF006948))
+                        val formattedDue = formatAmount(calculatedAmountDue, currencySymbol)
+                        Text("MONTANT CALCULÉ : $formattedDue", style = MaterialTheme.typography.titleMedium, color = Color(0xFF006948))
                     }
                 }
 

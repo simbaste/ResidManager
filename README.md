@@ -71,6 +71,14 @@ L'interface est construite avec **Compose Material 3** :
 - **Typographie** : Famille de polices Inter avec hiérarchie Material 3
 - **Ergonomie** : Respect d'un rythme de grille de 8dp, réactivité multi-écrans (Mobile, Tablette, Desktop).
 
+### 🧩 Composants d'Interface Communs (`ui/components/`)
+Pour assurer la cohérence et l'accessibilité dans tous les écrans et formulaires :
+- **`AppTextField`** : Enrobage standardisé d'OutlinedTextField avec scroll automatique au focus (`bringIntoViewRequester`), gestion intuitive des touches Entrée / Suivant (`imeAction` et `onImeAction`).
+- **`AmountTextField`** : Composant de saisie monétaire avec formatage automatique des milliers à la volée (ex: `60 000`) et affichage de la devise, tout en préservant une valeur numérique propre pour les calculs.
+- **`AppDatePickerField`** : Sélecteur de date Material 3 universel supportant le mode date unique (`DatePickerMode.SINGLE`) et le mode plage de dates (`DatePickerMode.RANGE`) avec calendrier interactif et bascule vers la saisie manuelle.
+- **`PhoneTextField` & `RawPhoneTextField`** : Saisie internationale de numéro de téléphone avec sélecteur de préfixe de pays (`CI`, `FR`, etc.) et formateur automatique espacé par paires de chiffres.
+- **`formatAmount(...)` / `.toFormattedAmount(...)`** : Utilitaire impératif de formatage pour afficher tous les montants financiers sous une forme lisible pour l'humain.
+
 ---
 
 ## 🐳 Bases de Données & Environnements Docker

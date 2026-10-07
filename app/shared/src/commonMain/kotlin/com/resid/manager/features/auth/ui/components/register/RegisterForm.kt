@@ -48,6 +48,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.resid.manager.ui.components.AppDatePickerField
+import com.resid.manager.ui.components.PhoneTextField
 import com.resid.manager.ui.theme.residColors
 import org.jetbrains.compose.resources.decodeToImageBitmap
 
@@ -149,11 +151,14 @@ fun RegisterForm(
 
         if (isCompact) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                RegisterDateOfBirthPickerField(
-                    value = birthDate,
-                    onDateSelected = onBirthDateChanged
+                AppDatePickerField(
+                    date = birthDate,
+                    onDateSelected = onBirthDateChanged,
+                    label = "DATE DE NAISSANCE",
+                    placeholder = "AAAA-MM-JJ",
+                    yearRange = 1920..2026
                 )
-                com.resid.manager.ui.components.PhoneTextField(
+                PhoneTextField(
                     value = phone,
                     onPhoneChanged = onPhoneChanged,
                     label = "Téléphone",
@@ -163,13 +168,16 @@ fun RegisterForm(
         } else {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Box(modifier = Modifier.weight(1f)) {
-                    RegisterDateOfBirthPickerField(
-                        value = birthDate,
-                        onDateSelected = onBirthDateChanged
+                    AppDatePickerField(
+                        date = birthDate,
+                        onDateSelected = onBirthDateChanged,
+                        label = "DATE DE NAISSANCE",
+                        placeholder = "AAAA-MM-JJ",
+                        yearRange = 1920..2026
                     )
                 }
                 Box(modifier = Modifier.weight(1f)) {
-                    com.resid.manager.ui.components.PhoneTextField(
+                    PhoneTextField(
                         value = phone,
                         onPhoneChanged = onPhoneChanged,
                         label = "Téléphone",

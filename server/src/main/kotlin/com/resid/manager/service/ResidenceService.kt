@@ -107,7 +107,8 @@ object ResidenceService {
                         photoUrl = row[Residences.photoUrl],
                         totalUnits = totalUnits,
                         currencyCode = row[Currencies.code].convert(),
-                        currencySymbol = row[Currencies.symbol].convert()
+                        currencySymbol = row[Currencies.symbol].convert(),
+                        kWhPrice = row[Residences.kWhPrice]
                     )
                 )
             } else {
@@ -120,7 +121,8 @@ object ResidenceService {
                         roleDto = role.convert(),
                         totalUnits = totalUnits,
                         currencySymbol = row[Currencies.symbol].convert(),
-                        currencyCode = row[Currencies.code].convert()
+                        currencyCode = row[Currencies.code].convert(),
+                        kWhPrice = row[Residences.kWhPrice]
                     )
                 )
             }
@@ -241,7 +243,8 @@ object ResidenceService {
             photoUrl = dbResidence.photoUrl,
             totalUnits = totalUnits,
             currencyCode = dbResidence.currency.code.convert(),
-            currencySymbol = dbResidence.currency.symbol.convert()
+            currencySymbol = dbResidence.currency.symbol.convert(),
+            kWhPrice = dbResidence.kWhPrice
         )
     }
 
@@ -287,7 +290,8 @@ object ResidenceService {
                 photoUrl = row[Residences.photoUrl],
                 totalUnits = unitCountsMap[resId] ?: 0,
                 currencyCode = currency.code.convert(),
-                currencySymbol = currency.symbol.convert()
+                currencySymbol = currency.symbol.convert(),
+                kWhPrice = row[Residences.kWhPrice]
             )
         }
     }

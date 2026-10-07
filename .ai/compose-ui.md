@@ -34,6 +34,30 @@ L'application utilise un thème **Dark Mode par défaut**, professionnel et épu
     - Conteneurs larges / Widgets du Dashboard : `16.dp` (1rem).
     - Status Chips / Badges : `full` (`RoundedCornerShape(percent = 50)` ou `9999.dp`).
 
+### Formatage des Nombres et Devises
+> **Règle impérative d'affichage monétaire :**
+> Tout montant financier ou devise affiché dans l'UI (`Text(...)`, `Card`, tableaux, KPIs, relevés) DOIT obligatoirement être formaté avec un séparateur de milliers lisible pour un être humain (ex: `60 000 XOF`, `1 250 500 FCFA`, `125.50 €`) en utilisant :
+> - `formatAmount(amount, currencySymbol)` ou
+> - L'extension `amount.toFormattedAmount(currencySymbol)` issues de `com.resid.manager.ui.components.CurrencyFormatterKt`.
+> Ne jamais afficher de valeurs numériques brutes telles que `60000.0 XOF` ou `"${lease.rent} XOF"`.
+
+### Composants Custom Réutilisables (`com.resid.manager.ui.components.*`)
+Toujours privilégier ces composants sur mesure pour garantir l'ergonomie, la validation et l'accessibilité :
+1. **`AppTextField`** : Encapsule les champs textuels avec gestion automatique du défilement au focus (`bringIntoViewRequester`), gestion simplifiée des actions IME (`imeAction = ImeAction.Next`, `onImeAction = { ... }`), et labels textuels directs sans boilerplate.
+2. **`AmountTextField`** : Spécialisé pour les montants financiers (loyers, charges, cautions, prix kWh, acomptes). Formate visuellement les milliers avec espaces via `ThousandsSeparatorVisualTransformation`, filtre la saisie numérique et affiche la devise en trailing icon.
+3. **`AppDatePickerField`** : Composant calendrier universel Material 3.
+   - `DatePickerMode.SINGLE` : Date unique (anniversaire, relevé de compteur, dates d'opération).
+   - `DatePickerMode.RANGE` : Plage de dates (période analytique du tableau de bord, dates de bail).
+4. **`PhoneTextField` & `RawPhoneTextField`** :
+   - `PhoneTextField` : Dropdown de sélection du préfixe international (`+225`, `+33`, etc.) + champ numérique formaté avec espaces par paires de chiffres (`PhoneVisualTransformation`). Transmet automatiquement le numéro international complet.
+   - `RawPhoneTextField` : Champ direct formaté pour numéro de téléphone sans dropdown de pays.
+
+### Imports et Références de Symboles
+> **Règle impérative d'importation :**
+> - Déclarer tous les imports nécessaires en en-tête de fichier (`import ...`).
+> - Ne jamais utiliser de Fully Qualified Names (FQN) inline dans le code Compose (ex: interdiction d'appeler `com.resid.manager.ui.components.AppTextField(...)` ou `com.resid.manager.ui.components.formatAmount(...)`).
+> - Toujours utiliser directement le nom du symbole après import : `AppTextField(...)`, `formatAmount(...)`, etc.
+
 ---
 
 ## 2. Structure Canonique d'une Feature MVI

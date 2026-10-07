@@ -73,7 +73,7 @@ fun AppTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label) },
+        label = if (label.isNotBlank()) { { Text(label) } } else null,
         placeholder = placeholder?.let { { Text(it) } },
         isError = isError,
         supportingText = if (isError && errorMessage != null) {

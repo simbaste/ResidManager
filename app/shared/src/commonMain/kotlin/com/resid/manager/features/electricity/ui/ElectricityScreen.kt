@@ -62,7 +62,8 @@ fun ElectricityScreen(
         onAddStatementClick = { viewModel.onIntent(ElectricityIntent.SetShowCreateDialog(true)) },
         onEcoPrintClick = {
             val selectedKeys = uiState.selectedStatementIds.filter { it.value }.keys.joinToString(",")
-            val url = "${ApiClient.BASE_URL}/api/residences/$residenceId/electricity/statements/pdf-batch?ids=$selectedKeys"
+            val url = "${ApiClient.BASE_URL}/api/residences/$residenceId/electricity/export-pdf" + 
+                if (selectedKeys.isNotBlank()) "?ids=$selectedKeys" else ""
             uriHandler.openUri(url)
         },
         onStatusFilterChanged = { viewModel.onIntent(ElectricityIntent.SetStatusFilter(it)) },
@@ -78,6 +79,8 @@ fun ElectricityScreen(
             formPreviousIndex = uiState.formPreviousIndex,
             isLoadingPreviousIndex = uiState.isLoadingPreviousIndex,
             errorMessage = uiState.errorMessage,
+            defaultKWhPrice = activeResidence?.kWhPrice ?: 150.0,
+            currencySymbol = activeResidence?.currencySymbol ?: "XOF",
             onSelectUnitForPreviousIndex = { unitId ->
                 viewModel.onIntent(ElectricityIntent.LoadPreviousIndex(token, unitId))
             },

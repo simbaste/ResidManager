@@ -21,6 +21,9 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 
+import com.resid.manager.ui.components.AmountTextField
+import com.resid.manager.ui.components.AppTextField
+
 @Composable
 fun CreateResidenceDialog(
     isLoading: Boolean = false,
@@ -40,7 +43,7 @@ fun CreateResidenceDialog(
         title = { Text("Créer une nouvelle résidence") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                com.resid.manager.ui.components.AppTextField(
+                AppTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = "Nom de la résidence *",
@@ -48,7 +51,7 @@ fun CreateResidenceDialog(
                     onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
                     modifier = Modifier.fillMaxWidth()
                 )
-                com.resid.manager.ui.components.AppTextField(
+                AppTextField(
                     value = address,
                     onValueChange = { address = it },
                     label = "Adresse *",
@@ -56,7 +59,7 @@ fun CreateResidenceDialog(
                     onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
                     modifier = Modifier.fillMaxWidth()
                 )
-                com.resid.manager.ui.components.AmountTextField(
+                AmountTextField(
                     value = kWhPrice,
                     onValueChange = { kWhPrice = it },
                     label = "Prix du kWh *",

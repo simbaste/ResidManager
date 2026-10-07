@@ -12,7 +12,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.resid.manager.ui.components.DateRangePickerField
+import com.resid.manager.ui.components.AppDatePickerField
+import com.resid.manager.ui.components.DatePickerMode
 
 @Composable
 fun WizardTimelineStep(
@@ -25,7 +26,8 @@ fun WizardTimelineStep(
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Étape 4 sur 4 : Calendrier & Durée", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
 
-        DateRangePickerField(
+        AppDatePickerField(
+            mode = DatePickerMode.RANGE,
             startDate = draftStartDate,
             endDate = draftEndDate,
             onDateRangeSelected = { start, end ->

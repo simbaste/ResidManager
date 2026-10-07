@@ -293,7 +293,8 @@ class LoginViewModel(
                                 userRoleInResidence = UserRole.OWNER,
                                 totalUnits = it.totalUnits,
                                 currencySymbol = it.currencySymbol.label,
-                                currencyCode = it.currencyCode.name
+                                currencyCode = it.currencyCode.name,
+                                kWhPrice = it.kWhPrice
                             )
                         }
                         val associatedContexts = directory.associatedResidences.map {
@@ -304,7 +305,8 @@ class LoginViewModel(
                                 userRoleInResidence = it.roleDto.toUserRole(),
                                 totalUnits = it.totalUnits,
                                 currencySymbol = it.currencySymbol.label,
-                                currencyCode = it.currencyCode.name
+                                currencyCode = it.currencyCode.name,
+                                kWhPrice = it.kWhPrice
                             )
                         }
                         

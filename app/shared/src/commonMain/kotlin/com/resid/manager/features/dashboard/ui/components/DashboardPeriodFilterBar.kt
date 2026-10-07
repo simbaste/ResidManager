@@ -15,7 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.resid.manager.ui.components.DateRangePickerField
+import com.resid.manager.ui.components.AppDatePickerField
+import com.resid.manager.ui.components.DatePickerMode
 
 @Composable
 fun DashboardPeriodFilterBar(
@@ -59,9 +60,10 @@ fun DashboardPeriodFilterBar(
                     }
                 }
 
-                // Custom Date inputs with DateRangePicker
+                // Custom Date inputs with AppDatePickerField
                 if (periodFilter == "CUSTOM") {
-                    DateRangePickerField(
+                    AppDatePickerField(
+                        mode = DatePickerMode.RANGE,
                         startDate = customStartText,
                         endDate = customEndText,
                         onDateRangeSelected = { start, end ->

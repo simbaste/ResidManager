@@ -24,6 +24,7 @@ data class ResidenceSummaryItemDto(
     val totalUnits: Int,
     val currencySymbol: CurrencySymbolDto = CurrencySymbolDto.FRANC_CFA,
     val currencyCode: CurrencyCodeDto = CurrencyCodeDto.XOF,
+    val kWhPrice: Double = 150.0
 )
 
 @Serializable
@@ -44,7 +45,8 @@ data class AssociatedResidenceItem(
     val roleDto: RoleDto,
     val totalUnits: Int,
     val currencySymbol: CurrencySymbolDto = CurrencySymbolDto.FRANC_CFA,
-    val currencyCode: CurrencyCodeDto = CurrencyCodeDto.XOF
+    val currencyCode: CurrencyCodeDto = CurrencyCodeDto.XOF,
+    val kWhPrice: Double = 150.0
 )
 
 @Serializable

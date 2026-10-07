@@ -2,13 +2,16 @@ package com.resid.manager.features.electricity.data
 
 import com.resid.manager.dto.ElectricityStatementCreateRequest
 import com.resid.manager.dto.ElectricityStatementDto
+import com.resid.manager.dto.ElectricityStatusDto
+import com.resid.manager.dto.ElectricityStatusUpdateRequest
 import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.network.ApiClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
-import io.ktor.client.request.patch
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -25,7 +28,8 @@ interface ElectricityRepository {
 class ElectricityRepositoryImpl : ElectricityRepository {
     override suspend fun fetchStatements(token: String, residenceId: String): Result<List<ElectricityStatementDto>> {
         return try {
-            val response = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/residences/$residenceId/electricity/statements") {
+            val response = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/electricities") {
+                parameter("residenceId", residenceId)
                 header(HttpHeaders.Authorization, "Bearer $token")
             }
             if (response.status == HttpStatusCode.OK) {
@@ -41,11 +45,13 @@ class ElectricityRepositoryImpl : ElectricityRepository {
 
     override suspend fun fetchPreviousIndex(token: String, unitId: String): Result<Double> {
         return try {
-            val response = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/electricity/statements/last-index?unitId=$unitId") {
+            val response = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/electricities/previous") {
+                parameter("unitId", unitId)
                 header(HttpHeaders.Authorization, "Bearer $token")
             }
             if (response.status == HttpStatusCode.OK) {
-                Result.success(response.body<Double>())
+                val body = response.body<Map<String, Double>>()
+                Result.success(body["previousIndex"] ?: 0.0)
             } else {
                 Result.failure(Exception("Impossible de récupérer le dernier index"))
             }
@@ -60,7 +66,7 @@ class ElectricityRepositoryImpl : ElectricityRepository {
         request: ElectricityStatementCreateRequest
     ): Result<ElectricityStatementDto> {
         return try {
-            val response = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/residences/$residenceId/electricity/statements") {
+            val response = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/electricities") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(request)
@@ -78,8 +84,10 @@ class ElectricityRepositoryImpl : ElectricityRepository {
 
     override suspend fun markStatementPaid(token: String, statementId: String): Result<ElectricityStatementDto> {
         return try {
-            val response = ApiClient.httpClient.patch("${ApiClient.BASE_URL}/api/electricity/statements/$statementId/paid") {
+            val response = ApiClient.httpClient.put("${ApiClient.BASE_URL}/api/electricities/$statementId/status") {
+                contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
+                setBody(ElectricityStatusUpdateRequest(status = ElectricityStatusDto.PAID))
             }
             if (response.status == HttpStatusCode.OK) {
                 Result.success(response.body())
