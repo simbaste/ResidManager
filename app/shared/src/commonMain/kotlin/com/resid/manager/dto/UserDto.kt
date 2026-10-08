@@ -67,5 +67,17 @@ data class AuthRequest(
 @Serializable
 data class AuthResponse(
     val token: String,
+    val refreshToken: String? = null,
     val user: UserDto
+)
+
+@Serializable
+data class RefreshTokenRequest(
+    val refreshToken: String
+)
+
+@Serializable
+data class TokenRefreshResponse(
+    val token: String,
+    val refreshToken: String? = null
 )

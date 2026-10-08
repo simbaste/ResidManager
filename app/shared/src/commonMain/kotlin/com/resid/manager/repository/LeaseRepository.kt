@@ -1,11 +1,24 @@
 package com.resid.manager.repository
 
-import com.resid.manager.dto.*
+import com.resid.manager.dto.ErrorResponse
+import com.resid.manager.dto.LeaseCreateRequest
+import com.resid.manager.dto.LeaseDto
+import com.resid.manager.dto.LeasePaymentRequest
+import com.resid.manager.dto.LeaseStatusDto
+import com.resid.manager.dto.LeaseUpdateRequest
+import com.resid.manager.dto.TransactionCategoryDto
 import com.resid.manager.network.ApiClient
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.request.*
-import io.ktor.http.*
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 
 interface LeaseRepository {
     suspend fun fetchLeases(token: String, residenceId: String): Result<List<LeaseDto>>
@@ -57,8 +70,12 @@ class LeaseRepositoryImpl(
 
     override suspend fun recordLeasePayment(token: String, leaseId: String, amount: Double, category: String): Result<LeaseDto> {
         return try {
-            val req = LeasePaymentRequest(amountPaid = amount, category = TransactionCategoryDto.valueOf(category))
-            val response = httpClient.put("${ApiClient.BASE_URL}/api/baux/$leaseId/payment") {
+            val mappedCategory = when (category.uppercase()) {
+                "CAUTION", "DEPOSIT" -> TransactionCategoryDto.DEPOSIT
+                else -> TransactionCategoryDto.RENT
+            }
+            val req = LeasePaymentRequest(amountPaid = amount, category = mappedCategory)
+            val response = httpClient.put("${ApiClient.BASE_URL}/api/leases/$leaseId/payment") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(req)
@@ -77,7 +94,7 @@ class LeaseRepositoryImpl(
     override suspend fun updateLeaseStatus(token: String, leaseId: String, status: LeaseStatusDto): Result<LeaseDto> {
         return try {
             val req = LeaseUpdateRequest(status = status)
-            val response = httpClient.put("${ApiClient.BASE_URL}/api/baux/$leaseId/status") {
+            val response = httpClient.put("${ApiClient.BASE_URL}/api/leases/$leaseId/status") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(req)

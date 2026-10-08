@@ -10,5 +10,6 @@ data class ResidenceContext(
     val userRoleInResidence: UserRole,
     val totalUnits: Int = 0,
     val currencySymbol: String = "FCFA",
-    val currencyCode: String = "XOF"
+    val currencyCode: String = "XOF",
+    val kWhPrice: Double = 150.0
 )

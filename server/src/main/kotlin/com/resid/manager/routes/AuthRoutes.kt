@@ -9,6 +9,7 @@ import com.resid.manager.dto.AuthResponse
 import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.dto.RegisterRequest
 import com.resid.manager.dto.UserDto
+import com.resid.manager.service.executeRequest
 import com.resid.manager.validation.AuthValidator
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
@@ -24,31 +25,25 @@ import java.time.LocalDateTime
 fun Route.authRoutes() {
     route("/api/auth") {
         post("/login") {
-            try {
+            call.executeRequest(HttpStatusCode.OK) {
                 val request = call.receive<AuthRequest>()
 
                 // 1. Validate inputs
                 val validation = AuthValidator.validateLogin(request.email, request.passwordPlain)
                 if (validation.isFailure) {
-                    call.respond(
+                    throw com.resid.manager.data.HttpError(
                         HttpStatusCode.BadRequest,
-                        ErrorResponse(validation.exceptionOrNull()?.message ?: "Données de connexion invalides.")
+                        validation.exceptionOrNull()?.message ?: "Données de connexion invalides."
                     )
-                    return@post
                 }
 
                 // 2. Fetch user from Database inside an Exposed transaction
                 val dbUser = transaction {
                     User.find { Users.email eq request.email }.firstOrNull()
-                }
-
-                if (dbUser == null) {
-                    call.respond(
-                        HttpStatusCode.Unauthorized,
-                        ErrorResponse("Identifiants incorrects (utilisateur introuvable).")
-                    )
-                    return@post
-                }
+                } ?: throw com.resid.manager.data.HttpError(
+                    HttpStatusCode.Unauthorized,
+                    "Identifiants incorrects (utilisateur introuvable)."
+                )
 
                 // 3. Verify password using BCrypt
                 val passwordVerification = BCrypt.verifyer().verify(
@@ -57,15 +52,18 @@ fun Route.authRoutes() {
                 )
 
                 if (!passwordVerification.verified) {
-                    call.respond(
+                    throw com.resid.manager.data.HttpError(
                         HttpStatusCode.Unauthorized,
-                        ErrorResponse("Identifiants incorrects (mot de passe invalide).")
+                        "Identifiants incorrects (mot de passe invalide)."
                     )
-                    return@post
                 }
 
-                // 4. Generate JWT token
+                // 4. Generate JWT tokens
                 val token = JwtConfig.generateToken(
+                    userId = dbUser.id.value.toString(),
+                    email = dbUser.email,
+                )
+                val refreshToken = JwtConfig.generateRefreshToken(
                     userId = dbUser.id.value.toString(),
                     email = dbUser.email,
                 )
@@ -81,16 +79,61 @@ fun Route.authRoutes() {
                     updatedAt = dbUser.createdAt.toString()
                 )
 
-                call.respond(HttpStatusCode.OK, AuthResponse(token, userDto))
-
-            } catch (e: Exception) {
-                call.respond(
-                    HttpStatusCode.InternalServerError,
-                    ErrorResponse("Une erreur interne est survenue: ${e.localizedMessage}")
+                AuthResponse(
+                    token = token,
+                    refreshToken = refreshToken,
+                    user = userDto
                 )
             }
         }
 
+        // POST /api/auth/refresh : Refresh access token using a valid refresh token
+        post("/refresh") {
+            try {
+                val request = call.receive<com.resid.manager.dto.RefreshTokenRequest>()
+                val tokenData = JwtConfig.verifyRefreshToken(request.refreshToken)
+
+                if (tokenData == null) {
+                    call.respond(
+                        HttpStatusCode.Unauthorized,
+                        ErrorResponse("Refresh token invalide ou expiré.")
+                    )
+                    return@post
+                }
+
+                val (userId, email) = tokenData
+
+                // Verify user existence in database
+                val userExists = transaction {
+                    User.findById(java.util.UUID.fromString(userId)) != null
+                }
+
+                if (!userExists) {
+                    call.respond(
+                        HttpStatusCode.Unauthorized,
+                        ErrorResponse("Utilisateur introuvable.")
+                    )
+                    return@post
+                }
+
+                // Generate new access and rotated refresh tokens
+                val newAccessToken = JwtConfig.generateToken(userId, email)
+                val newRefreshToken = JwtConfig.generateRefreshToken(userId, email)
+
+                call.respond(
+                    HttpStatusCode.OK,
+                    com.resid.manager.dto.TokenRefreshResponse(
+                        token = newAccessToken,
+                        refreshToken = newRefreshToken
+                    )
+                )
+            } catch (e: Exception) {
+                call.respond(
+                    HttpStatusCode.InternalServerError,
+                    ErrorResponse("Une erreur est survenue lors du rafraîchissement: ${e.localizedMessage}")
+                )
+            }
+        }
 
         // -----------------------------------------------------------------
         // SECTION 1: PUBLIC ROUTES
@@ -156,8 +199,12 @@ fun Route.authRoutes() {
                     }
                 }
 
-                // 5. Auto-authenticate by generating and returning a JWT token
+                // 5. Auto-authenticate by generating and returning JWT tokens
                 val token = JwtConfig.generateToken(
+                    userId = newUser.id.value.toString(),
+                    email = newUser.email,
+                )
+                val refreshToken = JwtConfig.generateRefreshToken(
                     userId = newUser.id.value.toString(),
                     email = newUser.email,
                 )
@@ -173,7 +220,14 @@ fun Route.authRoutes() {
                     updatedAt = newUser.createdAt.toString()
                 )
 
-                call.respond(HttpStatusCode.Created, AuthResponse(token, userDto))
+                call.respond(
+                    HttpStatusCode.Created,
+                    AuthResponse(
+                        token = token,
+                        refreshToken = refreshToken,
+                        user = userDto
+                    )
+                )
 
             } catch (e: Exception) {
                 call.respond(

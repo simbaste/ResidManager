@@ -1,32 +1,56 @@
-# AI Coding Instructions for Resid Manager
+# AI Coding Instructions for ResidManager
 
-You are an expert software engineer specializing in Kotlin Multiplatform (KMP), Ktor 3, JetBrains Exposed, and Jetpack Compose for Web. Your goal is to write clean, production-ready, type-safe code that adheres strictly to the project context.
+Vous êtes un ingénieur logiciel expert en **Kotlin Multiplatform (KMP)**, **Jetpack Compose Multiplatform**, **Ktor 3**, **JetBrains Exposed** et **PostgreSQL**.
+Votre objectif est de produire un code propre, hautement maintenable, typé et respectant strictement l'architecture modulaire et les règles métier du projet.
 
-## General Rules
-1. ALWAYS respect the separation of concerns across the three modules (`:shared`, `:backend`, `:frontend-web`).
-2. DO NOT write Android-specific or iOS-specific code unless explicitly requested. The frontend target is Web (Kotlin/JS).
-3. Use KotlinX Serialization for all data transfer objects (DTOs).
-4. All financial calculations involving monetary values or indexes must use appropriate decimal formatting or high-precision numerical types (e.g., Double or BigDecimal/BigDecimal equivalents in Kotlin) to prevent floating-point errors.
+---
 
-## Code Generation Guidelines
+## 📚 Référentiel des Règles (Sources de Vérité)
 
-### When modifying `:shared`:
-- Place data models and DTOs inside `shared/src/commonMain/kotlin`.
-- Annotate DTOs with `@Serializable`.
-- Write platform-agnostic code. Do not use Java-specific imports (like `java.util.*`) in common source sets.
+Pour toute tâche, vous **DEVEZ** consulter et respecter les documents spécialisés situés dans `.ai/` :
 
-### When modifying `:backend` (Ktor):
-- Write routes inside the Ktor routing feature block.
-- Use JetBrains Exposed DAO/DSL for database transactions.
-- Always validate incoming DTOs using shared validation logic before executing database writes.
-- Return explicit HTTP status codes (e.g., 201 Created, 400 Bad Request, 401 Unauthorized).
-- CRITICAL: Whenever you modify an Exposed Table object, you must explicitly generate the SQL migration script or provide an Exposed migration block to alter the database safely without data loss.
+1. [Architecture & Découpage](./.ai/architecture.md) : Multi-modules (`:app:shared`, `:server`, `:core`), responsabilités des couches, règles d'isolation.
+2. [Interface Utilisateur & MVI](./.ai/compose-ui.md) : Compose Multiplatform, Pattern MVI obligatoire (`State`, `Intent`, `Effect`), UseCases, Design System Dark Mode "Emerald Estate" (`DESIGN.md`).
+3. [Backend Ktor Server & Database](./.ai/backend-ktor.md) : Architecture 3 couches (`routes` -> `services` -> `data/tables`), gestion des erreurs `HttpError`, migrations de base de données sans perte de données.
+4. [Règles Métier & Domaine](./.ai/domain-rules.md) : Devise pivot (FCFA/XOF), calculs d'électricité, machine à états des baux, clôture des tickets et facturation automatique.
 
-### When modifying `:frontend-web` (Compose Web):
-- Use declarative Jetpack Compose state management (`mutableStateOf`, `remember`).
-- Use Ktor Multiplatform Client for asynchronous HTTP/REST API calls.
-- Structure UI components to be responsive, optimized for both mobile web viewports and desktop screens.
+---
 
-## Error Handling
-- Never leave catch blocks empty.
-- Gracefully map backend exceptions to clear error response DTOs payload (e.g., `data class ErrorResponse(val message: String)`).
+## 🎯 Directives Générales de Développement
+
+0. **Règles Fondamentales d'Implémentation UI & Composants :**
+   - **Langue du Code (Anglais strict)** : Tout le code source, identifiants, noms de classes, interfaces, fonctions, variables, constantes, propriétés, commits et commentaires de code doivent être **exclusivement rédigés en anglais**. (Seuls les textes/labels affichés à l'utilisateur final peuvent être traduits/internationalisés).
+   - **Navigation 3 stricte** : Toujours utiliser Jetpack Navigation 3 (`androidx.navigation3`, `NavKey`, `NavBackStack`, `NavDisplay`) au lieu d'une navigation basée sur des variables d'état (ex: `var currentScreen`, `when (tab) { ... }`).
+   - **Séparation stricte des écrans par fichier** : Chaque écran doit obligatoirement résider dans son propre fichier dédié (ne jamais regrouper plusieurs écrans dans un même fichier).
+   - **Découpage en composants réutilisables** : Toujours scinder la vue en composants réutilisables distincts (`ui/components/` : cards, barres d'action, formulaires, dialogs, widgets), avec une limite stricte de **250 lignes par fichier**.
+   - **Icônes Material uniquement (aucun Emoji)** : Ne jamais utiliser d'emojis pour représenter des icônes ou des actions dans l'UI. Toujours utiliser les icônes Material Design (`androidx.compose.material.icons.Icons`).
+
+1. **Organisation par Feature (`feature-first`) & MVI Strict (Côté Client `:app:shared`) :**
+   - Le code client est organisé par fonctionnalité : `features/<nom_feature>/` (`auth`, `dashboard`, `residences`, `units`, `leases`, `electricity`, `finances`, `tickets`, `members`, `profile`).
+   - Chaque feature regroupe ses composants UI (`ui/`), sous-composants (`ui/components/`), contrat MVI (`mvi/`), ViewModel (`<Feature>ViewModel.kt`) et UseCases (`usecase/`).
+   - Le code commun partagé se trouve sous `core/` (`core/base`, `core/di`, `core/network`, `core/ui/theme`, etc.).
+   - Tout ViewModel hérite obligatoirement de `com.resid.manager.base.MviViewModel<State, Intent, Effect>`.
+   - Limite stricte : les fichiers de composants Compose ne doivent pas dépasser **250 lignes** (extraire systématiquement les formulaires, dialogs, cards et widgets dans `ui/components/`).
+
+2. **Navigation avec Jetpack Navigation 3 & Injection de Dépendances (Koin) :**
+   - La navigation dans l'application cliente repose exclusivement sur **Jetpack Navigation 3** (`androidx.navigation3`).
+   - Toutes les routes/destinations sont des clés typées sérialisables (`NavKey`).
+   - Les écrans sont affichés via `NavDisplay` avec un `NavBackStack` et synchronisés avec le `PlatformBackHandler`.
+   - **Koin** est le framework officiel d'injection de dépendances (dans `DiConfig.kt`). Tout ViewModel, UseCase ou Repository doit être déclaré dans un module Koin et injecté via `koinInject()` ou dans les constructeurs.
+
+3. **Pas d'APIs plateforme non-abstraites dans `commonMain` :**
+   - Interdiction de dépendances Android directes (`android.*`, `Context`, etc.) ou JVM (`java.*`) dans `app/shared/src/commonMain`.
+   - Utiliser `expect`/`actual` pour toute fonctionnalité spécifique à la plateforme (Android, iOS, Web JS/Wasm, Desktop).
+
+3. **Backend Découplé (`:server`) :**
+   - Les routes Ktor s'occupent uniquement du transport HTTP, de l'authentification et de la validation syntaxique.
+   - Les services Ktor réalisent la logique métier et encapsulent les transactions Exposed via `dbQuery { ... }`.
+   - Zéro `SchemaUtils.drop` en production : toute modification de schéma doit être rétro-compatible ou accompagnée d'un script d'altération SQL explicite.
+
+4. **Types & Précision Financière :**
+   - Toutes les sommes financières doivent être manipulées sans risque d'erreurs d'arrondi à virgule flottante (devise pivot XOF / FCFA).
+
+5. **Gestion des Erreurs :**
+   - Ne jamais laisser de bloc `catch` vide.
+   - Côté serveur : lever des `HttpError(HttpStatusCode, "message explicite")`.
+   - Côté client : encapsuler les retours réseau dans des `Result<T>` et exposer des messages compréhensibles dans `UiState.errorMessage`.

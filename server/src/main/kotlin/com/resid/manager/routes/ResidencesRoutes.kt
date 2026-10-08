@@ -20,8 +20,8 @@ import io.ktor.server.routing.route
 
 fun Route.residencesRoutes() {
     route("/api/residences") {
-        // GET /api/residences/{id}/electricity/export-pdf : Generates the "Eco-Print" PDF
-        get("/{id}/electricity/export-pdf") {
+        // GET /api/residences/{id}/electricity/export-pdf (and alias /statements/pdf-batch) : Generates the "Eco-Print" PDF
+        suspend fun handlePdfExport(call: io.ktor.server.application.ApplicationCall) {
             try {
                 val residenceId = call.getPathUuid("id")
                 val statementIdsParam = call.request.queryParameters["ids"]
@@ -30,6 +30,14 @@ fun Route.residencesRoutes() {
             } catch (e: Exception) {
                 call.executeRequest { throw e }
             }
+        }
+
+        get("/{id}/electricity/export-pdf") {
+            handlePdfExport(call)
+        }
+
+        get("/{id}/electricity/statements/pdf-batch") {
+            handlePdfExport(call)
         }
 
         authenticate("auth-jwt") {

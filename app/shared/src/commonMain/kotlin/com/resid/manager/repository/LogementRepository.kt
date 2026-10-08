@@ -4,10 +4,19 @@ import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.dto.ResidenceUnitCreateRequest
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.network.ApiClient
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.request.*
-import io.ktor.http.*
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 
 interface ResidenceUnitRepository {
     suspend fun fetchResidenceUnits(token: String, residenceId: String): Result<List<ResidenceUnitDto>>
@@ -21,7 +30,8 @@ class ResidenceUnitRepositoryImpl(
 ) : ResidenceUnitRepository {
     override suspend fun fetchResidenceUnits(token: String, residenceId: String): Result<List<ResidenceUnitDto>> {
         return try {
-            val response = httpClient.get("${ApiClient.BASE_URL}/api/residences/$residenceId/logements") {
+            val response = httpClient.get("${ApiClient.BASE_URL}/api/units") {
+                parameter("residenceId", residenceId)
                 header(HttpHeaders.Authorization, "Bearer $token")
             }
 
@@ -42,7 +52,8 @@ class ResidenceUnitRepositoryImpl(
         request: ResidenceUnitCreateRequest
     ): Result<ResidenceUnitDto> {
         return try {
-            val response = httpClient.post("${ApiClient.BASE_URL}/api/residences/$residenceId/logements") {
+            val response = httpClient.post("${ApiClient.BASE_URL}/api/units") {
+                parameter("residenceId", residenceId)
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(request)
@@ -61,7 +72,9 @@ class ResidenceUnitRepositoryImpl(
 
     override suspend fun deleteResidenceUnit(token: String, residenceId: String, residenceUnitId: String): Result<Unit> {
         return try {
-            val response = httpClient.delete("${ApiClient.BASE_URL}/api/residences/$residenceId/logements/$residenceUnitId") {
+            val response = httpClient.delete("${ApiClient.BASE_URL}/api/units") {
+                parameter("residenceId", residenceId)
+                parameter("unitId", residenceUnitId)
                 header(HttpHeaders.Authorization, "Bearer $token")
             }
 
@@ -83,7 +96,9 @@ class ResidenceUnitRepositoryImpl(
         request: ResidenceUnitCreateRequest
     ): Result<ResidenceUnitDto> {
         return try {
-            val response = httpClient.put("${ApiClient.BASE_URL}/api/residences/$residenceId/logements/$residenceUnitId") {
+            val response = httpClient.put("${ApiClient.BASE_URL}/api/units") {
+                parameter("residenceId", residenceId)
+                parameter("unitId", residenceUnitId)
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(request)
