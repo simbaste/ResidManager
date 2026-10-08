@@ -3,14 +3,19 @@ package com.resid.manager.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
+enum class EntityTypeDto {
+    BAIL, ELECTRICITY_STATEMENT, TICKET
+}
+
+@Serializable
 data class FinanceTransactionDto(
     val id: String,
     val residenceId: String,
-    val type: String, // "INCOME", "EXPENSE"
-    val category: String, // "Cleaning", "Fuel", "Security", "Maintenance", "Taxes", "Other"
+    val type: TransactionTypeDto, // "INCOME", "EXPENSE"
+    val category: TransactionCategoryDto,
     val amount: Double,
     val description: String,
-    val relatedEntityType: String?,
+    val relatedEntityType: EntityTypeDto?,
     val relatedEntityId: String?,
     val transactionDate: String,
     val createdAt: String
@@ -18,8 +23,17 @@ data class FinanceTransactionDto(
 
 @Serializable
 data class ExpenseRecordRequest(
-    val category: String,
+    val category: TransactionCategoryDto,
     val amount: Double,
     val description: String,
     val transactionDate: String
 )
+
+@Serializable
+data class TransactionUpdateRequest(
+    val category: String? = null,
+    val amount: Double? = null,
+    val description: String? = null,
+    val transactionDate: String? = null
+)
+

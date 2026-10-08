@@ -26,5 +26,8 @@ kotlin {
             implementation(libs.ktor.clientContentNegotiation)
             implementation(libs.ktor.clientSerializationKotlinxJson)
         }
+        jsMain.dependencies {
+            implementation(npm("tslib", libs.versions.tslib.get()))
+        }
     }
 }

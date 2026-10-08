@@ -17,7 +17,7 @@ data class ResidenceDto(
 data class ResidenceCreateRequest(
     val name: String,
     val address: String,
-    val defaultCurrency: String = "XOF",
+    val currency: CurrencyCodeDto = CurrencyCodeDto.XOF,
     val kWhPrice: Double
 )
 

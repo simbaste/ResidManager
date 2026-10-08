@@ -1,5 +1,5 @@
 [versions]
-agp = "9.0.1"
+agp = "9.3.2"
 android-compileSdk = "36"
 android-minSdk = "24"
 android-targetSdk = "36"
@@ -16,6 +16,8 @@ kotlin-wrappers = "2026.5.3"
 ktor = "3.4.3"
 logback = "1.5.32"
 material3 = "1.11.0-alpha07"
+tslib = "2.8.1"
+navigation3 = "1.1.1"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -32,7 +34,9 @@ androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
-compose-materialIcons = { module = "org.jetbrains.compose.material:material-icons-core", version = "1.7.3" }
+compose-material3-windowSizeClass = { module = "org.jetbrains.compose.material3:material3-window-size-class", version.ref = "material3" }
+compose-materialIconsCore = { module = "org.jetbrains.compose.material:material-icons-core", version = "1.7.3" }
+compose-materialIconsExtended = { module = "org.jetbrains.compose.material:material-icons-extended", version = "1.7.3" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
@@ -47,6 +51,7 @@ ktor-serverCors = { module = "io.ktor:ktor-server-cors-jvm", version.ref = "ktor
 ktor-serializationKotlinxJson = { module = "io.ktor:ktor-serialization-kotlinx-json-jvm", version.ref = "ktor" }
 bcrypt = { module = "at.favre.lib:bcrypt", version = "0.10.2" }
 ktor-clientCore = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-clientCio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-clientContentNegotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-clientSerializationKotlinxJson = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 wrappers-browser = { module = "org.jetbrains.kotlin-wrappers:kotlin-browser", version.ref = "kotlin-wrappers" }
@@ -58,6 +63,7 @@ exposed-java-time = { module = "org.jetbrains.exposed:exposed-java-time", versio
 postgresql = { module = "org.postgresql:postgresql", version = "42.7.5" }
 koin-core = { module = "io.insert-koin:koin-core", version = "4.0.0" }
 koin-compose = { module = "io.insert-koin:koin-compose", version = "4.0.0" }
+navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "navigation3" }
 flyway-core = { module = "org.flywaydb:flyway-core", version = "10.20.0" }
 flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version = "10.20.0" }
 openpdf = { module = "com.github.librepdf:openpdf", version = "2.0.3" }

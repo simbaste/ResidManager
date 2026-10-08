@@ -1,12 +1,12 @@
 package com.resid.manager.usecase
 
-import com.resid.manager.dto.ResidenceSummaryItem
+import com.resid.manager.dto.ResidenceSummaryItemDto
 import com.resid.manager.repository.ResidenceRepository
 
 class SearchResidencesUseCase(
     private val residenceRepository: ResidenceRepository
 ) {
-    suspend operator fun invoke(token: String, query: String): Result<List<ResidenceSummaryItem>> {
+    suspend operator fun invoke(token: String, query: String): Result<List<ResidenceSummaryItemDto>> {
         if (query.length < 2) {
             return Result.success(emptyList())
         }

@@ -2,26 +2,43 @@ package com.resid.manager
 
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.resid.manager.auth.JwtConfig
-import com.resid.manager.data.*
+import com.resid.manager.data.Users
+import com.resid.manager.routes.applications
 import com.resid.manager.routes.authRoutes
 import com.resid.manager.routes.configureAppRoutes
+import com.resid.manager.routes.electricitiesRoutes
+import com.resid.manager.routes.financialTransactionsRoutes
+import com.resid.manager.routes.inspectionsRoutes
+import com.resid.manager.routes.invitationsRoutes
+import com.resid.manager.routes.leasesRoutes
+import com.resid.manager.routes.residencesRoutes
+import com.resid.manager.routes.ticketsRoutes
+import com.resid.manager.routes.unitsRoutes
+import com.resid.manager.routes.userRoutes
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.Application
+import io.ktor.server.application.install
+import io.ktor.server.application.log
+import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.jwt.JWTPrincipal
+import io.ktor.server.auth.jwt.jwt
+import io.ktor.server.auth.principal
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.cors.routing.CORS
-import io.ktor.serialization.kotlinx.json.*
-import io.ktor.server.application.*
-import io.ktor.server.auth.*
-import io.ktor.server.auth.jwt.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
-import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.server.response.respondText
+import io.ktor.server.routing.get
+import io.ktor.server.routing.routing
+import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.insertIgnore
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.flywaydb.core.Flyway
+import java.time.Clock
 import java.time.LocalDateTime
 
 fun main() {
@@ -61,6 +78,8 @@ fun runFlywayMigrations(dbUrl: String, dbUser: String, dbPassword: String) {
             .dataSource(dbUrl, dbUser, dbPassword)
             .baselineOnMigrate(true)
             .load()
+        // Automatically repair checksums if migration scripts were modified during development
+        flyway.repair()
         flyway.migrate()
         println("Database migrations successfully applied!")
     } catch (e: Exception) {
@@ -88,7 +107,7 @@ fun Application.module() {
             user = dbUser,
             password = dbPassword
         )
-        
+
         // Seed default testing data if necessary
         transaction {
             // Seed a default admin user for testing if users table is empty
@@ -99,7 +118,7 @@ fun Application.module() {
                     it[firstName] = "Admin"
                     it[lastName] = "ResidManager"
                     it[phone] = "+22501020304"
-                    it[createdAt] = LocalDateTime.now()
+                    it[createdAt] = LocalDateTime.now(Clock.systemUTC())
                 }
             }
         }
@@ -109,7 +128,10 @@ fun Application.module() {
 
     // 2. Install ContentNegotiation
     install(ContentNegotiation) {
-        json()
+        json(kotlinx.serialization.json.Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        })
     }
 
     // Install CORS for Multiplatform client access (Web browser)
@@ -147,6 +169,36 @@ fun Application.module() {
         
         // Login route
         authRoutes()
+
+        // Residences
+        residencesRoutes()
+
+        // Invitations
+        invitationsRoutes()
+
+        // Applications
+        applications()
+
+        // Users
+        userRoutes()
+
+        // Units
+        unitsRoutes()
+
+        // Leases
+        leasesRoutes()
+
+        // Inspection Reports (Move-in / Move-out)
+        inspectionsRoutes()
+
+        // Electricity Statements
+        electricitiesRoutes()
+
+        // Tickets & Ticket Categories
+        ticketsRoutes()
+
+        // Financial Transactions
+        financialTransactionsRoutes()
         
         // Secured routes example
         authenticate("auth-jwt") {

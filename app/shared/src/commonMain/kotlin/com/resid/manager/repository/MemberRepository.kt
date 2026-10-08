@@ -8,7 +8,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 
 interface MemberRepository {
-    suspend fun fetchMembers(token: String, residenceId: String): Result<List<ResidenceMemberSummary>>
+    suspend fun fetchMembers(token: String, residenceId: String): Result<List<ResidenceMemberSummaryDto>>
     suspend fun inviteMember(token: String, residenceId: String, email: String, role: String): Result<Unit>
     suspend fun updateMemberStatus(token: String, residenceId: String, targetUserId: String, status: String, role: String?): Result<Unit>
 }
@@ -16,7 +16,7 @@ interface MemberRepository {
 class MemberRepositoryImpl(
     private val httpClient: HttpClient
 ) : MemberRepository {
-    override suspend fun fetchMembers(token: String, residenceId: String): Result<List<ResidenceMemberSummary>> {
+    override suspend fun fetchMembers(token: String, residenceId: String): Result<List<ResidenceMemberSummaryDto>> {
         return try {
             val response = httpClient.get("${ApiClient.BASE_URL}/api/residences/$residenceId/members") {
                 header(HttpHeaders.Authorization, "Bearer $token")
@@ -34,13 +34,13 @@ class MemberRepositoryImpl(
 
     override suspend fun inviteMember(token: String, residenceId: String, email: String, role: String): Result<Unit> {
         return try {
-            val req = InviteMemberRequest(email = email, role = role)
-            val response = httpClient.post("${ApiClient.BASE_URL}/api/residences/$residenceId/members/invite") {
+            val req = InviteMemberRequest(email = email, role = RoleDto.valueOf(role))
+            val response = httpClient.post("${ApiClient.BASE_URL}/api/invitations?residenceId=$residenceId") {
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(req)
             }
-            if (response.status == HttpStatusCode.OK) {
+            if (response.status == HttpStatusCode.OK || response.status == HttpStatusCode.Created) {
                 Result.success(Unit)
             } else {
                 val errorBody = response.body<ErrorResponse>()

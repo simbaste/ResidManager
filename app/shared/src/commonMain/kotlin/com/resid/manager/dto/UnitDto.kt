@@ -1,0 +1,41 @@
+package com.resid.manager.dto
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class EquipmentDto(
+    val id: String,
+    val key: String,
+    val label: String
+)
+
+@Serializable
+enum class UnitStatusDto {
+    AVAILABLE, OCCUPIED, RESERVED
+}
+
+@Serializable
+data class ResidenceUnitDto(
+    val id: String,
+    val residenceId: String,
+    val name: String,
+    val floor: String,
+    val type: String,
+    val nominalRent: Double,
+    val serviceCharges: Double,
+    val initialElectricityIndex: Double,
+    val status: UnitStatusDto,
+    val equipments: List<EquipmentDto> = emptyList(),
+    val currentTenantName: String? = null
+)
+
+@Serializable
+data class ResidenceUnitCreateRequest(
+    val name: String,
+    val floor: String,
+    val type: String,
+    val nominalRent: Double,
+    val serviceCharges: Double,
+    val initialElectricityIndex: Double,
+    val equipmentIds: List<String> = emptyList()
+)

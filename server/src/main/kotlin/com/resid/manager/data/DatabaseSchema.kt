@@ -26,9 +26,8 @@ object Users : UUIDTable("users") {
 }
 
 object Currencies : UUIDTable("currencies") {
-    val code = varchar("code", 3).uniqueIndex()
-    val symbol = varchar("symbol", 10)
-    val label = varchar("label", 100)
+    val code = enumerationByName("code", 10, CurrencyCode::class)
+    val symbol = enumerationByName("symbol", 10, CurrencySymbol::class)
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
 }
@@ -46,13 +45,24 @@ object Residences : UUIDTable("residences") {
 object ResidenceMembers : Table("residence_members") {
     val userId = reference("user_id", Users, onDelete = ReferenceOption.CASCADE)
     val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE)
-    val role = varchar("role", 20) // OWNER, ADMIN, MANAGER, STAFF, TENANT
-    val status = varchar("status", 20) // PENDING_APPROVAL, INVITED, ACCEPTED
+    val role = enumerationByName("role", ENUM_NAME_COLUMN_LENGTH, Role::class)
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, InvitationStatus::class)
     val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
     override val primaryKey = PrimaryKey(userId, residenceId)
 }
 
-object Logements : UUIDTable("logements") {
+object ResidenceApplications: Table("residence_applications") {
+    val userId = reference("user_id", Users, onDelete = ReferenceOption.CASCADE)
+    val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE)
+    val role = enumerationByName("role", ENUM_NAME_COLUMN_LENGTH, Role::class)
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, ApplicationStatus::class)
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
+    override val primaryKey = PrimaryKey(userId, residenceId)
+}
+
+object ResidenceUnits : UUIDTable("residence_units") {
     val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE)
     val name = varchar("name", 100)
     val floor = varchar("floor", 50)
@@ -60,19 +70,23 @@ object Logements : UUIDTable("logements") {
     val nominalRent = double("nominal_rent")
     val serviceCharges = double("service_charges")
     val initialElectricityIndex = double("initial_electricity_index")
-    val status = varchar("status", 20).default("AVAILABLE") // AVAILABLE, OCCUPIED, RESERVED
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, UnitStatus::class).default(UnitStatus.AVAILABLE)
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
+
+    init {
+        uniqueIndex("uk_residence_units_residence_name", residenceId, name)
+    }
 }
 
-object Baux : UUIDTable("baux") {
-    val logementId = reference("logement_id", Logements, onDelete = ReferenceOption.RESTRICT)
+object Leases : UUIDTable("leases") {
+    val residenceUnitId = reference("residence_unit_id", ResidenceUnits, onDelete = ReferenceOption.RESTRICT)
     val tenantId = reference("tenant_id", Users, onDelete = ReferenceOption.RESTRICT)
     val durationMonths = integer("duration_months")
-    val paymentFrequency = varchar("payment_frequency", 20) // MONTHLY, ANNUAL
+    val paymentFrequencyDto = enumerationByName("payment_frequency", ENUM_NAME_COLUMN_LENGTH, PaymentFrequency::class)
     val depositAmount = double("deposit_amount")
-    val depositStatus = varchar("deposit_status", 20).default("PENDING") // PENDING, PAID
-    val status = varchar("status", 20).default("PENDING_PAYMENT") // PENDING_PAYMENT, PARTIALLY_PAID, PENDING_SIGNATURE, ACTIVE, TERMINATED
+    val depositStatusDto = enumerationByName("deposit_status", ENUM_NAME_COLUMN_LENGTH, DepositStatus::class).default(DepositStatus.PENDING)
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, LeaseStatus::class).default(LeaseStatus.PENDING_PAYMENT) // PENDING_PAYMENT, PARTIALLY_PAID, PENDING_SIGNATURE, ACTIVE, TERMINATED
     val startDate = date("start_date")
     val endDate = date("end_date")
     val advanceMonths = integer("advance_months").default(1)
@@ -82,12 +96,12 @@ object Baux : UUIDTable("baux") {
 }
 
 object ElectricityStatements : UUIDTable("electricity_statements") {
-    val logementId = reference("logement_id", Logements, onDelete = ReferenceOption.CASCADE)
+    val residenceUnitId = reference("residence_unit_id", ResidenceUnits, onDelete = ReferenceOption.CASCADE)
     val oldIndex = double("old_index")
     val newIndex = double("new_index")
     val kWhPriceApplied = double("kwh_price_applied")
     val amountDue = double("amount_due")
-    val status = varchar("status", 20).default("UNPAID") // UNPAID, PAID
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, ElectricityStatus::class).default(ElectricityStatus.UNPAID)
     val statementDate = date("statement_date")
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
@@ -102,42 +116,98 @@ object TicketCategories : UUIDTable("ticket_categories") {
 }
 
 object Tickets : UUIDTable("tickets") {
-    val logementId = reference("logement_id", Logements, onDelete = ReferenceOption.CASCADE)
+    val residenceUnitId = reference("residence_unit_id", ResidenceUnits, onDelete = ReferenceOption.CASCADE)
     val creatorId = reference("creator_id", Users, onDelete = ReferenceOption.CASCADE)
     val categoryId = reference("category_id", TicketCategories, onDelete = ReferenceOption.RESTRICT)
     val title = varchar("title", 255)
     val description = text("description")
-    val urgency = varchar("urgency", 20) // LOW, MEDIUM, CRITICAL
-    val status = varchar("status", 20).default("OPEN") // OPEN, IN_PROGRESS, CLOSED
+    val urgency = enumerationByName("urgency", ENUM_NAME_COLUMN_LENGTH, TicketUrgency::class)
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, TicketStatus::class).default(TicketStatus.OPEN)
     val interventionCost = double("intervention_cost").default(0.0)
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
+}
+
+object InspectionReports : UUIDTable("inspection_reports") {
+    val leaseId = reference("lease_id", Leases, onDelete = ReferenceOption.CASCADE)
+    val inspectorId = reference("inspector_id", Users, onDelete = ReferenceOption.RESTRICT)
+    val type = enumerationByName("type", ENUM_NAME_COLUMN_LENGTH, InspectionType::class)
+    val inspectionDate = date("inspection_date")
+    val generalCondition = enumerationByName("general_condition", ENUM_NAME_COLUMN_LENGTH, ConditionRating::class).default(ConditionRating.GOOD)
+    val electricityMeterIndex = double("electricity_meter_index").default(0.0)
+    val waterMeterIndex = double("water_meter_index").nullable()
+    val gasMeterIndex = double("gas_meter_index").nullable()
+    val keysCount = integer("keys_count").default(1)
+    val comments = text("comments").nullable()
+    val photoUrls = text("photo_urls").nullable()
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
+
+    init {
+        uniqueIndex("uk_inspection_reports_lease_type", leaseId, type)
+    }
+}
+
+object InspectionReportItems : UUIDTable("inspection_report_items") {
+    val inspectionReportId = reference("inspection_report_id", InspectionReports, onDelete = ReferenceOption.CASCADE)
+    val category = enumerationByName("category", 30, InspectionItemCategory::class)
+    val name = varchar("name", 255)
+    val condition = enumerationByName("condition", ENUM_NAME_COLUMN_LENGTH, ConditionRating::class).default(ConditionRating.GOOD)
+    val quantity = integer("quantity").default(1)
+    val observations = text("observations").nullable()
+    val photoUrls = text("photo_urls").nullable()
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
 }
 
 object FinancialTransactions : UUIDTable("financial_transactions") {
     val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE)
-    val type = varchar("type", 10) // INCOME, EXPENSE
-    val category = varchar("category", 50) // Rent, Electricity, Maintenance, Cleaning, etc.
+    val type = customEnumeration(
+        name = "type",
+        sql = "VARCHAR($ENUM_NAME_COLUMN_LENGTH)",
+        fromDb = { value ->
+            val str = (value as? String)?.trim()?.uppercase() ?: TransactionType.INCOME.name
+            try { TransactionType.valueOf(str) } catch (_: Exception) { TransactionType.INCOME }
+        },
+        toDb = { it.name }
+    )
+    val category = customEnumeration(
+        name = "category",
+        sql = "VARCHAR($ENUM_NAME_COLUMN_LENGTH)",
+        fromDb = { value ->
+            val str = (value as? String)?.trim()?.replace(" ", "_")?.uppercase() ?: TransactionCategory.OTHER.name
+            try { TransactionCategory.valueOf(str) } catch (_: Exception) { TransactionCategory.OTHER }
+        },
+        toDb = { it.name }
+    )
     val amount = double("amount")
     val description = text("description")
-    val relatedEntityType = varchar("related_entity_type", 50).nullable() // BAIL, ELECTRICITY_STATEMENT, TICKET
+    val relatedEntityType = customEnumeration(
+        name = "related_entity_type",
+        sql = "VARCHAR($ENUM_NAME_COLUMN_LENGTH)",
+        fromDb = { value ->
+            val str = (value as? String)?.trim()?.replace(" ", "_")?.uppercase() ?: ""
+            try { EntityType.valueOf(str) } catch (_: Exception) { EntityType.BAIL }
+        },
+        toDb = { it.name }
+    ).nullable()
     val relatedEntityId = uuid("related_entity_id").nullable()
     val transactionDate = date("transaction_date")
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
 }
 
-object Equipements : UUIDTable("equipements") {
+object Equipments : UUIDTable("equipments") {
     val key = varchar("key", 50).uniqueIndex()
     val label = varchar("label", 100)
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
 }
 
-object LogementEquipements : Table("logement_equipements") {
-    val logementId = reference("logement_id", Logements, onDelete = ReferenceOption.CASCADE)
-    val equipementId = reference("equipement_id", Equipements, onDelete = ReferenceOption.CASCADE)
-    override val primaryKey = PrimaryKey(logementId, equipementId)
+object ResidenceUnitEquipments : Table("residence_unit_equipments") {
+    val residenceUnitId = reference("residence_unit_id", ResidenceUnits, onDelete = ReferenceOption.CASCADE)
+    val equipmentId = reference("equipment_id", Equipments, onDelete = ReferenceOption.CASCADE)
+    override val primaryKey = PrimaryKey(residenceUnitId, equipmentId)
 }
 
 
@@ -163,7 +233,6 @@ class CurrencyEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 
     var code by Currencies.code
     var symbol by Currencies.symbol
-    var label by Currencies.label
     var createdAt by Currencies.createdAt
     var updatedAt by Currencies.updatedAt
 }
@@ -180,54 +249,54 @@ class Residence(id: EntityID<UUID>) : UUIDEntity(id) {
     var updatedAt by Residences.updatedAt
 }
 
-class Logement(id: EntityID<UUID>) : UUIDEntity(id) {
-    companion object : UUIDEntityClass<Logement>(Logements)
+class ResidenceUnit(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<ResidenceUnit>(ResidenceUnits)
 
-    var residence by Residence referencedOn Logements.residenceId
-    var name by Logements.name
-    var floor by Logements.floor
-    var type by Logements.type
-    var nominalRent by Logements.nominalRent
-    var serviceCharges by Logements.serviceCharges
-    var initialElectricityIndex by Logements.initialElectricityIndex
-    var status by Logements.status
-    var createdAt by Logements.createdAt
-    var updatedAt by Logements.updatedAt
+    var residence by Residence referencedOn ResidenceUnits.residenceId
+    var name by ResidenceUnits.name
+    var floor by ResidenceUnits.floor
+    var type by ResidenceUnits.type
+    var nominalRent by ResidenceUnits.nominalRent
+    var serviceCharges by ResidenceUnits.serviceCharges
+    var initialElectricityIndex by ResidenceUnits.initialElectricityIndex
+    var status by ResidenceUnits.status
+    var createdAt by ResidenceUnits.createdAt
+    var updatedAt by ResidenceUnits.updatedAt
 
-    var equipements by Equipement via LogementEquipements
+    var equipments by Equipment via ResidenceUnitEquipments
 }
 
-class Equipement(id: EntityID<UUID>) : UUIDEntity(id) {
-    companion object : UUIDEntityClass<Equipement>(Equipements)
+class Equipment(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<Equipment>(Equipments)
 
-    var key by Equipements.key
-    var label by Equipements.label
-    var createdAt by Equipements.createdAt
-    var updatedAt by Equipements.updatedAt
+    var key by Equipments.key
+    var label by Equipments.label
+    var createdAt by Equipments.createdAt
+    var updatedAt by Equipments.updatedAt
 }
 
 class Lease(id: EntityID<UUID>) : UUIDEntity(id) {
-    companion object : UUIDEntityClass<Lease>(Baux)
+    companion object : UUIDEntityClass<Lease>(Leases)
 
-    var logement by Logement referencedOn Baux.logementId
-    var tenant by User referencedOn Baux.tenantId
-    var durationMonths by Baux.durationMonths
-    var paymentFrequency by Baux.paymentFrequency
-    var depositAmount by Baux.depositAmount
-    var depositStatus by Baux.depositStatus
-    var status by Baux.status
-    var startDate by Baux.startDate
-    var endDate by Baux.endDate
-    var advanceMonths by Baux.advanceMonths
-    var advancePaymentAmount by Baux.advancePaymentAmount
-    var createdAt by Baux.createdAt
-    var updatedAt by Baux.updatedAt
+    var residenceUnit by ResidenceUnit referencedOn Leases.residenceUnitId
+    var tenant by User referencedOn Leases.tenantId
+    var durationMonths by Leases.durationMonths
+    var paymentFrequency by Leases.paymentFrequencyDto
+    var depositAmount by Leases.depositAmount
+    var depositStatus by Leases.depositStatusDto
+    var status by Leases.status
+    var startDate by Leases.startDate
+    var endDate by Leases.endDate
+    var advanceMonths by Leases.advanceMonths
+    var advancePaymentAmount by Leases.advancePaymentAmount
+    var createdAt by Leases.createdAt
+    var updatedAt by Leases.updatedAt
 }
 
 class ElectricityStatement(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<ElectricityStatement>(ElectricityStatements)
 
-    var logement by Logement referencedOn ElectricityStatements.logementId
+    var residenceUnit by ResidenceUnit referencedOn ElectricityStatements.residenceUnitId
     var oldIndex by ElectricityStatements.oldIndex
     var newIndex by ElectricityStatements.newIndex
     var kWhPriceApplied by ElectricityStatements.kWhPriceApplied
@@ -251,7 +320,7 @@ class TicketCategoryEntity(id: EntityID<UUID>) : UUIDEntity(id) {
 class Ticket(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<Ticket>(Tickets)
 
-    var logement by Logement referencedOn Tickets.logementId
+    var residenceUnit by ResidenceUnit referencedOn Tickets.residenceUnitId
     var creator by User referencedOn Tickets.creatorId
     var category by TicketCategoryEntity referencedOn Tickets.categoryId
     var title by Tickets.title
@@ -276,4 +345,37 @@ class FinancialTransaction(id: EntityID<UUID>) : UUIDEntity(id) {
     var transactionDate by FinancialTransactions.transactionDate
     var createdAt by FinancialTransactions.createdAt
     var updatedAt by FinancialTransactions.updatedAt
+}
+
+class InspectionReport(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<InspectionReport>(InspectionReports)
+
+    var lease by Lease referencedOn InspectionReports.leaseId
+    var inspector by User referencedOn InspectionReports.inspectorId
+    var type by InspectionReports.type
+    var inspectionDate by InspectionReports.inspectionDate
+    var generalCondition by InspectionReports.generalCondition
+    var electricityMeterIndex by InspectionReports.electricityMeterIndex
+    var waterMeterIndex by InspectionReports.waterMeterIndex
+    var gasMeterIndex by InspectionReports.gasMeterIndex
+    var keysCount by InspectionReports.keysCount
+    var comments by InspectionReports.comments
+    var photoUrls by InspectionReports.photoUrls
+    var createdAt by InspectionReports.createdAt
+    var updatedAt by InspectionReports.updatedAt
+    val items by InspectionReportItem referrersOn InspectionReportItems.inspectionReportId
+}
+
+class InspectionReportItem(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<InspectionReportItem>(InspectionReportItems)
+
+    var inspectionReport by InspectionReport referencedOn InspectionReportItems.inspectionReportId
+    var category by InspectionReportItems.category
+    var name by InspectionReportItems.name
+    var condition by InspectionReportItems.condition
+    var quantity by InspectionReportItems.quantity
+    var observations by InspectionReportItems.observations
+    var photoUrls by InspectionReportItems.photoUrls
+    var createdAt by InspectionReportItems.createdAt
+    var updatedAt by InspectionReportItems.updatedAt
 }

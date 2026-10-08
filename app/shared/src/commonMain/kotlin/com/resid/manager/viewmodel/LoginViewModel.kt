@@ -3,15 +3,36 @@ package com.resid.manager.viewmodel
 import androidx.lifecycle.viewModelScope
 import com.resid.manager.SessionStorage
 import com.resid.manager.base.MviViewModel
-import com.resid.manager.dto.*
-import com.resid.manager.repository.*
+import com.resid.manager.dto.ApplicationRequest
+import com.resid.manager.dto.CurrencyCodeDto
+import com.resid.manager.dto.EquipmentDto
+import com.resid.manager.dto.ErrorResponse
+import com.resid.manager.dto.LeaseCreateRequest
+import com.resid.manager.dto.LeaseDto
+import com.resid.manager.dto.LeaseStatusDto
+import com.resid.manager.dto.ResidenceContext
+import com.resid.manager.dto.ResidenceCreateRequest
+import com.resid.manager.dto.ResidenceMemberSummaryDto
+import com.resid.manager.dto.ResidenceSummaryItemDto
+import com.resid.manager.dto.ResidenceUnitCreateRequest
+import com.resid.manager.dto.ResidenceUnitDto
+import com.resid.manager.dto.RoleDto
+import com.resid.manager.dto.UserDto
+import com.resid.manager.dto.UserRole
+import com.resid.manager.dto.toUserRole
+import com.resid.manager.network.ApiClient
+import com.resid.manager.repository.AuthRepository
+import com.resid.manager.repository.LeaseRepository
+import com.resid.manager.repository.MemberRepository
+import com.resid.manager.repository.ResidenceRepository
+import com.resid.manager.repository.ResidenceUnitRepository
 import com.resid.manager.usecase.SearchResidencesUseCase
 import com.resid.manager.validation.AuthValidator
-import com.resid.manager.network.ApiClient
-import io.ktor.client.request.*
 import io.ktor.client.call.body
-import io.ktor.http.contentType
-import kotlinx.coroutines.flow.update
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import kotlinx.coroutines.launch
 
 enum class AuthScreen {
@@ -20,16 +41,16 @@ enum class AuthScreen {
     MAIN
 }
 
-enum class AppScreen(val title: String) {
-    DASHBOARD("Tableau de bord"),
-    RESIDENCES("Propriétés & Résidences"),
-    LOGEMENTS("Unités / Logements"),
-    BAUX("Contrats de bail"),
-    MEMBERS("Membres & Habilitations"),
-    ELECTRICITY("Facturation Électricité"),
-    TICKETS("Tickets d'Intervention"),
-    FINANCES("Cashflow & Finances"),
-    PROFILE("Mon Compte")
+enum class AppScreen(val title: String, val navPath: String) {
+    DASHBOARD("Tableau de bord", "dashboard"),
+    RESIDENCES("Propriétés & Résidences", "residences"),
+    UNITS("Unités / Logements", "units"),
+    LEASES("Contrats de bail", "leases"),
+    MEMBERS("Membres & Habilitations", "members"),
+    ELECTRICITY("Facturation Électricité", "electricity"),
+    TICKETS("Tickets d'Intervention", "tickets"),
+    FINANCES("Cashflow & Finances", "finances"),
+    PROFILE("Mon Compte", "profil")
 }
 
 data class LoginUiState(
@@ -53,20 +74,20 @@ data class LoginUiState(
     val showCreateResidenceDialog: Boolean = false,
     val showJoinResidenceDialog: Boolean = false,
     
-    // Logements/Units state
-    val logements: List<LogementDto> = emptyList(),
-    val showCreateLogementDialog: Boolean = false,
+    // ResidenceUnits state
+    val residenceUnits: List<ResidenceUnitDto> = emptyList(),
+    val showCreateUnitDialog: Boolean = false,
 
     // Real-time debounced search states for JoinResidence
     val searchQuery: String = "",
-    val searchResults: List<ResidenceSummaryItem> = emptyList(),
+    val searchResults: List<ResidenceSummaryItemDto> = emptyList(),
     val isSearching: Boolean = false,
 
     // Leases state
     val leases: List<LeaseDto> = emptyList(),
 
     // Members list state
-    val members: List<ResidenceMemberSummary> = emptyList(),
+    val members: List<ResidenceMemberSummaryDto> = emptyList(),
 
     // Dark/Light theme state
     val darkMode: Boolean = false,
@@ -75,7 +96,7 @@ data class LoginUiState(
     val language: String = "fr",
 
     // Predefined equipments list
-    val availableEquipements: List<EquipementDto> = emptyList()
+    val availableEquipments: List<EquipmentDto> = emptyList()
 )
 
 sealed interface LoginIntent {
@@ -89,19 +110,19 @@ sealed interface LoginIntent {
     data class DeleteResidence(val residenceId: String) : LoginIntent
     data class SelectResidence(val residence: ResidenceContext) : LoginIntent
     
-    data class CreateLogement(val name: String, val floor: String, val type: String, val nominalRent: Double, val serviceCharges: Double, val initialIndex: Double, val equipementIds: List<String> = emptyList()) : LoginIntent
-    data class UpdateLogement(val id: String, val name: String, val floor: String, val type: String, val rent: Double, val charges: Double, val initialIndex: Double, val equipementIds: List<String> = emptyList()) : LoginIntent
-    data class DeleteLogement(val id: String) : LoginIntent
+    data class CreateResidenceUnit(val name: String, val floor: String, val type: String, val nominalRent: Double, val serviceCharges: Double, val initialIndex: Double, val equipmentIds: List<String> = emptyList()) : LoginIntent
+    data class UpdateResidenceUnit(val id: String, val name: String, val floor: String, val type: String, val rent: Double, val charges: Double, val initialIndex: Double, val equipmentIds: List<String> = emptyList()) : LoginIntent
+    data class DeleteResidenceUnit(val id: String) : LoginIntent
     
-    data class CreateLease(val logementId: String, val request: LeaseCreateRequest, val onSuccess: () -> Unit) : LoginIntent
+    data class CreateLease(val residenceUnitId: String, val request: LeaseCreateRequest, val onSuccess: () -> Unit) : LoginIntent
     data class RecordLeasePayment(val leaseId: String, val amount: Double, val category: String, val onResult: (Result<LeaseDto>) -> Unit) : LoginIntent
-    data class UpdateLeaseStatus(val leaseId: String, val status: LeaseStatus, val onResult: (Result<LeaseDto>) -> Unit) : LoginIntent
+    data class UpdateLeaseStatus(val leaseId: String, val status: LeaseStatusDto, val onResult: (Result<LeaseDto>) -> Unit) : LoginIntent
     
     data class SearchResidences(val query: String) : LoginIntent
     data class NavigateToAppScreen(val screen: AppScreen) : LoginIntent
     data class SetShowCreateResidenceDialog(val show: Boolean) : LoginIntent
     data class SetShowJoinResidenceDialog(val show: Boolean) : LoginIntent
-    data class SetShowCreateLogementDialog(val show: Boolean) : LoginIntent
+    data class SetShowCreateUnitDialog(val show: Boolean) : LoginIntent
     data object ToggleTheme : LoginIntent
 }
 
@@ -112,7 +133,7 @@ sealed interface LoginEffect {
 class LoginViewModel(
     private val authRepository: AuthRepository,
     private val residenceRepository: ResidenceRepository,
-    private val logementRepository: LogementRepository,
+    private val residenceUnitRepository: ResidenceUnitRepository,
     private val leaseRepository: LeaseRepository,
     private val memberRepository: MemberRepository,
     private val searchResidencesUseCase: SearchResidencesUseCase,
@@ -122,23 +143,21 @@ class LoginViewModel(
     private var searchJob: kotlinx.coroutines.Job? = null
 
     init {
-        fetchEquipements()
+        fetchEquipments()
         // Load session if available on startup
-        sessionStorage?.loadSession()?.let { (token, userName) ->
-            val nameParts = userName.split(" ")
-            val fName = nameParts.getOrNull(0) ?: "Utilisateur"
-            val lName = nameParts.getOrNull(1) ?: "ResidManager"
-            updateState { 
+        sessionStorage?.loadSession()?.let { session ->
+            updateState {
                 it.copy(
-                    jwtToken = token,
+                    jwtToken = session.token,
                     currentScreen = AuthScreen.MAIN,
                     currentAppScreen = AppScreen.DASHBOARD,
-                    firstName = fName,
-                    lastName = lName,
+                    firstName = session.firstName,
+                    lastName = session.lastName,
                     loggedInUser = UserDto(
                         id = "",
                         email = "",
-                        name = userName,
+                        firstName = session.firstName,
+                        lastName = session.lastName,
                         phone = null,
                         birthDate = null,
                         createdAt = "",
@@ -160,17 +179,17 @@ class LoginViewModel(
             is LoginIntent.UpdateResidence -> updateResidence(intent.residenceId, intent.name, intent.address, intent.kWhPrice)
             is LoginIntent.DeleteResidence -> deleteResidence(intent.residenceId)
             is LoginIntent.SelectResidence -> selectResidence(intent.residence)
-            is LoginIntent.CreateLogement -> createLogement(intent.name, intent.floor, intent.type, intent.nominalRent, intent.serviceCharges, intent.initialIndex, intent.equipementIds)
-            is LoginIntent.UpdateLogement -> updateLogement(intent.id, intent.name, intent.floor, intent.type, intent.rent, intent.charges, intent.initialIndex, intent.equipementIds)
-            is LoginIntent.DeleteLogement -> deleteLogement(intent.id)
-            is LoginIntent.CreateLease -> createLease(intent.logementId, intent.request, intent.onSuccess)
+            is LoginIntent.CreateResidenceUnit -> createResidenceUnit(intent.name, intent.floor, intent.type, intent.nominalRent, intent.serviceCharges, intent.initialIndex, intent.equipmentIds)
+            is LoginIntent.UpdateResidenceUnit -> updateResidenceUnit(intent.id, intent.name, intent.floor, intent.type, intent.rent, intent.charges, intent.initialIndex, intent.equipmentIds)
+            is LoginIntent.DeleteResidenceUnit -> deleteResidenceUnit(intent.id)
+            is LoginIntent.CreateLease -> createLease(intent.residenceUnitId, intent.request, intent.onSuccess)
             is LoginIntent.RecordLeasePayment -> recordLeasePayment(intent.leaseId, intent.amount, intent.category, intent.onResult)
             is LoginIntent.UpdateLeaseStatus -> updateLeaseStatus(intent.leaseId, intent.status, intent.onResult)
             is LoginIntent.SearchResidences -> onSearchQueryChanged(intent.query)
             is LoginIntent.NavigateToAppScreen -> navigateToAppScreen(intent.screen)
             is LoginIntent.SetShowCreateResidenceDialog -> setShowCreateResidenceDialog(intent.show)
             is LoginIntent.SetShowJoinResidenceDialog -> setShowJoinResidenceDialog(intent.show)
-            is LoginIntent.SetShowCreateLogementDialog -> setShowCreateLogementDialog(intent.show)
+            is LoginIntent.SetShowCreateUnitDialog -> setShowCreateUnitDialog(intent.show)
             is LoginIntent.ToggleTheme -> toggleTheme()
         }
     }
@@ -183,13 +202,13 @@ class LoginViewModel(
         updateState { it.copy(language = lang) }
     }
 
-    fun fetchEquipements() {
+    fun fetchEquipments() {
         viewModelScope.launch {
             try {
                 val response = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/equipements")
                 if (response.status == io.ktor.http.HttpStatusCode.OK) {
-                    val list = response.body<List<EquipementDto>>()
-                    updateState { it.copy(availableEquipements = list) }
+                    val list = response.body<List<EquipmentDto>>()
+                    updateState { it.copy(availableEquipments = list) }
                 }
             } catch (e: Exception) {}
         }
@@ -223,6 +242,21 @@ class LoginViewModel(
     fun navigateToLogin() {
         updateState { it.copy(currentScreen = AuthScreen.LOGIN, errorMessage = null) }
     }
+    fun navigateToMain(token: String? = null, user: UserDto? = null) {
+        val effectiveToken = token ?: uiState.value.jwtToken
+        val effectiveUser = user ?: uiState.value.loggedInUser
+        updateState { 
+            it.copy(
+                currentScreen = AuthScreen.MAIN, 
+                errorMessage = null,
+                jwtToken = effectiveToken ?: it.jwtToken,
+                loggedInUser = effectiveUser ?: it.loggedInUser,
+                firstName = effectiveUser?.firstName ?: it.firstName,
+                lastName = effectiveUser?.lastName ?: it.lastName
+            ) 
+        }
+        fetchResidences(tokenOverride = effectiveToken)
+    }
     fun setShowCreateResidenceDialog(show: Boolean) {
         updateState { it.copy(showCreateResidenceDialog = show, errorMessage = null) }
     }
@@ -237,15 +271,15 @@ class LoginViewModel(
             ) 
         }
     }
-    fun setShowCreateLogementDialog(show: Boolean) {
-        updateState { it.copy(showCreateLogementDialog = show, errorMessage = null) }
+    fun setShowCreateUnitDialog(show: Boolean) {
+        updateState { it.copy(showCreateUnitDialog = show, errorMessage = null) }
     }
 
     // Public actions to preserve classic direct UI invocations and support stateless screens
 
-    fun fetchResidences() {
-        fetchEquipements()
-        val token = uiState.value.jwtToken ?: return
+    fun fetchResidences(tokenOverride: String? = null, autoSelectResidenceId: String? = null) {
+        fetchEquipments()
+        val token = tokenOverride ?: uiState.value.jwtToken ?: return
         
         viewModelScope.launch {
             try {
@@ -256,37 +290,41 @@ class LoginViewModel(
                                 residenceId = it.id,
                                 residenceName = it.name,
                                 residenceAddress = it.address,
-                                userRoleInResidence = UserRole.ADMIN,
+                                userRoleInResidence = UserRole.OWNER,
                                 totalUnits = it.totalUnits,
-                                currencySymbol = it.currencySymbol,
-                                currencyCode = it.currencyCode
+                                currencySymbol = it.currencySymbol.label,
+                                currencyCode = it.currencyCode.name,
+                                kWhPrice = it.kWhPrice
                             )
                         }
                         val associatedContexts = directory.associatedResidences.map {
-                            val roleEnum = try {
-                                UserRole.valueOf(it.role)
-                            } catch (e: Exception) {
-                                UserRole.TENANT
-                            }
                             ResidenceContext(
                                 residenceId = it.id,
                                 residenceName = it.name,
                                 residenceAddress = it.address,
-                                userRoleInResidence = roleEnum,
+                                userRoleInResidence = it.roleDto.toUserRole(),
                                 totalUnits = it.totalUnits,
-                                currencySymbol = it.currencySymbol,
-                                currencyCode = it.currencyCode
+                                currencySymbol = it.currencySymbol.label,
+                                currencyCode = it.currencyCode.name,
+                                kWhPrice = it.kWhPrice
                             )
                         }
                         
                         val allResidences = ownedContexts + associatedContexts
-                        updateState {
-                            it.copy(
+                        val savedResidenceId = autoSelectResidenceId ?: sessionStorage?.loadLastSelectedResidenceId()
+
+                        updateState { state ->
+                            val targetSelection = if (savedResidenceId != null) {
+                                allResidences.find { res -> res.residenceId == savedResidenceId } ?: state.selectedResidenceContext ?: allResidences.firstOrNull()
+                            } else {
+                                state.selectedResidenceContext ?: allResidences.firstOrNull()
+                            }
+                            state.copy(
                                 residences = allResidences,
-                                selectedResidenceContext = it.selectedResidenceContext ?: allResidences.firstOrNull()
+                                selectedResidenceContext = targetSelection
                             )
                         }
-                        fetchLogements()
+                        fetchResidenceUnits()
                         fetchLeases()
                         fetchMembers()
                     }
@@ -299,15 +337,15 @@ class LoginViewModel(
         }
     }
 
-    fun fetchLogements() {
+    fun fetchResidenceUnits() {
         val token = uiState.value.jwtToken ?: return
         val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
 
         viewModelScope.launch {
             try {
-                logementRepository.fetchLogements(token, residenceId)
+                residenceUnitRepository.fetchResidenceUnits(token, residenceId)
                     .onSuccess { list ->
-                        updateState { it.copy(logements = list) }
+                        updateState { it.copy(residenceUnits = list) }
                     }
                     .onFailure { exception ->
                         updateState { it.copy(errorMessage = "Impossible de récupérer les logements : ${exception.message}") }
@@ -357,8 +395,9 @@ class LoginViewModel(
     }
 
     fun selectResidence(residence: ResidenceContext) {
-        updateState { it.copy(selectedResidenceContext = residence, logements = emptyList(), leases = emptyList(), members = emptyList()) }
-        fetchLogements()
+        sessionStorage?.saveLastSelectedResidenceId(residence.residenceId)
+        updateState { it.copy(selectedResidenceContext = residence, residenceUnits = emptyList(), leases = emptyList(), members = emptyList()) }
+        fetchResidenceUnits()
         fetchLeases()
         fetchMembers()
     }
@@ -373,9 +412,10 @@ class LoginViewModel(
 
         viewModelScope.launch {
             try {
-                residenceRepository.createResidence(token, ResidenceCreateRequest(name, address, defaultCurrency, kWhPrice))
-                    .onSuccess {
-                        fetchResidences()
+                residenceRepository.createResidence(token, ResidenceCreateRequest(name, address,
+                    CurrencyCodeDto.valueOf(defaultCurrency), kWhPrice))
+                    .onSuccess { created ->
+                        fetchResidences(autoSelectResidenceId = created.id)
                         updateState { it.copy(isLoading = false, showCreateResidenceDialog = false, errorMessage = null) }
                     }
                     .onFailure { exception ->
@@ -389,14 +429,18 @@ class LoginViewModel(
 
     fun joinResidence(residenceId: String) {
         val token = uiState.value.jwtToken ?: return
+        val currentUserId = uiState.value.loggedInUser?.id ?: return
         updateState { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
-                val response = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/residences/$residenceId/join") {
+                val req = ApplicationRequest(role = RoleDto.TENANT)
+                val response = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/applications?residenceId=$residenceId&userId=$currentUserId") {
+                    header(io.ktor.http.HttpHeaders.ContentType, io.ktor.http.ContentType.Application.Json.toString())
                     header(io.ktor.http.HttpHeaders.Authorization, "Bearer $token")
+                    setBody(req)
                 }
-                if (response.status == io.ktor.http.HttpStatusCode.OK) {
+                if (response.status == io.ktor.http.HttpStatusCode.Created || response.status == io.ktor.http.HttpStatusCode.OK) {
                     updateState { it.copy(isLoading = false, showJoinResidenceDialog = false, errorMessage = null) }
                     fetchResidences()
                 } else {
@@ -415,7 +459,8 @@ class LoginViewModel(
 
         viewModelScope.launch {
             try {
-                residenceRepository.updateResidence(token, residenceId, ResidenceCreateRequest(name, address, "XOF", kWhPrice))
+                residenceRepository.updateResidence(token, residenceId, ResidenceCreateRequest(name, address,
+                    CurrencyCodeDto.XOF, kWhPrice))
                     .onSuccess {
                         fetchResidences()
                         updateState { it.copy(isLoading = false, errorMessage = null) }
@@ -457,14 +502,14 @@ class LoginViewModel(
         }
     }
 
-    fun createLogement(
+    fun createResidenceUnit(
         name: String,
         floor: String,
         type: String,
         nominalRent: Double,
         serviceCharges: Double,
         initialElectricityIndex: Double,
-        equipementIds: List<String> = emptyList()
+        equipmentIds: List<String> = emptyList()
     ) {
         val token = uiState.value.jwtToken ?: return
         val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
@@ -472,11 +517,11 @@ class LoginViewModel(
 
         viewModelScope.launch {
             try {
-                val request = LogementCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex, equipementIds)
-                logementRepository.createLogement(token, residenceId, request)
+                val request = ResidenceUnitCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex, equipmentIds)
+                residenceUnitRepository.createResidenceUnit(token, residenceId, request)
                     .onSuccess {
-                        fetchLogements()
-                        updateState { it.copy(isLoading = false, showCreateLogementDialog = false, errorMessage = null) }
+                        fetchResidenceUnits()
+                        updateState { it.copy(isLoading = false, showCreateUnitDialog = false, errorMessage = null) }
                     }
                     .onFailure { exception ->
                         updateState { it.copy(isLoading = false, errorMessage = exception.message) }
@@ -487,16 +532,16 @@ class LoginViewModel(
         }
     }
 
-    fun deleteLogement(logementId: String) {
+    fun deleteResidenceUnit(residenceUnitId: String) {
         val token = uiState.value.jwtToken ?: return
         val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
         updateState { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
-                logementRepository.deleteLogement(token, residenceId, logementId)
+                residenceUnitRepository.deleteResidenceUnit(token, residenceId, residenceUnitId)
                     .onSuccess {
-                        fetchLogements()
+                        fetchResidenceUnits()
                         updateState { it.copy(isLoading = false, errorMessage = null) }
                     }
                     .onFailure { exception ->
@@ -508,15 +553,15 @@ class LoginViewModel(
         }
     }
 
-    fun updateLogement(
-        logementId: String,
+    fun updateResidenceUnit(
+        residenceUnitId: String,
         name: String,
         floor: String,
         type: String,
         nominalRent: Double,
         serviceCharges: Double,
         initialElectricityIndex: Double,
-        equipementIds: List<String> = emptyList()
+        equipmentIds: List<String> = emptyList()
     ) {
         val token = uiState.value.jwtToken ?: return
         val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
@@ -524,10 +569,10 @@ class LoginViewModel(
 
         viewModelScope.launch {
             try {
-                val request = LogementCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex, equipementIds)
-                logementRepository.updateLogement(token, residenceId, logementId, request)
+                val request = ResidenceUnitCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex, equipmentIds)
+                residenceUnitRepository.updateResidenceUnit(token, residenceId, residenceUnitId, request)
                     .onSuccess {
-                        fetchLogements()
+                        fetchResidenceUnits()
                         updateState { it.copy(isLoading = false, errorMessage = null) }
                     }
                     .onFailure { exception ->
@@ -539,16 +584,16 @@ class LoginViewModel(
         }
     }
 
-    fun createLease(logementId: String, request: LeaseCreateRequest, onSuccess: () -> Unit) {
+    fun createLease(residenceUnitId: String, request: LeaseCreateRequest, onSuccess: () -> Unit) {
         val token = uiState.value.jwtToken ?: return
         updateState { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
-                leaseRepository.createLease(token, logementId, request)
+                leaseRepository.createLease(token, residenceUnitId, request)
                     .onSuccess {
                         fetchLeases()
-                        fetchLogements()
+                        fetchResidenceUnits()
                         fetchMembers()
                         updateState { it.copy(isLoading = false, errorMessage = null) }
                         onSuccess()
@@ -585,7 +630,7 @@ class LoginViewModel(
         }
     }
 
-    fun updateLeaseStatus(leaseId: String, status: LeaseStatus, onResult: (Result<LeaseDto>) -> Unit) {
+    fun updateLeaseStatus(leaseId: String, status: LeaseStatusDto, onResult: (Result<LeaseDto>) -> Unit) {
         val token = uiState.value.jwtToken ?: return
         updateState { it.copy(isLoading = true, errorMessage = null) }
 
@@ -653,9 +698,8 @@ class LoginViewModel(
             try {
                 authRepository.login(emailInput, passwordInput)
                     .onSuccess { authResponse ->
-                        val nameParts = authResponse.user.name.split(" ")
-                        val fName = nameParts.getOrNull(0) ?: "Utilisateur"
-                        val lName = nameParts.getOrNull(1) ?: ""
+                        val fName = authResponse.user.firstName ?: "Utilisateur"
+                        val lName = authResponse.user.lastName ?: ""
                         updateState {
                             it.copy(
                                 isLoading = false,
@@ -667,7 +711,12 @@ class LoginViewModel(
                                 currentAppScreen = AppScreen.DASHBOARD
                             )
                         }
-                        sessionStorage?.saveSession(authResponse.token, authResponse.user.name)
+                        sessionStorage?.saveSession(
+                            authResponse.token,
+                            authResponse.refreshToken,
+                            fName,
+                            lName
+                        )
                         fetchResidences()
                     }
                     .onFailure { exception ->
@@ -713,7 +762,14 @@ class LoginViewModel(
                                 currentAppScreen = AppScreen.DASHBOARD
                             )
                         }
-                        sessionStorage?.saveSession(authResponse.token, authResponse.user.name)
+                        val fName = authResponse.user.firstName ?: "Utilisateur"
+                        val lName = authResponse.user.lastName ?: ""
+                        sessionStorage?.saveSession(
+                            authResponse.token,
+                            authResponse.refreshToken,
+                            fName,
+                            lName
+                        )
                         fetchResidences()
                     }
                     .onFailure { exception ->
@@ -738,7 +794,7 @@ class LoginViewModel(
                 loggedInUser = null,
                 residences = emptyList(),
                 selectedResidenceContext = null,
-                logements = emptyList(),
+                residenceUnits = emptyList(),
                 searchQuery = "",
                 searchResults = emptyList(),
                 isSearching = false,
@@ -752,14 +808,11 @@ class LoginViewModel(
     }
 
     fun updateUserProfile(user: UserDto) {
-        val nameParts = user.name.split(" ")
-        val fName = nameParts.firstOrNull() ?: ""
-        val lName = if (nameParts.size > 1) nameParts.drop(1).joinToString(" ") else ""
         updateState { 
             it.copy(
                 loggedInUser = user, 
-                firstName = fName, 
-                lastName = lName, 
+                firstName = user.firstName.orEmpty(),
+                lastName = user.lastName.orEmpty(),
                 phone = user.phone ?: ""
             ) 
         }

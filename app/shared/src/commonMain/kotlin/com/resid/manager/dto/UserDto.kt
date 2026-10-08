@@ -4,16 +4,39 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class UserRole {
+    OWNER,
     ADMIN,
-    RESIDENCE_MANAGER,
+    MANAGER,
+    STAFF,
     TENANT
+}
+
+fun UserRole.toUserRole(): RoleDto {
+    return when (this) {
+        UserRole.OWNER -> RoleDto.OWNER
+        UserRole.ADMIN -> RoleDto.ADMIN
+        UserRole.MANAGER -> RoleDto.MANAGER
+        UserRole.STAFF -> RoleDto.STAFF
+        UserRole.TENANT -> RoleDto.TENANT
+    }
+}
+
+fun RoleDto.toUserRole(): UserRole {
+    return when (this) {
+        RoleDto.OWNER -> UserRole.OWNER
+        RoleDto.ADMIN -> UserRole.ADMIN
+        RoleDto.MANAGER -> UserRole.MANAGER
+        RoleDto.STAFF -> UserRole.STAFF
+        RoleDto.TENANT -> UserRole.TENANT
+    }
 }
 
 @Serializable
 data class UserDto(
     val id: String,
     val email: String,
-    val name: String,
+    val firstName: String?,
+    val lastName: String?,
     val phone: String?,
     val birthDate: String?,
     val createdAt: String, // ISO-8601 string
@@ -21,21 +44,18 @@ data class UserDto(
 )
 
 @Serializable
-data class UserCreateRequest(
-    val email: String,
-    val passwordPlain: String,
-    val name: String,
-    val phone: String?,
-)
-
-@Serializable
 data class UserUpdateRequest(
     val email: String? = null,
-    val passwordPlain: String? = null,
     val firstName: String? = null,
     val lastName: String? = null,
     val birthDate: String? = null,
     val phone: String? = null
+)
+
+@Serializable
+data class UserPasswordUpdateRequest(
+    val oldPassword: String,
+    val newPassword: String
 )
 
 @Serializable
@@ -47,5 +67,17 @@ data class AuthRequest(
 @Serializable
 data class AuthResponse(
     val token: String,
+    val refreshToken: String? = null,
     val user: UserDto
+)
+
+@Serializable
+data class RefreshTokenRequest(
+    val refreshToken: String
+)
+
+@Serializable
+data class TokenRefreshResponse(
+    val token: String,
+    val refreshToken: String? = null
 )

@@ -1,32 +1,42 @@
 package com.resid.manager.repository
 
 import com.resid.manager.dto.ErrorResponse
-import com.resid.manager.dto.LogementCreateRequest
-import com.resid.manager.dto.LogementDto
+import com.resid.manager.dto.ResidenceUnitCreateRequest
+import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.network.ApiClient
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.request.*
-import io.ktor.http.*
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.delete
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.parameter
+import io.ktor.client.request.post
+import io.ktor.client.request.put
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 
-interface LogementRepository {
-    suspend fun fetchLogements(token: String, residenceId: String): Result<List<LogementDto>>
-    suspend fun createLogement(token: String, residenceId: String, request: LogementCreateRequest): Result<LogementDto>
-    suspend fun deleteLogement(token: String, residenceId: String, logementId: String): Result<Unit>
-    suspend fun updateLogement(token: String, residenceId: String, logementId: String, request: LogementCreateRequest): Result<LogementDto>
+interface ResidenceUnitRepository {
+    suspend fun fetchResidenceUnits(token: String, residenceId: String): Result<List<ResidenceUnitDto>>
+    suspend fun createResidenceUnit(token: String, residenceId: String, request: ResidenceUnitCreateRequest): Result<ResidenceUnitDto>
+    suspend fun deleteResidenceUnit(token: String, residenceId: String, residenceUnitId: String): Result<Unit>
+    suspend fun updateResidenceUnit(token: String, residenceId: String, residenceUnitId: String, request: ResidenceUnitCreateRequest): Result<ResidenceUnitDto>
 }
 
-class LogementRepositoryImpl(
+class ResidenceUnitRepositoryImpl(
     private val httpClient: HttpClient
-) : LogementRepository {
-    override suspend fun fetchLogements(token: String, residenceId: String): Result<List<LogementDto>> {
+) : ResidenceUnitRepository {
+    override suspend fun fetchResidenceUnits(token: String, residenceId: String): Result<List<ResidenceUnitDto>> {
         return try {
-            val response = httpClient.get("${ApiClient.BASE_URL}/api/residences/$residenceId/logements") {
+            val response = httpClient.get("${ApiClient.BASE_URL}/api/units") {
+                parameter("residenceId", residenceId)
                 header(HttpHeaders.Authorization, "Bearer $token")
             }
 
             if (response.status == HttpStatusCode.OK) {
-                Result.success(response.body<List<LogementDto>>())
+                Result.success(response.body<List<ResidenceUnitDto>>())
             } else {
                 val errorBody = response.body<ErrorResponse>()
                 Result.failure(Exception(errorBody.message))
@@ -36,20 +46,21 @@ class LogementRepositoryImpl(
         }
     }
 
-    override suspend fun createLogement(
+    override suspend fun createResidenceUnit(
         token: String,
         residenceId: String,
-        request: LogementCreateRequest
-    ): Result<LogementDto> {
+        request: ResidenceUnitCreateRequest
+    ): Result<ResidenceUnitDto> {
         return try {
-            val response = httpClient.post("${ApiClient.BASE_URL}/api/residences/$residenceId/logements") {
+            val response = httpClient.post("${ApiClient.BASE_URL}/api/units") {
+                parameter("residenceId", residenceId)
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(request)
             }
 
             if (response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) {
-                Result.success(response.body<LogementDto>())
+                Result.success(response.body<ResidenceUnitDto>())
             } else {
                 val errorBody = response.body<ErrorResponse>()
                 Result.failure(Exception(errorBody.message))
@@ -59,9 +70,11 @@ class LogementRepositoryImpl(
         }
     }
 
-    override suspend fun deleteLogement(token: String, residenceId: String, logementId: String): Result<Unit> {
+    override suspend fun deleteResidenceUnit(token: String, residenceId: String, residenceUnitId: String): Result<Unit> {
         return try {
-            val response = httpClient.delete("${ApiClient.BASE_URL}/api/residences/$residenceId/logements/$logementId") {
+            val response = httpClient.delete("${ApiClient.BASE_URL}/api/units") {
+                parameter("residenceId", residenceId)
+                parameter("unitId", residenceUnitId)
                 header(HttpHeaders.Authorization, "Bearer $token")
             }
 
@@ -76,21 +89,23 @@ class LogementRepositoryImpl(
         }
     }
 
-    override suspend fun updateLogement(
+    override suspend fun updateResidenceUnit(
         token: String,
         residenceId: String,
-        logementId: String,
-        request: LogementCreateRequest
-    ): Result<LogementDto> {
+        residenceUnitId: String,
+        request: ResidenceUnitCreateRequest
+    ): Result<ResidenceUnitDto> {
         return try {
-            val response = httpClient.put("${ApiClient.BASE_URL}/api/residences/$residenceId/logements/$logementId") {
+            val response = httpClient.put("${ApiClient.BASE_URL}/api/units") {
+                parameter("residenceId", residenceId)
+                parameter("unitId", residenceUnitId)
                 contentType(ContentType.Application.Json)
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(request)
             }
 
             if (response.status == HttpStatusCode.OK) {
-                Result.success(response.body<LogementDto>())
+                Result.success(response.body<ResidenceUnitDto>())
             } else {
                 val errorBody = response.body<ErrorResponse>()
                 Result.failure(Exception(errorBody.message))
