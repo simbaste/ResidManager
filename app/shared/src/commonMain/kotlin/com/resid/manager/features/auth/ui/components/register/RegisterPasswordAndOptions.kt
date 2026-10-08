@@ -28,7 +28,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -51,9 +54,16 @@ fun RegisterPasswordField(
     onTogglePasswordVisibility: () -> Unit,
     imeAction: ImeAction = ImeAction.Next,
     onDone: (() -> Unit)? = null,
+    contentType: ContentType? = ContentType.NewPassword,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    val fieldModifier = if (contentType != null) {
+        modifier.fillMaxWidth().semantics { this.contentType = contentType }
+    } else {
+        modifier.fillMaxWidth()
+    }
+
+    Column(modifier = fieldModifier) {
         Text(
             text = label,
             color = MaterialTheme.colorScheme.onSurface,

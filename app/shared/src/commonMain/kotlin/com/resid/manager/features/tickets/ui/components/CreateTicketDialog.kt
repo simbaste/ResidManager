@@ -38,11 +38,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.dto.TicketCategoryDto
 import com.resid.manager.dto.TicketCreateRequest
 import com.resid.manager.dto.TicketUrgencyDto
+import com.resid.manager.ui.components.AppTextField
 
 @Composable
 fun CreateTicketDialog(
@@ -66,9 +68,10 @@ fun CreateTicketDialog(
         if (residenceUnitSearchQuery.isBlank() || residenceUnitSearchQuery == selectedResidenceUnitName) {
             emptyList()
         } else {
-            residenceUnits.filter {
-                it.name.contains(residenceUnitSearchQuery, ignoreCase = true) ||
-                it.floor.contains(residenceUnitSearchQuery, ignoreCase = true)
+            residenceUnits.filter { unit ->
+                unit.name.contains(residenceUnitSearchQuery, ignoreCase = true) ||
+                unit.floor.contains(residenceUnitSearchQuery, ignoreCase = true) ||
+                (unit.currentTenantName?.contains(residenceUnitSearchQuery, ignoreCase = true) == true)
             }
         }
     }
@@ -83,11 +86,11 @@ fun CreateTicketDialog(
             ) {
                 Text("Rechercher l'unité concernée * :", style = MaterialTheme.typography.titleSmall)
 
-                com.resid.manager.ui.components.AppTextField(
+                AppTextField(
                     value = residenceUnitSearchQuery,
                     onValueChange = { residenceUnitSearchQuery = it },
-                    label = "Saisissez le nom ou l'étage...",
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                    label = "Saisissez le logement, l'étage ou le locataire...",
+                    imeAction = ImeAction.Search,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -116,7 +119,8 @@ fun CreateTicketDialog(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column {
                                         Text(unit.name, style = MaterialTheme.typography.titleSmall)
-                                        Text("Étage : ${unit.floor} | Type : ${unit.type}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                        val tenantSuffix = unit.currentTenantName?.let { " • Locataire : $it" } ?: ""
+                                        Text("Étage : ${unit.floor} | Type : ${unit.type}$tenantSuffix", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                     }
                                 }
                             }

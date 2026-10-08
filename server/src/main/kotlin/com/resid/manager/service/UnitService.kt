@@ -3,6 +3,7 @@ package com.resid.manager.service
 import com.resid.manager.data.Equipment
 import com.resid.manager.data.HttpError
 import com.resid.manager.data.InvitationStatus
+import com.resid.manager.data.Lease
 import com.resid.manager.data.LeaseStatus
 import com.resid.manager.data.Leases
 import com.resid.manager.data.Residence
@@ -196,10 +197,23 @@ object UnitService {
         Residence.findById(residenceId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Résidence introuvable.")
 
-        ResidenceUnit.find {
+        val units = ResidenceUnit.find {
             (ResidenceUnits.residenceId eq residenceId) and
                     (if (unitId != null) ResidenceUnits.id eq unitId else Op.TRUE)
-        }.map {
+        }.toList()
+
+        val unitIds = units.map { it.id.value }
+        val activeLeasesMap: Map<UUID, String> = if (unitIds.isNotEmpty()) {
+            Lease.find {
+                (Leases.residenceUnitId inList unitIds) and (Leases.status eq LeaseStatus.SIGNED_ACTIVE)
+            }.associate {
+                it.residenceUnit.id.value to "${it.tenant.firstName ?: ""} ${it.tenant.lastName ?: ""}".trim()
+            }
+        } else {
+            emptyMap()
+        }
+
+        units.map {
             ResidenceUnitDto(
                 id = it.id.value.toString(),
                 residenceId = it.residence.id.value.toString(),
@@ -212,7 +226,8 @@ object UnitService {
                 status = it.status.convert(),
                 equipments = it.equipments.map { eq ->
                     EquipmentDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
-                }
+                },
+                currentTenantName = activeLeasesMap[it.id.value]?.takeIf { name -> name.isNotBlank() }
             )
         }
     }
@@ -253,7 +268,19 @@ object UnitService {
             conditions = conditions and (ResidenceUnits.id inList leasedUnitIds)
         }
 
-        ResidenceUnit.find { conditions }.map {
+        val units = ResidenceUnit.find { conditions }.toList()
+        val unitIds = units.map { it.id.value }
+        val activeLeasesMap: Map<UUID, String> = if (unitIds.isNotEmpty()) {
+            Lease.find {
+                (Leases.residenceUnitId inList unitIds) and (Leases.status eq LeaseStatus.SIGNED_ACTIVE)
+            }.associate {
+                it.residenceUnit.id.value to "${it.tenant.firstName ?: ""} ${it.tenant.lastName ?: ""}".trim()
+            }
+        } else {
+            emptyMap()
+        }
+
+        units.map {
             ResidenceUnitDto(
                 id = it.id.value.toString(),
                 residenceId = it.residence.id.value.toString(),
@@ -266,7 +293,8 @@ object UnitService {
                 status = it.status.convert(),
                 equipments = it.equipments.map { eq ->
                     EquipmentDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
-                }
+                },
+                currentTenantName = activeLeasesMap[it.id.value]?.takeIf { name -> name.isNotBlank() }
             )
         }
     }

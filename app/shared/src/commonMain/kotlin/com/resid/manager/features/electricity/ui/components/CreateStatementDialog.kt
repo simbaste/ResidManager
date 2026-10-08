@@ -70,9 +70,10 @@ fun CreateStatementDialog(
         if (residenceUnitSearchQuery.isBlank() || residenceUnitSearchQuery == selectedResidenceUnitName) {
             emptyList()
         } else {
-            residenceUnits.filter {
-                it.name.contains(residenceUnitSearchQuery, ignoreCase = true) ||
-                it.floor.contains(residenceUnitSearchQuery, ignoreCase = true)
+            residenceUnits.filter { unit ->
+                unit.name.contains(residenceUnitSearchQuery, ignoreCase = true) ||
+                unit.floor.contains(residenceUnitSearchQuery, ignoreCase = true) ||
+                (unit.currentTenantName?.contains(residenceUnitSearchQuery, ignoreCase = true) == true)
             }
         }
     }
@@ -95,7 +96,7 @@ fun CreateStatementDialog(
                 AppTextField(
                     value = residenceUnitSearchQuery,
                     onValueChange = { residenceUnitSearchQuery = it },
-                    label = "Saisissez le nom ou l'étage...",
+                    label = "Saisissez le logement, l'étage ou le locataire...",
                     imeAction = ImeAction.Search,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -126,7 +127,8 @@ fun CreateStatementDialog(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column {
                                         Text(unit.name, style = MaterialTheme.typography.titleSmall)
-                                        Text("Étage : ${unit.floor} | Type : ${unit.type}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                                        val tenantSuffix = unit.currentTenantName?.let { " • Locataire : $it" } ?: ""
+                                        Text("Étage : ${unit.floor} | Type : ${unit.type}$tenantSuffix", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                                     }
                                 }
                             }

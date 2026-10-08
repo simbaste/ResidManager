@@ -18,6 +18,34 @@ class AuthViewModel(
     private val sessionStorage: SessionStorage? = null
 ) : MviViewModel<AuthUiState, AuthIntent, AuthEffect>(AuthUiState()) {
 
+    init {
+        // Auto-login if a persistent session is saved ("Se souvenir de moi")
+        sessionStorage?.loadSession()?.let { session ->
+            updateState {
+                it.copy(
+                    jwtToken = session.token,
+                    firstName = session.firstName,
+                    lastName = session.lastName
+                )
+            }
+            emitEffect(
+                AuthEffect.NavigateToMain(
+                    token = session.token,
+                    user = com.resid.manager.dto.UserDto(
+                        id = "",
+                        email = "",
+                        firstName = session.firstName,
+                        lastName = session.lastName,
+                        phone = null,
+                        birthDate = null,
+                        createdAt = "",
+                        updatedAt = ""
+                    )
+                )
+            )
+        }
+    }
+
     override fun onIntent(intent: AuthIntent) {
         when (intent) {
             is AuthIntent.EmailChanged -> updateState { it.copy(email = intent.email, errorMessage = null) }
@@ -26,6 +54,7 @@ class AuthViewModel(
             is AuthIntent.LastNameChanged -> updateState { it.copy(lastName = intent.lastName, errorMessage = null) }
             is AuthIntent.BirthDateChanged -> updateState { it.copy(birthDate = intent.birthDate, errorMessage = null) }
             is AuthIntent.PhoneChanged -> updateState { it.copy(phone = intent.phone, errorMessage = null) }
+            is AuthIntent.RememberMeChanged -> updateState { it.copy(rememberMe = intent.rememberMe) }
             is AuthIntent.TogglePasswordVisibility -> updateState { it.copy(passwordVisible = !it.passwordVisible) }
             is AuthIntent.ToggleTheme -> updateState { it.copy(darkMode = !it.darkMode) }
             is AuthIntent.SetLanguage -> updateState { it.copy(language = intent.language) }
@@ -40,7 +69,7 @@ class AuthViewModel(
         updateState { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
-            loginUseCase(state.email, state.passwordPlain)
+            loginUseCase(state.email, state.passwordPlain, state.rememberMe)
                 .onSuccess { response ->
                     updateState {
                         it.copy(

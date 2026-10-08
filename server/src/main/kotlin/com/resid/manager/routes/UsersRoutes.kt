@@ -32,7 +32,11 @@ fun Route.userRoutes() {
                     userId = createdUser.id,
                     email = createdUser.email,
                 )
-                AuthResponse(token, createdUser)
+                val refreshToken = JwtConfig.generateRefreshToken(
+                    userId = createdUser.id,
+                    email = createdUser.email,
+                )
+                AuthResponse(token = token, refreshToken = refreshToken, user = createdUser)
             }
         }
 

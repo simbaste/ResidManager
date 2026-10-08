@@ -1,5 +1,14 @@
 package com.resid.manager.ui.components
 
+import com.resid.manager.getCurrentEpochMillis
+
+/**
+ * Returns today's date formatted as an ISO-8601 string ("YYYY-MM-DD").
+ */
+fun getTodayIsoDate(): String {
+    return formatUtcMillisToIsoDate(getCurrentEpochMillis())
+}
+
 /**
  * Format UTC epoch milliseconds to ISO-8601 date string ("YYYY-MM-DD").
  */

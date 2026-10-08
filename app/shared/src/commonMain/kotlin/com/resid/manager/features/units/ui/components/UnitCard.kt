@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
@@ -51,7 +53,8 @@ fun ResidenceUnitCard(
     val isAvailable = residenceUnit.status == UnitStatusDto.AVAILABLE
     val badgeBg = if (isAvailable) Color(0xFFE6F7F0) else Color(0xFFFDE8E8)
     val badgeColor = if (isAvailable) Color(0xFF006948) else Color(0xFFBA1A1A)
-    val badgeText = if (isAvailable) "✓ AVAILABLE (Libre)" else "👤 OCCUPIED"
+    val badgeText = if (isAvailable) "AVAILABLE (Libre)" else "OCCUPIED"
+    val badgeIcon = if (isAvailable) Icons.Default.Check else Icons.Default.Person
 
     Card(
         modifier = modifier
@@ -89,12 +92,23 @@ fun ResidenceUnitCard(
                         .align(Alignment.TopEnd)
                         .padding(12.dp)
                 ) {
-                    Text(
-                        text = badgeText,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = badgeColor,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = badgeIcon,
+                            contentDescription = null,
+                            tint = badgeColor,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = badgeText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = badgeColor
+                        )
+                    }
                 }
             }
 

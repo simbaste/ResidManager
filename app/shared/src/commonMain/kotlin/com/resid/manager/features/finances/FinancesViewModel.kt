@@ -8,6 +8,7 @@ import com.resid.manager.features.finances.mvi.FinancesIntent
 import com.resid.manager.features.finances.mvi.FinancesUiState
 import com.resid.manager.features.finances.usecase.FetchTransactionsUseCase
 import com.resid.manager.features.finances.usecase.RecordExpenseUseCase
+import com.resid.manager.ui.components.getTodayIsoDate
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -108,6 +109,7 @@ class FinancesViewModel(
                             isSubmittingExpense = false,
                             formAmountText = "",
                             formDescription = "",
+                            formDate = getTodayIsoDate(),
                             formSuccess = true
                         )
                     }

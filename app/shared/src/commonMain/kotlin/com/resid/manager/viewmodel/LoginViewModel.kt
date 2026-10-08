@@ -145,19 +145,19 @@ class LoginViewModel(
     init {
         fetchEquipments()
         // Load session if available on startup
-        sessionStorage?.loadSession()?.let { (token, fName, lName) ->
+        sessionStorage?.loadSession()?.let { session ->
             updateState {
                 it.copy(
-                    jwtToken = token,
+                    jwtToken = session.token,
                     currentScreen = AuthScreen.MAIN,
                     currentAppScreen = AppScreen.DASHBOARD,
-                    firstName = fName,
-                    lastName = lName,
+                    firstName = session.firstName,
+                    lastName = session.lastName,
                     loggedInUser = UserDto(
                         id = "",
                         email = "",
-                        firstName = fName,
-                        lastName = lName,
+                        firstName = session.firstName,
+                        lastName = session.lastName,
                         phone = null,
                         birthDate = null,
                         createdAt = "",
@@ -713,6 +713,7 @@ class LoginViewModel(
                         }
                         sessionStorage?.saveSession(
                             authResponse.token,
+                            authResponse.refreshToken,
                             fName,
                             lName
                         )
@@ -765,6 +766,7 @@ class LoginViewModel(
                         val lName = authResponse.user.lastName ?: ""
                         sessionStorage?.saveSession(
                             authResponse.token,
+                            authResponse.refreshToken,
                             fName,
                             lName
                         )

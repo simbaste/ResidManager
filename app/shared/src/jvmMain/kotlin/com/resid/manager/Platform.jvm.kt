@@ -12,4 +12,7 @@ actual fun createPlatformSessionStorage(): SessionStorage? = null
 
 actual fun getDefaultCountryCode(): String = java.util.Locale.getDefault().country.ifBlank { "FR" }
 
+actual fun getCurrentEpochMillis(): Long = System.currentTimeMillis()
+
+
 

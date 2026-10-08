@@ -67,6 +67,7 @@ object ResidenceService {
                 Residences.name,
                 Residences.address,
                 Residences.photoUrl,
+                Residences.kWhPrice,
                 Currencies.code,
                 Currencies.symbol,
                 ResidenceMembers.role,

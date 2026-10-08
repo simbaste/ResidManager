@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.InvitationStatusDto
 import com.resid.manager.dto.ResidenceMemberSummaryDto
 import com.resid.manager.dto.RoleDto
+import com.resid.manager.ui.components.SortHeaderIcon
 
 @Composable
 fun MembersTable(
@@ -67,10 +68,9 @@ fun MembersTable(
                         color = Color(0xFF0F172A),
                         modifier = Modifier.padding(end = 4.dp)
                     )
-                    Text(
-                        text = if (sortBy == "name") (if (sortAscending) "▲" else "▼") else "↕",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF0F172A).copy(alpha = 0.6f)
+                    SortHeaderIcon(
+                        isCurrentSort = sortBy == "name",
+                        sortAscending = sortAscending
                     )
                 }
 
@@ -104,10 +104,9 @@ fun MembersTable(
                         color = Color(0xFF0F172A),
                         modifier = Modifier.padding(end = 4.dp)
                     )
-                    Text(
-                        text = if (sortBy == "role") (if (sortAscending) "▲" else "▼") else "↕",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF0F172A).copy(alpha = 0.6f)
+                    SortHeaderIcon(
+                        isCurrentSort = sortBy == "role",
+                        sortAscending = sortAscending
                     )
                 }
 
@@ -125,10 +124,9 @@ fun MembersTable(
                         color = Color(0xFF0F172A),
                         modifier = Modifier.padding(end = 4.dp)
                     )
-                    Text(
-                        text = if (sortBy == "status") (if (sortAscending) "▲" else "▼") else "↕",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF0F172A).copy(alpha = 0.6f)
+                    SortHeaderIcon(
+                        isCurrentSort = sortBy == "status",
+                        sortAscending = sortAscending
                     )
                 }
             }

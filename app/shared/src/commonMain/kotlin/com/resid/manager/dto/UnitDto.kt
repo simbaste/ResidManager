@@ -25,7 +25,8 @@ data class ResidenceUnitDto(
     val serviceCharges: Double,
     val initialElectricityIndex: Double,
     val status: UnitStatusDto,
-    val equipments: List<EquipmentDto> = emptyList()
+    val equipments: List<EquipmentDto> = emptyList(),
+    val currentTenantName: String? = null
 )
 
 @Serializable

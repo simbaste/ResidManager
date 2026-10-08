@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -32,21 +31,18 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -55,6 +51,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.resid.manager.ui.components.AppTextField
 import com.resid.manager.ui.theme.residColors
 
 /**
@@ -65,16 +62,17 @@ fun LoginForm(
     email: String,
     password: String,
     passwordVisible: Boolean,
+    rememberMe: Boolean = true,
     isLoading: Boolean,
     errorMessage: String?,
     onEmailChanged: (String) -> Unit,
     onPasswordChanged: (String) -> Unit,
+    onRememberMeChanged: (Boolean) -> Unit = {},
     onTogglePasswordVisibility: () -> Unit,
     onSubmit: () -> Unit,
     onForgotPasswordClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var rememberMe by remember { mutableStateOf(true) }
     val focusManager = LocalFocusManager.current
     val colorScheme = MaterialTheme.colorScheme
 
@@ -151,28 +149,17 @@ fun LoginForm(
                 modifier = Modifier.padding(bottom = 6.dp)
             )
 
-            OutlinedTextField(
+            AppTextField(
                 value = email,
                 onValueChange = onEmailChanged,
-                placeholder = {
-                    Text(
-                        "nom@residence.fr",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        fontSize = 14.sp
-                    )
-                },
+                label = "",
+                placeholder = "nom@residence.fr",
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    focusedContainerColor = MaterialTheme.residColors.inputBackground,
-                    unfocusedContainerColor = MaterialTheme.residColors.inputBackground,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.residColors.inputBorder,
-                    cursorColor = MaterialTheme.colorScheme.primary
-                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentType = ContentType.Username + ContentType.EmailAddress
+                    },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Email,
@@ -184,7 +171,8 @@ fun LoginForm(
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
-                )
+                ),
+                onImeAction = { focusManager.moveFocus(androidx.compose.ui.focus.FocusDirection.Down) }
             )
         }
 
@@ -201,28 +189,17 @@ fun LoginForm(
                 modifier = Modifier.padding(bottom = 6.dp)
             )
 
-            OutlinedTextField(
+            AppTextField(
                 value = password,
                 onValueChange = onPasswordChanged,
-                placeholder = {
-                    Text(
-                        "••••••••••••",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                        fontSize = 14.sp
-                    )
-                },
+                label = "",
+                placeholder = "••••••••••••",
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                    focusedContainerColor = MaterialTheme.residColors.inputBackground,
-                    unfocusedContainerColor = MaterialTheme.residColors.inputBackground,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.residColors.inputBorder,
-                    cursorColor = MaterialTheme.colorScheme.primary
-                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentType = ContentType.Password
+                    },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 leadingIcon = {
                     Icon(
@@ -249,12 +226,10 @@ fun LoginForm(
                     keyboardType = KeyboardType.Password,
                     imeAction = ImeAction.Done
                 ),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        focusManager.clearFocus()
-                        if (!isLoading) onSubmit()
-                    }
-                )
+                onImeAction = {
+                    focusManager.clearFocus()
+                    if (!isLoading) onSubmit()
+                }
             )
         }
 
@@ -268,11 +243,11 @@ fun LoginForm(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { rememberMe = !rememberMe }
+                modifier = Modifier.clickable { onRememberMeChanged(!rememberMe) }
             ) {
                 Checkbox(
                     checked = rememberMe,
-                    onCheckedChange = { rememberMe = it },
+                    onCheckedChange = { onRememberMeChanged(it) },
                     colors = CheckboxDefaults.colors(
                         checkedColor = MaterialTheme.colorScheme.primary,
                         uncheckedColor = MaterialTheme.residColors.inputBorder,

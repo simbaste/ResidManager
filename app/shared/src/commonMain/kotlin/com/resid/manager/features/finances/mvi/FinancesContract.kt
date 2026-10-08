@@ -1,6 +1,7 @@
 package com.resid.manager.features.finances.mvi
 
 import com.resid.manager.dto.FinanceTransactionDto
+import com.resid.manager.ui.components.getTodayIsoDate
 
 data class FinancesUiState(
     val isLoading: Boolean = false,
@@ -10,7 +11,7 @@ data class FinancesUiState(
     val formCategory: String = "Cleaning",
     val formAmountText: String = "",
     val formDescription: String = "",
-    val formDate: String = "2025-02-17",
+    val formDate: String = getTodayIsoDate(),
     val isSubmittingExpense: Boolean = false,
     val formError: String? = null,
     val formSuccess: Boolean = false,

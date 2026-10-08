@@ -33,7 +33,12 @@ class RegisterUseCase(
         result.onSuccess { response ->
             val fName = response.user.firstName ?: "Utilisateur"
             val lName = response.user.lastName ?: ""
-            sessionStorage?.saveSession(response.token, fName, lName)
+            sessionStorage?.saveSession(
+                token = response.token,
+                refreshToken = response.refreshToken,
+                fName = fName,
+                lName = lName
+            )
         }
         return result
     }

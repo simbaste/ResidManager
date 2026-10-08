@@ -15,7 +15,8 @@ data class AuthUiState(
     val loggedInUser: UserDto? = null,
     val jwtToken: String? = null,
     val darkMode: Boolean = false,
-    val language: String = "fr"
+    val language: String = "fr",
+    val rememberMe: Boolean = true
 )
 
 sealed interface AuthIntent {
@@ -25,6 +26,7 @@ sealed interface AuthIntent {
     data class LastNameChanged(val lastName: String) : AuthIntent
     data class BirthDateChanged(val birthDate: String) : AuthIntent
     data class PhoneChanged(val phone: String) : AuthIntent
+    data class RememberMeChanged(val rememberMe: Boolean) : AuthIntent
     data object TogglePasswordVisibility : AuthIntent
     data object ToggleTheme : AuthIntent
     data class SetLanguage(val language: String) : AuthIntent

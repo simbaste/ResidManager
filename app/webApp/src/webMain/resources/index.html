@@ -15,6 +15,14 @@
                               repeatCount="indefinite"/>
         </circle>
     </svg>
+
+    <!-- Hidden accessible form for browser password manager integration -->
+    <form id="credential-autofill-bridge" style="position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; overflow: hidden;" autocomplete="on">
+        <label for="autofill-email">Email</label>
+        <input type="email" id="autofill-email" name="username" autocomplete="username email" tabindex="-1">
+        <label for="autofill-password">Password</label>
+        <input type="password" id="autofill-password" name="password" autocomplete="current-password" tabindex="-1">
+    </form>
     <script type="application/javascript" src="webApp.js"></script>
 </body>
 </html>

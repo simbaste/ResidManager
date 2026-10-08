@@ -156,10 +156,12 @@ fun LoginContent(
                             email = uiState.email,
                             password = uiState.passwordPlain,
                             passwordVisible = uiState.passwordVisible,
+                            rememberMe = uiState.rememberMe,
                             isLoading = uiState.isLoading,
                             errorMessage = uiState.errorMessage,
                             onEmailChanged = { onIntent(AuthIntent.EmailChanged(it)) },
                             onPasswordChanged = { onIntent(AuthIntent.PasswordChanged(it)) },
+                            onRememberMeChanged = { onIntent(AuthIntent.RememberMeChanged(it)) },
                             onTogglePasswordVisibility = { onIntent(AuthIntent.TogglePasswordVisibility) },
                             onSubmit = { onIntent(AuthIntent.SubmitLogin) },
                             onForgotPasswordClick = { /* Forgot password action */ }

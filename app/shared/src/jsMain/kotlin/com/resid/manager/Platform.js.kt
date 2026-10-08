@@ -25,28 +25,43 @@ actual fun getBaseUrl(): String {
 
 class WebSessionStorage : SessionStorage {
     private val tokenKey = "jwt_token"
+    private val refreshTokenKey = "jwt_refresh_token"
     private val userFnameKey = "user_fname"
     private val userLNameKey = "user_lname"
     private val lastSelectedResidenceKey = "last_selected_residence_id"
 
-    override fun saveSession(token: String, fName: String, lName: String) {
+    override fun saveSession(token: String, refreshToken: String?, fName: String, lName: String) {
         kotlinx.browser.localStorage.setItem(tokenKey, token)
+        if (refreshToken != null) {
+            kotlinx.browser.localStorage.setItem(refreshTokenKey, refreshToken)
+        } else {
+            kotlinx.browser.localStorage.removeItem(refreshTokenKey)
+        }
         kotlinx.browser.localStorage.setItem(userFnameKey, fName)
         kotlinx.browser.localStorage.setItem(userLNameKey, lName)
     }
 
-    override fun loadSession(): Triple<String, String, String>? {
+    override fun loadSession(): SessionData? {
         val token = kotlinx.browser.localStorage.getItem(tokenKey)
+        val refreshToken = kotlinx.browser.localStorage.getItem(refreshTokenKey)
         val fName = kotlinx.browser.localStorage.getItem(userFnameKey)
         val lName = kotlinx.browser.localStorage.getItem(userLNameKey) ?: ""
         if (token != null && fName != null) {
-            return Triple(token, fName, lName)
+            return SessionData(token, refreshToken, fName, lName)
         }
         return null
     }
 
+    override fun updateTokens(token: String, refreshToken: String?) {
+        kotlinx.browser.localStorage.setItem(tokenKey, token)
+        if (refreshToken != null) {
+            kotlinx.browser.localStorage.setItem(refreshTokenKey, refreshToken)
+        }
+    }
+
     override fun clearSession() {
         kotlinx.browser.localStorage.removeItem(tokenKey)
+        kotlinx.browser.localStorage.removeItem(refreshTokenKey)
         kotlinx.browser.localStorage.removeItem(userFnameKey)
         kotlinx.browser.localStorage.removeItem(userLNameKey)
         kotlinx.browser.localStorage.removeItem(lastSelectedResidenceKey)
@@ -72,5 +87,8 @@ actual fun getDefaultCountryCode(): String {
         "FR"
     }
 }
+
+actual fun getCurrentEpochMillis(): Long = kotlin.js.Date.now().toLong()
+
 
 

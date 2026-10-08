@@ -23,31 +23,48 @@ class AndroidSessionStorage(private val context: Context) : SessionStorage {
     }
 
     private val tokenKey = "jwt_token"
+    private val refreshTokenKey = "jwt_refresh_token"
     private val userFnameKey = "user_fname"
     private val userLNameKey = "user_lname"
     private val lastSelectedResidenceKey = "last_selected_residence_id"
 
-    override fun saveSession(token: String, fName: String, lName: String) {
+    override fun saveSession(token: String, refreshToken: String?, fName: String, lName: String) {
         prefs.edit {
             putString(tokenKey, token)
-                .putString(userFnameKey, fName)
-                .putString(userLNameKey, lName)
+            if (refreshToken != null) {
+                putString(refreshTokenKey, refreshToken)
+            } else {
+                remove(refreshTokenKey)
+            }
+            putString(userFnameKey, fName)
+            putString(userLNameKey, lName)
         }
     }
 
-    override fun loadSession(): Triple<String, String, String>? {
+    override fun loadSession(): SessionData? {
         val token = prefs.getString(tokenKey, null)
+        val refreshToken = prefs.getString(refreshTokenKey, null)
         val fName = prefs.getString(userFnameKey, null)
         val lName = prefs.getString(userLNameKey, "") ?: ""
         if (token != null && fName != null) {
-            return Triple(token, fName, lName)
+            return SessionData(token, refreshToken, fName, lName)
         }
         return null
+    }
+
+    override fun updateTokens(token: String, refreshToken: String?) {
+        prefs.edit {
+            putString(tokenKey, token)
+            if (refreshToken != null) {
+                putString(refreshTokenKey, refreshToken)
+            }
+        }
     }
 
     override fun clearSession() {
         prefs.edit {
             remove(tokenKey)
+                .remove(refreshTokenKey)
                 .remove(userFnameKey)
                 .remove(userLNameKey)
                 .remove(lastSelectedResidenceKey)
@@ -70,5 +87,8 @@ actual fun createPlatformSessionStorage(): SessionStorage? {
 }
 
 actual fun getDefaultCountryCode(): String = java.util.Locale.getDefault().country.ifBlank { "FR" }
+
+actual fun getCurrentEpochMillis(): Long = System.currentTimeMillis()
+
 
 

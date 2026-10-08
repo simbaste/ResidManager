@@ -38,6 +38,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.resid.manager.ui.components.AmountTextField
+import com.resid.manager.ui.components.AppDatePickerField
+import com.resid.manager.ui.components.AppTextField
 
 val validExpenseCategories = listOf(
     "Cleaning" to "Nettoyage / Entretien",
@@ -117,7 +120,7 @@ fun QuickExpenseForm(
                 }
 
                 // Amount input field
-                com.resid.manager.ui.components.AmountTextField(
+                AmountTextField(
                     value = formAmountText,
                     onValueChange = onAmountChanged,
                     label = "Montant *",
@@ -126,17 +129,17 @@ fun QuickExpenseForm(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Date input field
-                com.resid.manager.ui.components.AppTextField(
-                    value = formDate,
-                    onValueChange = onDateChanged,
-                    label = "Date d'opération (AAAA-MM-JJ) *",
+                // Date input field with AppDatePickerField
+                AppDatePickerField(
+                    date = formDate,
+                    onDateSelected = onDateChanged,
+                    label = "Date d'opération *",
                     placeholder = "AAAA-MM-JJ",
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 // Description text input
-                com.resid.manager.ui.components.AppTextField(
+                AppTextField(
                     value = formDescription,
                     onValueChange = onDescriptionChanged,
                     label = "Description explicite de l'achat *",
