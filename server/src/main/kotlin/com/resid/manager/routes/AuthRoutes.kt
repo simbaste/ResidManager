@@ -2,6 +2,7 @@ package com.resid.manager.routes
 
 import at.favre.lib.crypto.bcrypt.BCrypt
 import com.resid.manager.auth.JwtConfig
+import com.resid.manager.data.HttpError
 import com.resid.manager.data.User
 import com.resid.manager.data.Users
 import com.resid.manager.dto.AuthRequest
@@ -140,8 +141,8 @@ fun Route.authRoutes() {
         // -----------------------------------------------------------------
 
         // POST /api/auth/register : Generic account creation
-        post("/api/auth/register") {
-            try {
+        post("/register") {
+            call.executeRequest(HttpStatusCode.Created) {
                 val request = call.receive<RegisterRequest>()
 
                 // 1. Validate inputs via Shared Logic
@@ -153,11 +154,10 @@ fun Route.authRoutes() {
                 )
 
                 if (validation.isFailure) {
-                    call.respond(
+                    throw HttpError(
                         HttpStatusCode.BadRequest,
-                        ErrorResponse(validation.exceptionOrNull()?.message ?: "Données d'inscription invalides.")
+                        validation.exceptionOrNull()?.message ?: "Données d'inscription invalides."
                     )
-                    return@post
                 }
 
                 // 2. Check if user already exists
@@ -166,11 +166,10 @@ fun Route.authRoutes() {
                 }
 
                 if (alreadyExists) {
-                    call.respond(
+                    throw HttpError(
                         HttpStatusCode.Conflict,
-                        ErrorResponse("This email address is already registered. Try logging in instead.")
+                        "This email address is already registered. Try logging in instead."
                     )
-                    return@post
                 }
 
                 // 3. Hash password using BCrypt
@@ -180,7 +179,7 @@ fun Route.authRoutes() {
                 val parsedBirthDate = request.birthDate?.let {
                     try {
                         LocalDate.parse(it)
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         null
                     }
                 }
@@ -220,19 +219,10 @@ fun Route.authRoutes() {
                     updatedAt = newUser.createdAt.toString()
                 )
 
-                call.respond(
-                    HttpStatusCode.Created,
-                    AuthResponse(
-                        token = token,
-                        refreshToken = refreshToken,
-                        user = userDto
-                    )
-                )
-
-            } catch (e: Exception) {
-                call.respond(
-                    HttpStatusCode.InternalServerError,
-                    ErrorResponse("Une erreur est survenue lors de l'inscription: ${e.message}")
+                AuthResponse(
+                    token = token,
+                    refreshToken = refreshToken,
+                    user = userDto
                 )
             }
         }
