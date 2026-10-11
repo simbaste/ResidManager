@@ -13,7 +13,10 @@ actual fun createPlatformSessionStorage(): SessionStorage? = null
 actual fun getDefaultCountryCode(): String = "FR"
 
 @OptIn(kotlin.js.ExperimentalWasmJsInterop::class)
-actual fun getCurrentEpochMillis(): Long = js("Date.now()")
+private fun jsDateNow(): Double = js("Date.now()")
+
+actual fun getCurrentEpochMillis(): Long = jsDateNow().toLong()
+
 
 
 
