@@ -100,6 +100,11 @@ jobs:
             JWT_AUDIENCE=residmanager-api
             JWT_REALM=residmanager
             JWT_ISSUER=https://residmanager-api-1043005566320.europe-west1.run.app
+            R2_ACCESS_KEY=${{ secrets.R2_ACCESS_KEY }}
+            R2_SECRET_KEY=${{ secrets.R2_SECRET_KEY }}
+            R2_ENDPOINT=https://18ff4c5210a4c6b597413dd0672aec7f.r2.cloudflarestorage.com
+            R2_BUCKET_NAME=residmanager-media
+            R2_PUBLIC_DOMAIN=https://media.residmanager.com
 
   # Job 3: Deploy Web App (JS / Wasm) to Firebase Hosting
   deploy-web:

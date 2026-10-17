@@ -13,6 +13,7 @@ application {
 dependencies {
     api(projects.core)
     implementation(projects.app.shared)
+    implementation(libs.s3)
     implementation(libs.exposed.core)
     implementation(libs.exposed.dao)
     implementation(libs.exposed.jdbc)
@@ -38,6 +39,20 @@ dependencies {
 
 tasks.withType<AbstractCopyTask>().configureEach {
     duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+tasks.withType<JavaExec> {
+    val envFile = project.file(".env")
+    if (envFile.exists()) {
+        envFile.readLines().forEach { line ->
+            if (line.isNotBlank() && !line.startsWith("#")) {
+                val parts = line.split("=", limit = 2)
+                if (parts.size == 2) {
+                    environment(parts[0].trim(), parts[1].trim())
+                }
+            }
+        }
+    }
 }
 
 // Tâche pour lancer le serveur pointant sur la base de données locale DEVELOP (Docker port 5433)
