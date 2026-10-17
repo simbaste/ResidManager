@@ -7,10 +7,12 @@ import com.resid.manager.data.User
 import com.resid.manager.data.Users
 import com.resid.manager.dto.AuthRequest
 import com.resid.manager.dto.AuthResponse
+import com.resid.manager.dto.AvatarUploadTicketRequest
 import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.dto.RegisterRequest
 import com.resid.manager.dto.UserDto
 import com.resid.manager.service.executeRequest
+import com.resid.manager.storage.R2StorageService
 import com.resid.manager.validation.AuthValidator
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.request.receive
@@ -24,7 +26,19 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 
 fun Route.authRoutes() {
+    val storageService = R2StorageService()
+
     route("/api/auth") {
+        post("/register/avatar-ticket") {
+            call.executeRequest(HttpStatusCode.OK) {
+                val request = call.receive<AvatarUploadTicketRequest>()
+                storageService.generateAvatarUploadTicket(
+                    extension = request.extension,
+                    mimeType = request.mimeType
+                )
+            }
+        }
+
         post("/login") {
             call.executeRequest(HttpStatusCode.OK) {
                 val request = call.receive<AuthRequest>()
