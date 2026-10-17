@@ -83,7 +83,7 @@ actual fun Modifier.imageDropTarget(
 private fun readFileAsByteArray(file: File, callback: (ByteArray) -> Unit) {
     val reader = FileReader()
     reader.onload = {
-        val buffer = reader.result as? ArrayBuffer
+        val buffer = reader.result.unsafeCast<ArrayBuffer?>()
         if (buffer != null) {
             val int8Array = Int8Array(buffer)
             val bytes = ByteArray(int8Array.length) { i ->

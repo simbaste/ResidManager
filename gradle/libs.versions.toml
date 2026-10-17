@@ -13,6 +13,7 @@ composeMultiplatform = "1.11.0"
 junit = "4.13.2"
 kotlin = "2.3.21"
 kotlin-wrappers = "2026.5.3"
+kotlinxCoroutinesTest = "1.11.0"
 ktor = "3.4.3"
 logback = "1.5.32"
 material3 = "1.11.0-alpha07"
@@ -41,6 +42,7 @@ compose-materialIconsExtended = { module = "org.jetbrains.compose.material:mater
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
+kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesTest" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 ktor-serverCore = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
 ktor-serverNetty = { module = "io.ktor:ktor-server-netty-jvm", version.ref = "ktor" }

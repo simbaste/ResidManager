@@ -35,6 +35,7 @@ import com.resid.manager.features.auth.mvi.AuthUiState
 import com.resid.manager.features.auth.ui.components.login.LoginAtmosphericBackground
 import com.resid.manager.features.auth.ui.components.login.LoginFooter
 import com.resid.manager.features.auth.ui.components.login.LoginSecurityBadge
+import com.resid.manager.features.auth.ui.components.register.RegisterAvatarPicker
 import com.resid.manager.features.auth.ui.components.register.RegisterCardHeader
 import com.resid.manager.features.auth.ui.components.register.RegisterForm
 import com.resid.manager.features.auth.ui.components.register.RegisterLoginOption
@@ -150,7 +151,16 @@ fun RegisterContent(
                     ) {
                         RegisterCardHeader(isCompact = isCompact)
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Sélecteur d'avatar intégré
+                        RegisterAvatarPicker(
+                            avatarBytes = uiState.avatarBytes,
+                            onAvatarSelected = { bytes -> onIntent(AuthIntent.AvatarSelected(bytes)) },
+                            onRemoveAvatar = { onIntent(AuthIntent.RemoveAvatar) }
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
 
                         RegisterForm(
                             firstName = uiState.firstName,

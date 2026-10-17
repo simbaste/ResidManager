@@ -12,6 +12,7 @@ import com.resid.manager.features.profile.di.profileFeatureModule
 import com.resid.manager.features.residences.di.residencesFeatureModule
 import com.resid.manager.features.tickets.di.ticketsFeatureModule
 import com.resid.manager.features.units.di.unitsFeatureModule
+import com.resid.manager.network.ApiClient
 import com.resid.manager.network.AuthEvents
 import com.resid.manager.repository.AuthRepository
 import com.resid.manager.repository.AuthRepositoryImpl
@@ -23,6 +24,8 @@ import com.resid.manager.repository.ResidenceRepository
 import com.resid.manager.repository.ResidenceRepositoryImpl
 import com.resid.manager.repository.ResidenceUnitRepository
 import com.resid.manager.repository.ResidenceUnitRepositoryImpl
+import com.resid.manager.repository.StorageRepository
+import com.resid.manager.repository.StorageRepositoryImpl
 import com.resid.manager.usecase.SearchResidencesUseCase
 import com.resid.manager.viewmodel.LoginViewModel
 import io.ktor.client.HttpClient
@@ -61,6 +64,12 @@ val networkModule = module {
 }
 
 val repositoryModule = module {
+    single<StorageRepository> {
+        StorageRepositoryImpl(
+            httpClient = get(),
+            baseUrl = ApiClient.BASE_URL
+        )
+    }
     single<AuthRepository> { AuthRepositoryImpl(get()) }
     single<ResidenceRepository> { ResidenceRepositoryImpl(get()) }
     single<ResidenceUnitRepository> { ResidenceUnitRepositoryImpl(get()) }

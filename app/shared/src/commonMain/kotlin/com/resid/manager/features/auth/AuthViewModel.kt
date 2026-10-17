@@ -58,6 +58,17 @@ class AuthViewModel(
             is AuthIntent.TogglePasswordVisibility -> updateState { it.copy(passwordVisible = !it.passwordVisible) }
             is AuthIntent.ToggleTheme -> updateState { it.copy(darkMode = !it.darkMode) }
             is AuthIntent.SetLanguage -> updateState { it.copy(language = intent.language) }
+            is AuthIntent.AvatarSelected -> updateState {
+                it.copy(
+                    avatarBytes = intent.bytes,
+                    avatarMimeType = intent.mimeType,
+                    avatarExtension = intent.extension,
+                    errorMessage = null
+                )
+            }
+            is AuthIntent.RemoveAvatar -> updateState {
+                it.copy(avatarBytes = null, errorMessage = null)
+            }
             is AuthIntent.SubmitLogin -> login()
             is AuthIntent.SubmitRegister -> register()
             is AuthIntent.Logout -> logout()
@@ -103,7 +114,10 @@ class AuthViewModel(
                 birthDate = state.birthDate,
                 phone = state.phone,
                 email = state.email,
-                passwordPlain = state.passwordPlain
+                passwordPlain = state.passwordPlain,
+                avatarBytes = state.avatarBytes,
+                avatarMimeType = state.avatarMimeType,
+                avatarExtension = state.avatarExtension
             )
                 .onSuccess { response ->
                     updateState {
