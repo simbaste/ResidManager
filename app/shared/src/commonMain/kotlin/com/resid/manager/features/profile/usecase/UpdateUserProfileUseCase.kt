@@ -11,7 +11,8 @@ class UpdateUserProfileUseCase(
         token: String,
         firstName: String,
         lastName: String,
-        phone: String
+        phone: String,
+        avatarUrl: String? = null
     ): Result<UserDto> {
         if (token.isBlank()) {
             return Result.failure(IllegalArgumentException("Token d'authentification manquant"))
@@ -19,7 +20,8 @@ class UpdateUserProfileUseCase(
         val request = UserUpdateRequest(
             firstName = firstName.trim(),
             lastName = lastName.trim(),
-            phone = phone.trim().ifBlank { null }
+            phone = phone.trim().ifBlank { null },
+            avatarUrl = avatarUrl
         )
         return profileRepository.updateProfile(token, request)
     }

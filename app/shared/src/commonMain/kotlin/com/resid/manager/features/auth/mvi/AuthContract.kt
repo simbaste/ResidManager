@@ -67,6 +67,8 @@ sealed interface AuthIntent {
     data object ToggleTheme : AuthIntent
     data class SetLanguage(val language: String) : AuthIntent
     
+    data class SetErrorMessage(val message: String?) : AuthIntent
+
     data class AvatarSelected(
         val bytes: ByteArray,
         val mimeType: String = "image/jpeg",
@@ -76,8 +78,7 @@ sealed interface AuthIntent {
             if (this === other) return true
             if (other == null || this::class != other::class) return false
             other as AvatarSelected
-            if (!bytes.contentEquals(other.bytes)) return false
-            return mimeType == other.mimeType && extension == other.extension
+            return bytes.contentEquals(other.bytes) && mimeType == other.mimeType && extension == other.extension
         }
 
         override fun hashCode(): Int {

@@ -26,9 +26,10 @@ class AndroidSessionStorage(private val context: Context) : SessionStorage {
     private val refreshTokenKey = "jwt_refresh_token"
     private val userFnameKey = "user_fname"
     private val userLNameKey = "user_lname"
+    private val userAvatarUrlKey = "user_avatar_url"
     private val lastSelectedResidenceKey = "last_selected_residence_id"
 
-    override fun saveSession(token: String, refreshToken: String?, fName: String, lName: String) {
+    override fun saveSession(token: String, refreshToken: String?, fName: String, lName: String, avatarUrl: String?) {
         prefs.edit {
             putString(tokenKey, token)
             if (refreshToken != null) {
@@ -38,6 +39,11 @@ class AndroidSessionStorage(private val context: Context) : SessionStorage {
             }
             putString(userFnameKey, fName)
             putString(userLNameKey, lName)
+            if (avatarUrl != null) {
+                putString(userAvatarUrlKey, avatarUrl)
+            } else {
+                remove(userAvatarUrlKey)
+            }
         }
     }
 
@@ -46,8 +52,9 @@ class AndroidSessionStorage(private val context: Context) : SessionStorage {
         val refreshToken = prefs.getString(refreshTokenKey, null)
         val fName = prefs.getString(userFnameKey, null)
         val lName = prefs.getString(userLNameKey, "") ?: ""
+        val avatarUrl = prefs.getString(userAvatarUrlKey, null)
         if (token != null && fName != null) {
-            return SessionData(token, refreshToken, fName, lName)
+            return SessionData(token, refreshToken, fName, lName, avatarUrl)
         }
         return null
     }
@@ -61,12 +68,23 @@ class AndroidSessionStorage(private val context: Context) : SessionStorage {
         }
     }
 
+    override fun updateAvatarUrl(avatarUrl: String?) {
+        prefs.edit {
+            if (avatarUrl != null) {
+                putString(userAvatarUrlKey, avatarUrl)
+            } else {
+                remove(userAvatarUrlKey)
+            }
+        }
+    }
+
     override fun clearSession() {
         prefs.edit {
             remove(tokenKey)
                 .remove(refreshTokenKey)
                 .remove(userFnameKey)
                 .remove(userLNameKey)
+                .remove(userAvatarUrlKey)
                 .remove(lastSelectedResidenceKey)
         }
     }

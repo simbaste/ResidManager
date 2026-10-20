@@ -20,7 +20,7 @@ data class StorageConfig(
             val publicDomain = System.getenv("R2_PUBLIC_DOMAIN")
                 ?.takeIf { it.isNotBlank() }
                 ?.trimEnd('/')
-                ?: "https://pub-xxxx.r2.dev"
+                ?: "https://dev-media.residmanager.com"
 
             return StorageConfig(
                 accessKey = accessKey,

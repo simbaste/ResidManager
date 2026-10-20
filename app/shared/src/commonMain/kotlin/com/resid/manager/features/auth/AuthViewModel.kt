@@ -38,6 +38,7 @@ class AuthViewModel(
                         lastName = session.lastName,
                         phone = null,
                         birthDate = null,
+                        avatarUrl = session.avatarUrl,
                         createdAt = "",
                         updatedAt = ""
                     )
@@ -58,6 +59,7 @@ class AuthViewModel(
             is AuthIntent.TogglePasswordVisibility -> updateState { it.copy(passwordVisible = !it.passwordVisible) }
             is AuthIntent.ToggleTheme -> updateState { it.copy(darkMode = !it.darkMode) }
             is AuthIntent.SetLanguage -> updateState { it.copy(language = intent.language) }
+            is AuthIntent.SetErrorMessage -> updateState { it.copy(errorMessage = intent.message) }
             is AuthIntent.AvatarSelected -> updateState {
                 it.copy(
                     avatarBytes = intent.bytes,

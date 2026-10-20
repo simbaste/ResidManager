@@ -21,6 +21,7 @@ object Users : UUIDTable("users") {
     val lastName = varchar("last_name", 100)
     val birthDate = date("birth_date").nullable()
     val phone = varchar("phone", 20).nullable()
+    val avatarUrl = text("avatar_url").nullable()
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
 }
@@ -224,6 +225,7 @@ class User(id: EntityID<UUID>) : UUIDEntity(id) {
     var lastName by Users.lastName
     var birthDate by Users.birthDate
     var phone by Users.phone
+    var avatarUrl by Users.avatarUrl
     var createdAt by Users.createdAt
     var updatedAt by Users.updatedAt
 }

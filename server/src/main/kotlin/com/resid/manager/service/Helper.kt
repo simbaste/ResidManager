@@ -58,9 +58,10 @@ suspend inline fun <T> ApplicationCall.executeRequest(
     } catch (e: HttpError) {
         respond(e.code, ErrorResponse(e.message))
     } catch (e: Exception) {
+        e.printStackTrace()
         respond(
             HttpStatusCode.InternalServerError,
-            ErrorResponse(e.message ?: "Une erreur interne est survenue.")
+            ErrorResponse(e.message ?: "Une erreur interne est survenue sur le serveur.")
         )
     }
 }

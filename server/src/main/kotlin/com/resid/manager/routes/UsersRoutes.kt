@@ -56,8 +56,16 @@ fun Route.userRoutes() {
                 }
             }
 
-            // PUT /api/users : Update logged-in user profile
+            // PUT /api/users or PUT /api/users/me : Update logged-in user profile
             put {
+                call.executeRequest(HttpStatusCode.OK) {
+                    val userId = call.getRequesterUuid()
+                    val request = call.receive<UserUpdateRequest>()
+                    UserService.updateUserProfile(userId, request)
+                }
+            }
+
+            put("/me") {
                 call.executeRequest(HttpStatusCode.OK) {
                     val userId = call.getRequesterUuid()
                     val request = call.receive<UserUpdateRequest>()

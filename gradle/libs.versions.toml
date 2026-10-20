@@ -20,6 +20,7 @@ material3 = "1.11.0-alpha07"
 s3 = "1.9.20"
 tslib = "2.8.1"
 navigation3 = "1.1.1"
+coil3 = "3.1.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -60,6 +61,8 @@ ktor-clientSerializationKotlinxJson = { module = "io.ktor:ktor-serialization-kot
 s3 = { module = "aws.sdk.kotlin:s3", version.ref = "s3" }
 wrappers-browser = { module = "org.jetbrains.kotlin-wrappers:kotlin-browser", version.ref = "kotlin-wrappers" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version = "1.8.0" }
+coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil3" }
+coil-network-ktor3 = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil3" }
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version = "0.58.0" }
 exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version = "0.58.0" }
 exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version = "0.58.0" }

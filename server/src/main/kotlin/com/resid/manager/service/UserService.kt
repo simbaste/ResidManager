@@ -62,6 +62,7 @@ object UserService {
             lastName = request.lastName
             birthDate = parsedBirthDate
             phone = request.phone
+            avatarUrl = request.avatarUrl
             createdAt = now
             updatedAt = now
         }
@@ -74,6 +75,7 @@ object UserService {
             lastName = newUser.lastName,
             phone = newUser.phone,
             birthDate = newUser.birthDate?.toString(),
+            avatarUrl = newUser.avatarUrl,
             createdAt = newUser.createdAt.toString(),
             updatedAt = newUser.updatedAt.toString()
         )
@@ -89,6 +91,7 @@ object UserService {
                 lastName = user.lastName,
                 phone = user.phone,
                 birthDate = user.birthDate?.toString(),
+                avatarUrl = user.avatarUrl,
                 createdAt = user.createdAt.toString(),
                 updatedAt = user.updatedAt.toString()
             )
@@ -106,6 +109,7 @@ object UserService {
             lastName = dbUser.lastName,
             phone = dbUser.phone,
             birthDate = dbUser.birthDate?.toString(),
+            avatarUrl = dbUser.avatarUrl,
             createdAt = dbUser.createdAt.toString(),
             updatedAt = dbUser.updatedAt.toString()
         )
@@ -166,9 +170,22 @@ object UserService {
                 null
             }
         }
+        var oldAvatarToDelete: String? = null
+        request.avatarUrl?.let { newAvatarUrl ->
+            val cleanUrl = newAvatarUrl.ifBlank { null }
+            if (dbUser.avatarUrl != cleanUrl) {
+                oldAvatarToDelete = dbUser.avatarUrl
+                dbUser.avatarUrl = cleanUrl
+            }
+        }
 
         dbUser.updatedAt = LocalDateTime.now(Clock.systemUTC())
         dbUser.flush()
+
+        // Si l'ancien avatar a été remplacé ou supprimé, supprimer le fichier du bucket R2
+        if (oldAvatarToDelete != null) {
+            com.resid.manager.storage.R2StorageService().deleteFileByUrl(oldAvatarToDelete)
+        }
 
         UserDto(
             id = dbUser.id.value.toString(),
@@ -177,6 +194,7 @@ object UserService {
             lastName = dbUser.lastName,
             phone = dbUser.phone,
             birthDate = dbUser.birthDate?.toString(),
+            avatarUrl = dbUser.avatarUrl,
             createdAt = dbUser.createdAt.toString(),
             updatedAt = dbUser.updatedAt.toString()
         )

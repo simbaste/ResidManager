@@ -28,10 +28,17 @@ import java.time.LocalDateTime
 fun Route.authRoutes() {
     val storageService = R2StorageService()
 
+    val jsonParser = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+
     route("/api/auth") {
         post("/register/avatar-ticket") {
             call.executeRequest(HttpStatusCode.OK) {
-                val request = call.receive<AvatarUploadTicketRequest>()
+                val request = try {
+                    call.receive<AvatarUploadTicketRequest>()
+                } catch (_: Exception) {
+                    val raw = call.receive<String>()
+                    jsonParser.decodeFromString<AvatarUploadTicketRequest>(raw)
+                }
                 storageService.generateAvatarUploadTicket(
                     extension = request.extension,
                     mimeType = request.mimeType
@@ -46,7 +53,7 @@ fun Route.authRoutes() {
                 // 1. Validate inputs
                 val validation = AuthValidator.validateLogin(request.email, request.passwordPlain)
                 if (validation.isFailure) {
-                    throw com.resid.manager.data.HttpError(
+                    throw HttpError(
                         HttpStatusCode.BadRequest,
                         validation.exceptionOrNull()?.message ?: "Données de connexion invalides."
                     )
@@ -55,7 +62,7 @@ fun Route.authRoutes() {
                 // 2. Fetch user from Database inside an Exposed transaction
                 val dbUser = transaction {
                     User.find { Users.email eq request.email }.firstOrNull()
-                } ?: throw com.resid.manager.data.HttpError(
+                } ?: throw HttpError(
                     HttpStatusCode.Unauthorized,
                     "Identifiants incorrects (utilisateur introuvable)."
                 )
@@ -67,7 +74,7 @@ fun Route.authRoutes() {
                 )
 
                 if (!passwordVerification.verified) {
-                    throw com.resid.manager.data.HttpError(
+                    throw HttpError(
                         HttpStatusCode.Unauthorized,
                         "Identifiants incorrects (mot de passe invalide)."
                     )
@@ -90,6 +97,7 @@ fun Route.authRoutes() {
                     lastName = dbUser.lastName,
                     phone = dbUser.phone,
                     birthDate = dbUser.birthDate?.toString(),
+                    avatarUrl = dbUser.avatarUrl,
                     createdAt = dbUser.createdAt.toString(),
                     updatedAt = dbUser.createdAt.toString()
                 )
@@ -207,6 +215,7 @@ fun Route.authRoutes() {
                         lastName = request.lastName
                         birthDate = parsedBirthDate
                         phone = request.phone
+                        avatarUrl = request.avatarUrl
                         createdAt = LocalDateTime.now(Clock.systemUTC())
                         updatedAt = LocalDateTime.now(Clock.systemUTC())
                     }
@@ -229,6 +238,7 @@ fun Route.authRoutes() {
                     lastName = newUser.lastName,
                     phone = newUser.phone,
                     birthDate = newUser.birthDate?.toString(),
+                    avatarUrl = newUser.avatarUrl,
                     createdAt = newUser.createdAt.toString(),
                     updatedAt = newUser.createdAt.toString()
                 )

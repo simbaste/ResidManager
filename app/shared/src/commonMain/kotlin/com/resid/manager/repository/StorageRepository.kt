@@ -8,9 +8,7 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
-import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 
 interface StorageRepository {
@@ -25,7 +23,8 @@ class StorageRepositoryImpl(
     override suspend fun uploadAvatarToR2(bytes: ByteArray, mimeType: String, extension: String): Result<String> = runCatching {
         // 1. Obtenir le ticket d'upload présigné
         val ticket: AvatarUploadTicketResponse = httpClient.post("$baseUrl/api/auth/register/avatar-ticket") {
-            contentType(ContentType.Application.Json)
+            header(HttpHeaders.ContentType, "application/json")
+            header(HttpHeaders.Accept, "application/json")
             setBody(AvatarUploadTicketRequest(mimeType = mimeType, extension = extension))
         }.body()
 

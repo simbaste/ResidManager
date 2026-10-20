@@ -92,7 +92,8 @@ fun AppShell(
                     onAddResidenceClick = { viewModel.setShowCreateResidenceDialog(true) },
                     onJoinResidenceClick = { viewModel.setShowJoinResidenceDialog(true) },
                     isDarkTheme = uiState.darkMode,
-                    onToggleTheme = { viewModel.toggleTheme() }
+                    onToggleTheme = { viewModel.toggleTheme() },
+                    avatarUrl = uiState.loggedInUser?.avatarUrl
                 )
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)

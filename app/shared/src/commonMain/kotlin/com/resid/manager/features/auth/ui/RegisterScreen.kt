@@ -17,7 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -26,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.UserDto
 import com.resid.manager.features.auth.AuthViewModel
@@ -35,11 +35,12 @@ import com.resid.manager.features.auth.mvi.AuthUiState
 import com.resid.manager.features.auth.ui.components.login.LoginAtmosphericBackground
 import com.resid.manager.features.auth.ui.components.login.LoginFooter
 import com.resid.manager.features.auth.ui.components.login.LoginSecurityBadge
-import com.resid.manager.features.auth.ui.components.register.RegisterAvatarPicker
 import com.resid.manager.features.auth.ui.components.register.RegisterCardHeader
 import com.resid.manager.features.auth.ui.components.register.RegisterForm
 import com.resid.manager.features.auth.ui.components.register.RegisterLoginOption
+import com.resid.manager.features.auth.ui.components.register.RegisterProfilePhotoSection
 import com.resid.manager.features.auth.ui.components.register.RegisterTopBar
+import com.resid.manager.ui.theme.ResidTheme
 import com.resid.manager.ui.theme.residColors
 import org.koin.compose.koinInject
 
@@ -74,7 +75,6 @@ fun RegisterScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun RegisterContent(
     uiState: AuthUiState,
@@ -153,11 +153,16 @@ fun RegisterContent(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Sélecteur d'avatar intégré
-                        RegisterAvatarPicker(
+                        // Section photo de profil intégrée (avec gestion d'erreur locale/visuelle)
+                        RegisterProfilePhotoSection(
                             avatarBytes = uiState.avatarBytes,
-                            onAvatarSelected = { bytes -> onIntent(AuthIntent.AvatarSelected(bytes)) },
-                            onRemoveAvatar = { onIntent(AuthIntent.RemoveAvatar) }
+                            onAvatarSelected = { bytes, mimeType, extension ->
+                                onIntent(AuthIntent.AvatarSelected(bytes, mimeType, extension))
+                            },
+                            onRemoveAvatar = { onIntent(AuthIntent.RemoveAvatar) },
+                            onInvalidFormat = { message ->
+                                onIntent(AuthIntent.SetErrorMessage(message))
+                            }
                         )
 
                         Spacer(modifier = Modifier.height(20.dp))
@@ -206,3 +211,23 @@ fun RegisterContent(
         }
     }
 }
+
+@Preview(showBackground = true)
+@Composable
+fun RegisterContentPreview() {
+    ResidTheme(darkTheme = false) {
+        RegisterContent(
+            uiState = AuthUiState(
+                firstName = "Jean",
+                lastName = "Dupont",
+                birthDate = "1990-05-15",
+                phone = "+22501020304",
+                email = "jean.dupont@exemple.fr",
+                passwordPlain = "Secret123!"
+            ),
+            onIntent = {},
+            onNavigateToLogin = {}
+        )
+    }
+}
+

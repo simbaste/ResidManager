@@ -2,7 +2,6 @@ package com.resid.manager.repository
 
 import com.resid.manager.dto.AuthRequest
 import com.resid.manager.dto.AuthResponse
-import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.dto.RegisterRequest
 import com.resid.manager.network.ApiClient
 import io.ktor.client.HttpClient
@@ -39,8 +38,8 @@ class AuthRepositoryImpl(
             if (response.status == HttpStatusCode.OK) {
                 Result.success(response.body<AuthResponse>())
             } else {
-                val errorBody = response.body<ErrorResponse>()
-                Result.failure(Exception(errorBody.message))
+                val errorMsg = ApiClient.parseErrorMessage(response, "Identifiants ou paramètres incorrects.")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de connexion : ${e.message}"))
@@ -65,8 +64,8 @@ class AuthRepositoryImpl(
             if (response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) {
                 Result.success(response.body<AuthResponse>())
             } else {
-                val errorBody = response.body<ErrorResponse>()
-                Result.failure(Exception(errorBody.message))
+                val errorMsg = ApiClient.parseErrorMessage(response, "Une erreur est survenue lors de l'inscription.")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur d'inscription : ${e.message}"))

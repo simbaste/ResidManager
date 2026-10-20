@@ -55,7 +55,8 @@ class RegisterUseCase(
                 token = response.token,
                 refreshToken = response.refreshToken,
                 fName = fName,
-                lName = lName
+                lName = lName,
+                avatarUrl = response.user.avatarUrl
             )
         }
         return result

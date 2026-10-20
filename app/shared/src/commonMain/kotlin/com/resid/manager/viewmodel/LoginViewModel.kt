@@ -160,6 +160,7 @@ class LoginViewModel(
                         lastName = session.lastName,
                         phone = null,
                         birthDate = null,
+                        avatarUrl = session.avatarUrl,
                         createdAt = "",
                         updatedAt = ""
                     )

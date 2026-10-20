@@ -1,6 +1,5 @@
 package com.resid.manager.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -67,7 +66,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
@@ -81,12 +79,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.resid.manager.ui.components.imageDropTarget
 import com.resid.manager.ui.components.rememberImagePickerLauncher
 import com.resid.manager.ui.theme.ResidTheme
 import com.resid.manager.ui.theme.residColors
 import com.resid.manager.viewmodel.LoginUiState
-import org.jetbrains.compose.resources.decodeToImageBitmap
 
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -420,7 +418,7 @@ fun RegisterCardHeader(
  */
 @Composable
 fun RegisterProfilePhotoSection(
-    selectedImage: ImageBitmap?,
+    avatarBytes: ByteArray?,
     onImageSelected: (ByteArray) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -461,15 +459,15 @@ fun RegisterProfilePhotoSection(
                 .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
                 .border(
                     width = 2.dp,
-                    color = if (selectedImage != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                    color = if (avatarBytes != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                     shape = CircleShape
                 )
                 .clickable { imagePicker.launch() },
             contentAlignment = Alignment.Center
         ) {
-            if (selectedImage != null) {
-                Image(
-                    bitmap = selectedImage,
+            if (avatarBytes != null) {
+                AsyncImage(
+                    model = avatarBytes,
                     contentDescription = "Photo de profil",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -487,7 +485,7 @@ fun RegisterProfilePhotoSection(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = if (selectedImage != null) 0.25f else 0.15f), CircleShape),
+                    .background(Color.Black.copy(alpha = if (avatarBytes != null) 0.25f else 0.15f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -512,10 +510,10 @@ fun RegisterProfilePhotoSection(
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = if (selectedImage != null) "(Photo ajoutée)" else "(Optionnel)",
-                    color = if (selectedImage != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = if (avatarBytes != null) "(Photo ajoutée)" else "(Optionnel)",
+                    color = if (avatarBytes != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
-                    fontWeight = if (selectedImage != null) FontWeight.Medium else FontWeight.Normal
+                    fontWeight = if (avatarBytes != null) FontWeight.Medium else FontWeight.Normal
                 )
             }
             Spacer(modifier = Modifier.height(2.dp))
@@ -563,7 +561,7 @@ fun RegisterForm(
     var confirmPassword by remember { mutableStateOf("") }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     var termsAccepted by remember { mutableStateOf(true) }
-    var avatarBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+    var avatarBytes by remember { mutableStateOf<ByteArray?>(null) }
     val focusManager = LocalFocusManager.current
     val colorScheme = MaterialTheme.colorScheme
 
@@ -580,13 +578,9 @@ fun RegisterForm(
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         // Optional Profile Photo Section with click & drop
         RegisterProfilePhotoSection(
-            selectedImage = avatarBitmap,
+            avatarBytes = avatarBytes,
             onImageSelected = { bytes ->
-                try {
-                    avatarBitmap = bytes.decodeToImageBitmap()
-                } catch (_: Exception) {
-                    // Ignore non-supported/corrupt image bytes
-                }
+                avatarBytes = bytes
             }
         )
 

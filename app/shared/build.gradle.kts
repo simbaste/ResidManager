@@ -71,6 +71,8 @@ kotlin {
             implementation(libs.ktor.clientContentNegotiation)
             implementation(libs.ktor.clientSerializationKotlinxJson)
             implementation(libs.navigation3.ui)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
             api(libs.koin.core)
             api(libs.koin.compose)
         }

@@ -17,7 +17,9 @@ class ProfileViewModel(
     private val fetchResidenceCategoriesUseCase: FetchResidenceCategoriesUseCase,
     private val addTicketCategoryUseCase: AddTicketCategoryUseCase,
     private val updateTicketCategoryUseCase: UpdateTicketCategoryUseCase,
-    private val updateResidenceCurrencyUseCase: UpdateResidenceCurrencyUseCase
+    private val updateResidenceCurrencyUseCase: UpdateResidenceCurrencyUseCase,
+    private val storageRepository: com.resid.manager.repository.StorageRepository,
+    private val sessionStorage: com.resid.manager.SessionStorage? = null
 ) : MviViewModel<ProfileUiState, ProfileIntent, ProfileEffect>(ProfileUiState()) {
 
     override fun onIntent(intent: ProfileIntent) {
@@ -35,14 +37,41 @@ class ProfileViewModel(
                         editFirstName = intent.firstName,
                         editLastName = intent.lastName,
                         editPhone = intent.phone,
+                        editAvatarUrl = intent.avatarUrl,
+                        editAvatarBytes = null,
+                        isAvatarRemoved = false,
                         profileError = null
                     )
                 }
             }
-            is ProfileIntent.CancelEditingProfile -> updateState { it.copy(isEditingProfile = false, profileError = null) }
+            is ProfileIntent.CancelEditingProfile -> updateState {
+                it.copy(
+                    isEditingProfile = false,
+                    editAvatarBytes = null,
+                    isAvatarRemoved = false,
+                    profileError = null
+                )
+            }
             is ProfileIntent.SetEditFirstName -> updateState { it.copy(editFirstName = intent.firstName) }
             is ProfileIntent.SetEditLastName -> updateState { it.copy(editLastName = intent.lastName) }
             is ProfileIntent.SetEditPhone -> updateState { it.copy(editPhone = intent.phone) }
+            is ProfileIntent.SetEditAvatar -> updateState {
+                it.copy(
+                    editAvatarBytes = intent.bytes,
+                    editAvatarMimeType = intent.mimeType,
+                    editAvatarExtension = intent.extension,
+                    isAvatarRemoved = false,
+                    profileError = null
+                )
+            }
+            is ProfileIntent.RemoveEditAvatar -> updateState {
+                it.copy(
+                    editAvatarBytes = null,
+                    editAvatarUrl = null,
+                    isAvatarRemoved = true,
+                    profileError = null
+                )
+            }
             is ProfileIntent.SaveProfile -> saveProfile(intent.token)
             is ProfileIntent.LoadCategories -> loadCategories(intent.token, intent.residenceId)
             is ProfileIntent.SetCategoryKey -> updateState { it.copy(formCategoryKey = intent.key) }
@@ -73,9 +102,50 @@ class ProfileViewModel(
 
         viewModelScope.launch {
             updateState { it.copy(isSavingProfile = true, profileError = null) }
-            updateUserProfileUseCase(token, state.editFirstName, state.editLastName, state.editPhone)
+
+            // 1. Déterminer l'URL d'avatar final :
+            // - Si une nouvelle image a été sélectionnée : upload vers R2
+            // - Si l'avatar a été explicitement supprimé : "" (chaîne vide pour effacer en base)
+            // - Sinon : conserver editAvatarUrl existant
+            var targetAvatarUrl: String? = state.editAvatarUrl
+            if (state.editAvatarBytes != null && state.editAvatarBytes.isNotEmpty()) {
+                val uploadResult = storageRepository.uploadAvatarToR2(
+                    bytes = state.editAvatarBytes,
+                    mimeType = state.editAvatarMimeType,
+                    extension = state.editAvatarExtension
+                )
+                if (uploadResult.isFailure) {
+                    updateState {
+                        it.copy(
+                            isSavingProfile = false,
+                            profileError = uploadResult.exceptionOrNull()?.message ?: "Échec de l'envoi de la photo de profil"
+                        )
+                    }
+                    return@launch
+                }
+                targetAvatarUrl = uploadResult.getOrNull()
+            } else if (state.isAvatarRemoved) {
+                targetAvatarUrl = ""
+            }
+
+            updateUserProfileUseCase(
+                token = token,
+                firstName = state.editFirstName,
+                lastName = state.editLastName,
+                phone = state.editPhone,
+                avatarUrl = targetAvatarUrl
+            )
                 .onSuccess { updatedUser ->
-                    updateState { it.copy(isSavingProfile = false, isEditingProfile = false) }
+                    sessionStorage?.updateAvatarUrl(updatedUser.avatarUrl)
+                    updateState {
+                        it.copy(
+                            isSavingProfile = false,
+                            isEditingProfile = false,
+                            editAvatarBytes = null,
+                            editAvatarUrl = updatedUser.avatarUrl,
+                            isAvatarRemoved = false
+                        )
+                    }
                     emitEffect(ProfileEffect.UserProfileUpdated(updatedUser))
                 }
                 .onFailure { error ->

@@ -32,8 +32,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.UserRole
 import com.resid.manager.ui.components.ResidenceSplitButton
@@ -55,7 +57,8 @@ fun HeaderBar(
     onAddResidenceClick: () -> Unit,
     onJoinResidenceClick: () -> Unit,
     isDarkTheme: Boolean,
-    onToggleTheme: () -> Unit
+    onToggleTheme: () -> Unit,
+    avatarUrl: String? = null
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -152,7 +155,7 @@ fun HeaderBar(
                         .clickable { onProfileClick() }
                         .padding(4.dp)
                 ) {
-                    // Circular Initials Avatar
+                    // Circular Avatar (Image or Initials)
                     Box(
                         modifier = Modifier
                             .size(36.dp)
@@ -160,12 +163,21 @@ fun HeaderBar(
                             .background(Color(0xFF006948).copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        val initials = if (userName.length >= 2) userName.take(2).uppercase() else "AD"
-                        Text(
-                            text = initials,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = Color(0xFF006948)
-                        )
+                        if (!avatarUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = avatarUrl,
+                                contentDescription = "Photo de profil de $userName",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            val initials = if (userName.length >= 2) userName.take(2).uppercase() else "AD"
+                            Text(
+                                text = initials,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = Color(0xFF006948)
+                            )
+                        }
                     }
 
                     // Profile Column (Name + Role) - hidden when width < 750dp
