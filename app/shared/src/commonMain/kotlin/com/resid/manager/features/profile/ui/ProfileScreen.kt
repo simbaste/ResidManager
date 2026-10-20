@@ -99,13 +99,29 @@ fun ProfileScreen(
                 editFirstName = uiState.editFirstName,
                 editLastName = uiState.editLastName,
                 editPhone = uiState.editPhone,
+                editAvatarUrl = uiState.editAvatarUrl,
+                editAvatarBytes = uiState.editAvatarBytes,
+                isAvatarRemoved = uiState.isAvatarRemoved,
                 isSavingProfile = uiState.isSavingProfile,
                 profileError = uiState.profileError,
-                onStartEditing = { viewModel.onIntent(ProfileIntent.StartEditingProfile(firstName, lastName, phone)) },
+                onStartEditing = {
+                    viewModel.onIntent(
+                        ProfileIntent.StartEditingProfile(
+                            firstName = firstName,
+                            lastName = lastName,
+                            phone = phone,
+                            avatarUrl = user?.avatarUrl
+                        )
+                    )
+                },
                 onCancelEditing = { viewModel.onIntent(ProfileIntent.CancelEditingProfile) },
                 onFirstNameChanged = { viewModel.onIntent(ProfileIntent.SetEditFirstName(it)) },
                 onLastNameChanged = { viewModel.onIntent(ProfileIntent.SetEditLastName(it)) },
                 onPhoneChanged = { viewModel.onIntent(ProfileIntent.SetEditPhone(it)) },
+                onAvatarSelected = { bytes: ByteArray, mimeType: String, extension: String ->
+                    viewModel.onIntent(ProfileIntent.SetEditAvatar(bytes, mimeType, extension))
+                },
+                onRemoveAvatar = { viewModel.onIntent(ProfileIntent.RemoveEditAvatar) },
                 onSaveProfile = { viewModel.onIntent(ProfileIntent.SaveProfile(token)) },
                 onLogout = onLogout,
                 modifier = Modifier.weight(1f)

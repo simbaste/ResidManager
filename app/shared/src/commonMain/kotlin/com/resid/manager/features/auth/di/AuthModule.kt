@@ -9,7 +9,7 @@ import org.koin.dsl.module
 
 val authFeatureModule = module {
     factory { LoginUseCase(get(), getOrNull<SessionStorage>()) }
-    factory { RegisterUseCase(get(), getOrNull<SessionStorage>()) }
+    factory { RegisterUseCase(get(), get(), getOrNull<SessionStorage>()) }
     factory { LogoutUseCase(getOrNull<SessionStorage>()) }
 
     single {

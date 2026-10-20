@@ -39,6 +39,7 @@ data class UserDto(
     val lastName: String?,
     val phone: String?,
     val birthDate: String?,
+    val avatarUrl: String? = null,
     val createdAt: String, // ISO-8601 string
     val updatedAt: String  // ISO-8601 string
 )
@@ -49,7 +50,8 @@ data class UserUpdateRequest(
     val firstName: String? = null,
     val lastName: String? = null,
     val birthDate: String? = null,
-    val phone: String? = null
+    val phone: String? = null,
+    val avatarUrl: String? = null
 )
 
 @Serializable

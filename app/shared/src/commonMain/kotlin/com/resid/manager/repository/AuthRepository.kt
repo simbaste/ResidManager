@@ -2,13 +2,15 @@ package com.resid.manager.repository
 
 import com.resid.manager.dto.AuthRequest
 import com.resid.manager.dto.AuthResponse
-import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.dto.RegisterRequest
 import com.resid.manager.network.ApiClient
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.request.*
-import io.ktor.http.*
+import io.ktor.client.HttpClient
+import io.ktor.client.call.body
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentType
 
 interface AuthRepository {
     suspend fun login(email: String, passwordPlain: String): Result<AuthResponse>
@@ -18,7 +20,8 @@ interface AuthRepository {
         birthDate: String?,
         phone: String?,
         email: String,
-        passwordPlain: String
+        passwordPlain: String,
+        avatarUrl: String? = null
     ): Result<AuthResponse>
 }
 
@@ -35,8 +38,8 @@ class AuthRepositoryImpl(
             if (response.status == HttpStatusCode.OK) {
                 Result.success(response.body<AuthResponse>())
             } else {
-                val errorBody = response.body<ErrorResponse>()
-                Result.failure(Exception(errorBody.message))
+                val errorMsg = ApiClient.parseErrorMessage(response, "Identifiants ou paramètres incorrects.")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de connexion : ${e.message}"))
@@ -49,19 +52,20 @@ class AuthRepositoryImpl(
         birthDate: String?,
         phone: String?,
         email: String,
-        passwordPlain: String
+        passwordPlain: String,
+        avatarUrl: String?
     ): Result<AuthResponse> {
         return try {
             val response = httpClient.post("${ApiClient.BASE_URL}/api/auth/register") {
                 contentType(ContentType.Application.Json)
-                setBody(RegisterRequest(firstName, lastName, birthDate, phone, email, passwordPlain))
+                setBody(RegisterRequest(firstName, lastName, birthDate, phone, email, passwordPlain, avatarUrl))
             }
 
             if (response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) {
                 Result.success(response.body<AuthResponse>())
             } else {
-                val errorBody = response.body<ErrorResponse>()
-                Result.failure(Exception(errorBody.message))
+                val errorMsg = ApiClient.parseErrorMessage(response, "Une erreur est survenue lors de l'inscription.")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur d'inscription : ${e.message}"))

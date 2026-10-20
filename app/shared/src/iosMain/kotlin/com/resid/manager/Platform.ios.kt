@@ -18,11 +18,12 @@ class IOSSessionStorage : SessionStorage {
     private val refreshTokenKey = "jwt_refresh_token"
     private val userFnameKey = "user_fname"
     private val userLNameKey = "user_lname"
+    private val userAvatarUrlKey = "user_avatar_url"
     private val lastSelectedResidenceKey = "last_selected_residence_id"
 
     private val userDefaults = platform.Foundation.NSUserDefaults.standardUserDefaults
 
-    override fun saveSession(token: String, refreshToken: String?, fName: String, lName: String) {
+    override fun saveSession(token: String, refreshToken: String?, fName: String, lName: String, avatarUrl: String?) {
         userDefaults.setObject(token, forKey = tokenKey)
         if (refreshToken != null) {
             userDefaults.setObject(refreshToken, forKey = refreshTokenKey)
@@ -31,6 +32,11 @@ class IOSSessionStorage : SessionStorage {
         }
         userDefaults.setObject(fName, forKey = userFnameKey)
         userDefaults.setObject(lName, forKey = userLNameKey)
+        if (avatarUrl != null) {
+            userDefaults.setObject(avatarUrl, forKey = userAvatarUrlKey)
+        } else {
+            userDefaults.removeObjectForKey(userAvatarUrlKey)
+        }
     }
 
     override fun loadSession(): SessionData? {
@@ -38,8 +44,9 @@ class IOSSessionStorage : SessionStorage {
         val refreshToken = userDefaults.stringForKey(refreshTokenKey)
         val fName = userDefaults.stringForKey(userFnameKey)
         val lName = userDefaults.stringForKey(userLNameKey) ?: ""
+        val avatarUrl = userDefaults.stringForKey(userAvatarUrlKey)
         if (token != null && fName != null) {
-            return SessionData(token, refreshToken, fName, lName)
+            return SessionData(token, refreshToken, fName, lName, avatarUrl)
         }
         return null
     }
@@ -51,11 +58,20 @@ class IOSSessionStorage : SessionStorage {
         }
     }
 
+    override fun updateAvatarUrl(avatarUrl: String?) {
+        if (avatarUrl != null) {
+            userDefaults.setObject(avatarUrl, forKey = userAvatarUrlKey)
+        } else {
+            userDefaults.removeObjectForKey(userAvatarUrlKey)
+        }
+    }
+
     override fun clearSession() {
         userDefaults.removeObjectForKey(tokenKey)
         userDefaults.removeObjectForKey(refreshTokenKey)
         userDefaults.removeObjectForKey(userFnameKey)
         userDefaults.removeObjectForKey(userLNameKey)
+        userDefaults.removeObjectForKey(userAvatarUrlKey)
         userDefaults.removeObjectForKey(lastSelectedResidenceKey)
     }
 

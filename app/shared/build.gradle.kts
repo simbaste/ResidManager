@@ -71,11 +71,14 @@ kotlin {
             implementation(libs.ktor.clientContentNegotiation)
             implementation(libs.ktor.clientSerializationKotlinxJson)
             implementation(libs.navigation3.ui)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
             api(libs.koin.core)
             api(libs.koin.compose)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
         jsMain.dependencies {
             implementation(libs.wrappers.browser)

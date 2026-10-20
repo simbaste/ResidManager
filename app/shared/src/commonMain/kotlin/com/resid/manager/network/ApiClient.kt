@@ -100,6 +100,33 @@ object ApiClient {
     }
 
     val BASE_URL = getBaseUrl()
+
+    /**
+     * Parse résilient du corps d'erreur d'une HttpResponse :
+     * Tente de désérialiser en [ErrorResponse] si le contenu est JSON,
+     * ou lit le texte brut sinon, évitant ainsi le crash NoTransformationFoundException.
+     */
+    suspend fun parseErrorMessage(response: io.ktor.client.statement.HttpResponse, fallbackMessage: String): String {
+        return try {
+            val contentType = response.headers[HttpHeaders.ContentType] ?: ""
+            if (contentType.contains("application/json", ignoreCase = true)) {
+                val errorBody = response.body<com.resid.manager.dto.ErrorResponse>()
+                errorBody.message.ifBlank { fallbackMessage }
+            } else {
+                val rawText = response.body<String>()
+                if (rawText.isNotBlank()) {
+                    rawText.take(300)
+                } else {
+                    fallbackMessage
+                }
+            }
+        } catch (_: Exception) {
+            fallbackMessage
+        }
+    }
 }
+
+
+
 
 

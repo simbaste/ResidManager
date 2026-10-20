@@ -41,7 +41,6 @@ import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentType
 import androidx.compose.ui.semantics.semantics
@@ -54,7 +53,6 @@ import androidx.compose.ui.unit.sp
 import com.resid.manager.ui.components.AppDatePickerField
 import com.resid.manager.ui.components.PhoneTextField
 import com.resid.manager.ui.theme.residColors
-import org.jetbrains.compose.resources.decodeToImageBitmap
 
 /**
  * State-hoisted Registration Form with 2-column responsive layout, password strength indicator, terms acceptance.
@@ -84,7 +82,6 @@ fun RegisterForm(
     var confirmPassword by remember { mutableStateOf("") }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     var termsAccepted by remember { mutableStateOf(true) }
-    var avatarBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     val focusManager = LocalFocusManager.current
     val colorScheme = MaterialTheme.colorScheme
 
@@ -98,16 +95,6 @@ fun RegisterForm(
     }
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        RegisterProfilePhotoSection(
-            selectedImage = avatarBitmap,
-            onImageSelected = { bytes ->
-                try {
-                    avatarBitmap = bytes.decodeToImageBitmap()
-                } catch (_: Exception) {
-                }
-            }
-        )
-
         if (isCompact) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 RegisterTextField(

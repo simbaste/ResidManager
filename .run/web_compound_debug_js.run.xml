@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Web: Debug JS (Compound)" type="CompoundRunConfigurationType">
+    <toRun name="Web: JS Dev Server (:app:webApp)" type="GradleRunConfiguration" />
+    <toRun name="Web: Debug in Chrome (http://localhost:8080)" type="JavascriptDebugType" />
+    <method v="2" />
+  </configuration>
+</component>

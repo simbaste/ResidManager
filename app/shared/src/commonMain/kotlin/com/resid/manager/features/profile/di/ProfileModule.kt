@@ -24,7 +24,9 @@ val profileFeatureModule = module {
             fetchResidenceCategoriesUseCase = get(),
             addTicketCategoryUseCase = get(),
             updateTicketCategoryUseCase = get(),
-            updateResidenceCurrencyUseCase = get()
+            updateResidenceCurrencyUseCase = get(),
+            storageRepository = get(),
+            sessionStorage = getOrNull()
         )
     }
 }

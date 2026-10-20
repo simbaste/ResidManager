@@ -1,0 +1,6 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Web: Debug in Chrome (http://localhost:8080)" type="JavascriptDebugType" uri="http://localhost:8080">
+    <mapping url="http://localhost:8080" local-file="$PROJECT_DIR$/app/webApp" />
+    <method v="2" />
+  </configuration>
+</component>

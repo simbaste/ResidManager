@@ -61,4 +61,22 @@ class R2StorageService(
             expiresInSeconds = 300
         )
     }
+
+    suspend fun deleteFileByUrl(publicUrl: String?) {
+        if (publicUrl.isNullOrBlank()) return
+        val domain = config.publicDomain.trimEnd('/')
+        if (!publicUrl.startsWith(domain)) return
+
+        val key = publicUrl.removePrefix(domain).removePrefix("/")
+        if (key.isBlank()) return
+
+        try {
+            client.deleteObject(aws.sdk.kotlin.services.s3.model.DeleteObjectRequest {
+                bucket = config.bucketName
+                this.key = key
+            })
+        } catch (e: Exception) {
+            println("Failed to delete file $key from R2: ${e.message}")
+        }
+    }
 }

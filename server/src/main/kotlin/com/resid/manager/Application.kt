@@ -15,7 +15,6 @@ import com.resid.manager.routes.residencesRoutes
 import com.resid.manager.routes.ticketsRoutes
 import com.resid.manager.routes.unitsRoutes
 import com.resid.manager.routes.userRoutes
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -137,13 +136,13 @@ fun Application.module() {
     // Install CORS for Multiplatform client access (Web browser)
     install(CORS) {
         anyHost()
-        allowHeader(HttpHeaders.ContentType)
-        allowHeader(HttpHeaders.Authorization)
+        allowHeaders { true }
         allowMethod(HttpMethod.Post)
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Put)
         allowMethod(HttpMethod.Delete)
         allowMethod(HttpMethod.Options)
+        allowNonSimpleContentTypes = true
     }
 
     // 3. Install Authentication with JWT

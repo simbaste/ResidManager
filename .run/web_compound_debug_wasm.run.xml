@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Web: Debug Wasm (Compound)" type="CompoundRunConfigurationType">
+    <toRun name="Web: Wasm Dev Server (:app:webApp)" type="GradleRunConfiguration" />
+    <toRun name="Web: Debug in Chrome (http://localhost:8080)" type="JavascriptDebugType" />
+    <method v="2" />
+  </configuration>
+</component>
