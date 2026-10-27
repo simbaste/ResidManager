@@ -53,8 +53,11 @@ fun UnitDetailScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(24.dp),
         ) {
+            val effectiveCurrencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol
+
             UnitDetailTechSpecs(
                 residenceUnit = residenceUnit,
+                currencySymbol = effectiveCurrencySymbol,
                 modifier = Modifier.weight(7f),
             )
 
@@ -63,6 +66,7 @@ fun UnitDetailScreen(
                 activeLease = activeLease,
                 activeTenant = activeTenant,
                 isAuthorized = isAuthorized,
+                currencySymbol = effectiveCurrencySymbol,
                 onAssignTenantClick = { onAssignTenantClick(residenceUnit.id) },
                 onEditClick = { onEditClick(residenceUnit) },
                 onDeleteClick = { onDeleteClick(residenceUnit.id) },

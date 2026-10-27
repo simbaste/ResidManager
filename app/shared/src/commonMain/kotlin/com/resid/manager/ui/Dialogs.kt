@@ -60,7 +60,7 @@ fun CreateResidenceDialog(
 ) {
     var name by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
-    var defaultCurrency by remember { mutableStateOf("XOF") }
+    var defaultCurrency by remember { mutableStateOf(com.resid.manager.dto.AppCurrency.DEFAULT.code) }
     var kWhPrice by remember { mutableStateOf("150.0") }
 
     AlertDialog(
@@ -74,12 +74,8 @@ fun CreateResidenceDialog(
 
                 Text("Devise d'opération * :", style = MaterialTheme.typography.titleSmall)
                 var expandedDropdown by remember { mutableStateOf(false) }
-                val displayLabel = when (defaultCurrency) {
-                    "XOF" -> "Franc CFA (XOF - FCFA)"
-                    "EUR" -> "Euro (EUR - €)"
-                    "USD" -> "US Dollar (USD - $)"
-                    else -> defaultCurrency
-                }
+                val currentCurrency = com.resid.manager.dto.AppCurrency.fromCode(defaultCurrency)
+                val displayLabel = currentCurrency.displayName
 
                 Box(modifier = Modifier.fillMaxWidth()) {
                     OutlinedButton(
@@ -92,11 +88,11 @@ fun CreateResidenceDialog(
                         expanded = expandedDropdown,
                         onDismissRequest = { expandedDropdown = false }
                     ) {
-                        listOf("XOF" to "Franc CFA (XOF)", "EUR" to "Euro (EUR)", "USD" to "US Dollar (USD)").forEach { (code, label) ->
+                        com.resid.manager.dto.AppCurrency.entries.forEach { appCurrency ->
                             DropdownMenuItem(
-                                text = { Text(label) },
+                                text = { Text(appCurrency.shortLabel) },
                                 onClick = {
-                                    defaultCurrency = code
+                                    defaultCurrency = appCurrency.code
                                     expandedDropdown = false
                                 }
                             )

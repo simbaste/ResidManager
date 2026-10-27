@@ -44,6 +44,7 @@ fun UnitDetailTenantAndStats(
     activeLease: LeaseDto?,
     activeTenant: ResidenceMemberSummaryDto?,
     isAuthorized: Boolean,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onAssignTenantClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -215,7 +216,7 @@ fun UnitDetailTenantAndStats(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Revenus bruts cumulés", style = MaterialTheme.typography.bodyMedium, color = Color(0xFFBEC6E0))
-                        Text("480 000 XOF", style = MaterialTheme.typography.titleMedium, color = Color(0xFF68DBA9))
+                        Text("480 000 $currencySymbol", style = MaterialTheme.typography.titleMedium, color = Color(0xFF68DBA9))
                     }
                 }
             }

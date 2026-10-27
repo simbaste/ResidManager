@@ -37,6 +37,7 @@ fun WizardFinancialsStep(
     draftAdvanceMonths: String,
     draftAdvancePaymentAmount: String,
     draftPaymentMethod: String,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onDepositAmountChanged: (String) -> Unit,
     onPaymentFrequencyChanged: (String) -> Unit,
     onAdvanceMonthsChanged: (String) -> Unit,
@@ -54,6 +55,7 @@ fun WizardFinancialsStep(
             value = draftDepositAmount,
             onValueChange = onDepositAmountChanged,
             label = "Montant du dépôt de garantie (Caution) *",
+            currencySymbol = currencySymbol,
             placeholder = "0.0",
             isError = (draftDepositAmount.toDoubleOrNull() ?: 0.0) < 0.0,
             imeAction = if (isAnnual) ImeAction.Next else ImeAction.Next,
@@ -94,7 +96,8 @@ fun WizardFinancialsStep(
         AmountTextField(
             value = draftAdvancePaymentAmount,
             onValueChange = onAdvancePaymentAmountChanged,
-            label = "Montant de l'acompte immédiat versé (XOF)",
+            label = "Montant de l'acompte immédiat versé ($currencySymbol)",
+            currencySymbol = currencySymbol,
             placeholder = "0.0",
             isError = (draftAdvancePaymentAmount.toDoubleOrNull() ?: 0.0) < 0.0,
             imeAction = ImeAction.Done,
@@ -173,37 +176,37 @@ fun WizardFinancialsStep(
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Loyer mensuel :", style = MaterialTheme.typography.bodyMedium)
-                        Text("$rent XOF", style = MaterialTheme.typography.bodyMedium)
+                        Text("$rent $currencySymbol", style = MaterialTheme.typography.bodyMedium)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Charges fixes d'entretien :", style = MaterialTheme.typography.bodyMedium)
-                        Text("$charges XOF", style = MaterialTheme.typography.bodyMedium)
+                        Text("$charges $currencySymbol", style = MaterialTheme.typography.bodyMedium)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Dépôt de garantie (Caution) :", style = MaterialTheme.typography.bodyMedium)
-                        Text("$deposit XOF", style = MaterialTheme.typography.bodyMedium)
+                        Text("$deposit $currencySymbol", style = MaterialTheme.typography.bodyMedium)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(
                             text = if (!isAnnual) "Premier loyer échu (1 mois) :" else "Versement d'avance échu ($months mois) :",
                             style = MaterialTheme.typography.bodyMedium
                         )
-                        Text("$firstRent XOF", style = MaterialTheme.typography.bodyMedium)
+                        Text("$firstRent $currencySymbol", style = MaterialTheme.typography.bodyMedium)
                     }
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
 
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("TOTAL REQUIS (Caution + Loyers) :", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                        Text("$totalRequiredToPay XOF", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        Text("$totalRequiredToPay $currencySymbol", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Acompte versé :", style = MaterialTheme.typography.bodyMedium)
-                        Text("$acompteVal XOF", style = MaterialTheme.typography.bodyMedium)
+                        Text("$acompteVal $currencySymbol", style = MaterialTheme.typography.bodyMedium)
                     }
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("RESTE À PAYER :", style = MaterialTheme.typography.titleMedium, color = if (remainingToPay > 0.0) Color(0xFFBA1A1A) else Color(0xFF006948))
-                        Text("${if (remainingToPay > 0.0) remainingToPay else 0.0} XOF", style = MaterialTheme.typography.titleMedium, color = if (remainingToPay > 0.0) Color(0xFFBA1A1A) else Color(0xFF006948))
+                        Text("${if (remainingToPay > 0.0) remainingToPay else 0.0} $currencySymbol", style = MaterialTheme.typography.titleMedium, color = if (remainingToPay > 0.0) Color(0xFFBA1A1A) else Color(0xFF006948))
                     }
                 }
             }

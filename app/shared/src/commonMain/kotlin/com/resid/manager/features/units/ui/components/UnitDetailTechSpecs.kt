@@ -31,6 +31,7 @@ import com.resid.manager.dto.ResidenceUnitDto
 @Composable
 fun UnitDetailTechSpecs(
     residenceUnit: ResidenceUnitDto,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -77,7 +78,7 @@ fun UnitDetailTechSpecs(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Loyer mensuel", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                         Text(
-                            text = "${residenceUnit.nominalRent} XOF",
+                            text = "${residenceUnit.nominalRent} $currencySymbol",
                             style = MaterialTheme.typography.headlineMedium,
                             color = Color(0xFF006948)
                         )
@@ -86,7 +87,7 @@ fun UnitDetailTechSpecs(
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Charges fixes d'entretien", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
-                        Text("${residenceUnit.serviceCharges} XOF", style = MaterialTheme.typography.titleLarge)
+                        Text("${residenceUnit.serviceCharges} $currencySymbol", style = MaterialTheme.typography.titleLarge)
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Index Électricité initial", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)

@@ -81,9 +81,10 @@ class ResidencesViewModel(
     }
 
     private fun updateResidence(token: String, residenceId: String, name: String, address: String, kWhPrice: Double) {
+        val existingCurrency = uiState.value.editingResidence?.currencyCode
         viewModelScope.launch {
             updateState { it.copy(isLoading = true, errorMessage = null) }
-            updateResidenceUseCase(token, residenceId, name, address, kWhPrice)
+            updateResidenceUseCase(token, residenceId, name, address, kWhPrice, existingCurrency)
                 .onSuccess {
                     updateState { it.copy(editingResidence = null) }
                     loadResidences(token)

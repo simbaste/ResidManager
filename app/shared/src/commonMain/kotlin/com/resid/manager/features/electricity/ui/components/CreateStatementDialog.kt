@@ -52,7 +52,7 @@ fun CreateStatementDialog(
     isLoadingPreviousIndex: Boolean,
     errorMessage: String?,
     defaultKWhPrice: Double = 150.0,
-    currencySymbol: String = "XOF",
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onSelectUnitForPreviousIndex: (String) -> Unit,
     onDismiss: () -> Unit,
     onSubmit: (String, Double, Double, Double, String) -> Unit

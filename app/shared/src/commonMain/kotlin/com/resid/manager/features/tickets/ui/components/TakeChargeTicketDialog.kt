@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 fun TakeChargeTicketDialog(
     isSubmitting: Boolean,
     errorMessage: String?,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onDismiss: () -> Unit,
     onSubmit: (Double, String?) -> Unit
 ) {
@@ -55,7 +56,7 @@ fun TakeChargeTicketDialog(
                     value = formInterventionCostText,
                     onValueChange = { formInterventionCostText = it },
                     label = "Frais engagés immédiatement - Optionnel",
-                    currencySymbol = "XOF",
+                    currencySymbol = currencySymbol,
                     placeholder = "0.0",
                     imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                     modifier = Modifier.fillMaxWidth()

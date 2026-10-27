@@ -241,7 +241,8 @@ fun AppShell(
                                         activeResidence = uiState.selectedResidenceContext,
                                         jwtToken = uiState.jwtToken,
                                         onLogout = { viewModel.logout() },
-                                        onUserUpdated = { viewModel.updateUserProfile(it) }
+                                        onUserUpdated = { viewModel.updateUserProfile(it) },
+                                        onResidenceCurrencyUpdated = { resId, curr -> viewModel.onResidenceCurrencyUpdated(resId, curr) }
                                     )
                                 }
                                 else -> NavEntry(key) {
@@ -339,6 +340,7 @@ fun AppShell(
             residenceUnits = uiState.residenceUnits,
             isLoading = uiState.isLoading,
             errorMessage = uiState.errorMessage,
+            currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
             initialResidenceUnitId = targetUnitId,
             onDismiss = { unitIdToAssignLease = null },
             onSubmit = { unitId, request ->

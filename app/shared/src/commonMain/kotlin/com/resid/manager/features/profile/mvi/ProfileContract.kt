@@ -117,6 +117,7 @@ sealed interface ProfileIntent {
     data class SaveCategoryEdit(val token: String) : ProfileIntent
 
     // Currency actions
+    data class InitResidenceCurrency(val currency: String) : ProfileIntent
     data class SelectCurrency(val currency: String) : ProfileIntent
     data class SubmitCurrency(val token: String, val residenceId: String) : ProfileIntent
 }
@@ -124,4 +125,5 @@ sealed interface ProfileIntent {
 sealed interface ProfileEffect {
     data class ShowToast(val message: String) : ProfileEffect
     data class UserProfileUpdated(val user: UserDto) : ProfileEffect
+    data class ResidenceCurrencyUpdated(val residenceId: String, val currencyCode: String) : ProfileEffect
 }

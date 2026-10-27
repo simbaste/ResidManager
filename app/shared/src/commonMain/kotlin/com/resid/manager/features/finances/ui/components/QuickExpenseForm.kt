@@ -61,6 +61,7 @@ fun QuickExpenseForm(
     isSubmittingExpense: Boolean,
     formError: String?,
     formSuccess: Boolean,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onCategoryChanged: (String) -> Unit,
     onAmountChanged: (String) -> Unit,
     onDescriptionChanged: (String) -> Unit,
@@ -124,7 +125,7 @@ fun QuickExpenseForm(
                     value = formAmountText,
                     onValueChange = onAmountChanged,
                     label = "Montant *",
-                    currencySymbol = "XOF",
+                    currencySymbol = currencySymbol,
                     placeholder = "0.0",
                     modifier = Modifier.fillMaxWidth()
                 )

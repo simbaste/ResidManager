@@ -54,10 +54,12 @@ fun ElectricityScreen(
         }
     }
 
+    val effectiveCurrencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol
+
     ElectricityContent(
         uiState = uiState,
         residenceUnits = residenceUnits,
-        currencySymbol = activeResidence?.currencySymbol ?: "XOF",
+        currencySymbol = effectiveCurrencySymbol,
         isAuthorized = isAuthorized,
         onAddStatementClick = { viewModel.onIntent(ElectricityIntent.SetShowCreateDialog(true)) },
         onEcoPrintClick = {
@@ -80,7 +82,7 @@ fun ElectricityScreen(
             isLoadingPreviousIndex = uiState.isLoadingPreviousIndex,
             errorMessage = uiState.errorMessage,
             defaultKWhPrice = activeResidence?.kWhPrice ?: 150.0,
-            currencySymbol = activeResidence?.currencySymbol ?: "XOF",
+            currencySymbol = effectiveCurrencySymbol,
             onSelectUnitForPreviousIndex = { unitId ->
                 viewModel.onIntent(ElectricityIntent.LoadPreviousIndex(token, unitId))
             },
@@ -105,7 +107,7 @@ fun ElectricityScreen(
         val stmt = uiState.confirmingPaymentStatement!!
         StatementPaymentDialog(
             statement = stmt,
-            currencySymbol = activeResidence?.currencySymbol ?: "XOF",
+            currencySymbol = effectiveCurrencySymbol,
             onDismiss = { viewModel.onIntent(ElectricityIntent.SetConfirmingPaymentStatement(null)) },
             onConfirm = {
                 viewModel.onIntent(ElectricityIntent.MarkPaid(token, residenceId, stmt.id))

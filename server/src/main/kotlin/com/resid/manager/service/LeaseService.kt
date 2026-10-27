@@ -483,11 +483,29 @@ object LeaseService {
             ((FinancialTransactions.category eq TransactionCategory.RENT) or (FinancialTransactions.category eq TransactionCategory.LEASE_PAYMENT))
         }.sumOf { it.amount }
 
-        val totalPaidCaution = previousPaidCaution + if (request.category == TransactionCategoryDto.DEPOSIT) request.amountPaid else 0.0
-        val totalPaidRent = previousPaidRent + if (request.category == TransactionCategoryDto.RENT) request.amountPaid else 0.0
-
         val requiredCaution = dbLease.depositAmount
         val requiredRent = dbLease.advanceMonths * (dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges)
+
+        if (request.category == TransactionCategoryDto.DEPOSIT) {
+            val remainingCaution = maxOf(0.0, requiredCaution - previousPaidCaution)
+            if (request.amountPaid > remainingCaution) {
+                throw HttpError(
+                    HttpStatusCode.BadRequest,
+                    "Le montant saisi (${request.amountPaid}) dépasse le solde restant de la caution ($remainingCaution)."
+                )
+            }
+        } else if (request.category == TransactionCategoryDto.RENT) {
+            val remainingRent = maxOf(0.0, requiredRent - previousPaidRent)
+            if (request.amountPaid > remainingRent) {
+                throw HttpError(
+                    HttpStatusCode.BadRequest,
+                    "Le montant saisi (${request.amountPaid}) dépasse le solde restant des loyers d'avance ($remainingRent)."
+                )
+            }
+        }
+
+        val totalPaidCaution = previousPaidCaution + if (request.category == TransactionCategoryDto.DEPOSIT) request.amountPaid else 0.0
+        val totalPaidRent = previousPaidRent + if (request.category == TransactionCategoryDto.RENT) request.amountPaid else 0.0
 
         val newStatus = if (totalPaidCaution >= requiredCaution && totalPaidRent >= requiredRent) {
             LeaseStatus.PENDING_SIGNATURE

@@ -34,6 +34,7 @@ import com.resid.manager.dto.TransactionTypeDto
 fun TransactionsLedger(
     transactions: List<FinanceTransactionDto>,
     isLoading: Boolean,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onTraceabilityClick: (Pair<String, String>) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -128,7 +129,7 @@ fun TransactionsLedger(
                                 }
                             }
                             Text(
-                                text = if (isIncome) "+ ${tx.amount} XOF" else "- ${tx.amount} XOF",
+                                text = if (isIncome) "+ ${tx.amount} $currencySymbol" else "- ${tx.amount} $currencySymbol",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = if (isIncome) Color(0xFF006948) else Color(0xFFBA1A1A),
                                 modifier = Modifier.weight(1.2f)

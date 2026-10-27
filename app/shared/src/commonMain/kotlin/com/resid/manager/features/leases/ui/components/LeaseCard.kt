@@ -28,6 +28,7 @@ fun LeaseCard(
     lease: LeaseDto,
     matchedUnit: ResidenceUnitDto?,
     matchedTenant: ResidenceMemberSummaryDto?,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -91,8 +92,8 @@ fun LeaseCard(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 LeaseInfoRow(label = "Du :", value = lease.startDate)
                 LeaseInfoRow(label = "Au :", value = lease.endDate)
-                LeaseInfoRow(label = "Loyer mensuel :", value = "${lease.monthlyRentAtSign} XOF", isGreen = true)
-                LeaseInfoRow(label = "Caution :", value = "${lease.depositAmount} XOF")
+                LeaseInfoRow(label = "Loyer mensuel :", value = "${lease.monthlyRentAtSign} $currencySymbol", isGreen = true)
+                LeaseInfoRow(label = "Caution :", value = "${lease.depositAmount} $currencySymbol")
             }
         }
     }

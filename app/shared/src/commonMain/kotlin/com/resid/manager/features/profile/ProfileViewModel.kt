@@ -88,6 +88,9 @@ class ProfileViewModel(
             }
             is ProfileIntent.SetEditCategoryLabel -> updateState { it.copy(editCategoryLabel = intent.label) }
             is ProfileIntent.SaveCategoryEdit -> saveCategoryEdit(intent.token)
+            is ProfileIntent.InitResidenceCurrency -> updateState {
+                it.copy(selectedCurrency = intent.currency.ifBlank { "XOF" }, currencySuccess = false, currencyErrorMsg = null)
+            }
             is ProfileIntent.SelectCurrency -> updateState { it.copy(selectedCurrency = intent.currency, currencySuccess = false, currencyErrorMsg = null) }
             is ProfileIntent.SubmitCurrency -> submitCurrency(intent.token, intent.residenceId)
         }
@@ -218,6 +221,7 @@ class ProfileViewModel(
             updateResidenceCurrencyUseCase(token, residenceId, currency)
                 .onSuccess {
                     updateState { it.copy(isSubmittingCurrency = false, currencySuccess = true) }
+                    emitEffect(ProfileEffect.ResidenceCurrencyUpdated(residenceId, currency))
                 }
                 .onFailure { error ->
                     updateState { it.copy(isSubmittingCurrency = false, currencyErrorMsg = error.message) }

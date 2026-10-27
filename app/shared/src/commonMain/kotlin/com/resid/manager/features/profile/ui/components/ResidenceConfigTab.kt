@@ -137,13 +137,14 @@ fun ResidenceConfigTab(
 
                     HorizontalDivider()
 
+                    Text("Devise de la Résidence", style = MaterialTheme.typography.titleMedium, color = Color(0xFF006948))
+                    Text("Sélectionnez la devise pour les loyers, l'électricité et les transactions financières.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+
+                    HorizontalDivider()
+
                     var expandedCurrencyDropdown by remember { mutableStateOf(false) }
-                    val displayCodeName = when (selectedCurrency) {
-                        "XOF" -> "Franc CFA (XOF - FCFA)"
-                        "EUR" -> "Euro (EUR - €)"
-                        "USD" -> "US Dollar (USD - $)"
-                        else -> selectedCurrency
-                    }
+                    val currentCurrency = com.resid.manager.dto.AppCurrency.fromCode(selectedCurrency)
+                    val displayCodeName = currentCurrency.displayName
 
                     Box(modifier = Modifier.fillMaxWidth()) {
                         OutlinedButton(
@@ -157,11 +158,11 @@ fun ResidenceConfigTab(
                             onDismissRequest = { expandedCurrencyDropdown = false },
                             modifier = Modifier.width(260.dp)
                         ) {
-                            listOf("XOF" to "Franc CFA (XOF)", "EUR" to "Euro (EUR)", "USD" to "US Dollar (USD)").forEach { (code, label) ->
+                            com.resid.manager.dto.AppCurrency.entries.forEach { appCurrency ->
                                 DropdownMenuItem(
-                                    text = { Text(label) },
+                                    text = { Text(appCurrency.shortLabel) },
                                     onClick = {
-                                        onSelectCurrency(code)
+                                        onSelectCurrency(appCurrency.code)
                                         expandedCurrencyDropdown = false
                                     }
                                 )

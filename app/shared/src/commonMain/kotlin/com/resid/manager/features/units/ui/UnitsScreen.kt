@@ -96,6 +96,7 @@ fun UnitsScreen(
                         UnitsGridContent(
                             uiState = uiState,
                             isAuthorized = isAuthorized,
+                            currencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
                             onAddUnitClick = onCreateUnitClick,
                             onDetailClick = { unit ->
                                 viewModel.onIntent(UnitsIntent.SelectUnitForDetail(unit))
@@ -162,6 +163,7 @@ fun UnitsScreen(
 fun UnitsGridContent(
     uiState: UnitsUiState,
     isAuthorized: Boolean,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onAddUnitClick: () -> Unit,
     onDetailClick: (ResidenceUnitDto) -> Unit,
     onEditClick: (ResidenceUnitDto) -> Unit,
@@ -201,6 +203,7 @@ fun UnitsGridContent(
             ResidenceUnitCard(
                 residenceUnit = unit,
                 isAuthorized = isAuthorized,
+                currencySymbol = currencySymbol,
                 onDetailClick = { onDetailClick(unit) },
                 onEditClick = { onEditClick(unit) }
             )

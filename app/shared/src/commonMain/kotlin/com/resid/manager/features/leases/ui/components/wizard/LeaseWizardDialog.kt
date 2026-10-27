@@ -50,6 +50,7 @@ fun LeaseWizardDialog(
     residenceUnits: List<ResidenceUnitDto>,
     isLoading: Boolean,
     errorMessage: String?,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onDismiss: () -> Unit,
     onSubmit: (String, LeaseCreateRequest) -> Unit,
     initialResidenceUnitId: String? = null
@@ -178,6 +179,7 @@ fun LeaseWizardDialog(
                         WizardUnitStep(
                             residenceUnits = residenceUnits,
                             draftResidenceUnitId = draftResidenceUnitId,
+                            currencySymbol = currencySymbol,
                             onUnitSelected = { draftResidenceUnitId = it }
                         )
                     }
@@ -191,6 +193,7 @@ fun LeaseWizardDialog(
                             draftAdvanceMonths = draftAdvanceMonths,
                             draftAdvancePaymentAmount = draftAdvancePaymentAmount,
                             draftPaymentMethod = draftPaymentMethod,
+                            currencySymbol = currencySymbol,
                             onDepositAmountChanged = { draftDepositAmount = it },
                             onPaymentFrequencyChanged = { draftPaymentFrequency = it },
                             onAdvanceMonthsChanged = { draftAdvanceMonths = it },

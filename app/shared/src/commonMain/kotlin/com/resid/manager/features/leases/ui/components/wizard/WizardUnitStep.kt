@@ -19,6 +19,7 @@ import com.resid.manager.dto.UnitStatusDto
 fun WizardUnitStep(
     residenceUnits: List<ResidenceUnitDto>,
     draftResidenceUnitId: String,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onUnitSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -45,7 +46,7 @@ fun WizardUnitStep(
                 ) {
                     Column {
                         Text(text = unit.name, style = MaterialTheme.typography.titleSmall)
-                        Text(text = "Étage : ${unit.floor} | Loyer : ${unit.nominalRent} XOF")
+                        Text(text = "Étage : ${unit.floor} | Loyer : ${unit.nominalRent} $currencySymbol")
                     }
                 }
             }

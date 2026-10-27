@@ -40,19 +40,13 @@ import com.resid.manager.dto.ResidenceUnitDto
 fun LeaseDetailAdminActions(
     lease: LeaseDto,
     matchedUnit: ResidenceUnitDto?,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onRecordPayment: (Double, String) -> Unit,
     onSignContract: () -> Unit,
     onTerminateClick: () -> Unit,
     errorMessage: String? = null,
     modifier: Modifier = Modifier
 ) {
-    var paymentAmountText by remember { mutableStateOf("") }
-    var paymentCategorySelected by remember { mutableStateOf(if (lease.depositAmount > 0.0) "CAUTION" else "LOYER") }
-    var localError by remember { mutableStateOf<String?>(null) }
-
-    val isTerminated = lease.status == LeaseStatusDto.TERMINATED
-    val isLocked = lease.status == LeaseStatusDto.SIGNED_ACTIVE
-
     val isAnnual = lease.paymentFrequencyDto == PaymentFrequencyDto.ANNUAL
     val rentMonthsRequired = if (isAnnual) 12 else lease.advanceMonths
     val monthlyCharges = matchedUnit?.serviceCharges ?: 0.0
@@ -63,7 +57,17 @@ fun LeaseDetailAdminActions(
 
     val remainingCaution = maxOf(0.0, lease.depositAmount - totalPaidCaution)
     val remainingRent = maxOf(0.0, totalRequiredRent - totalPaidRent)
+    val isCautionFullyPaid = remainingCaution <= 0.0
     val totalRemaining = remainingCaution + remainingRent
+
+    var paymentAmountText by remember { mutableStateOf("") }
+    var paymentCategorySelected by remember(isCautionFullyPaid) {
+        mutableStateOf(if (isCautionFullyPaid) "LOYER" else "CAUTION")
+    }
+    var localError by remember { mutableStateOf<String?>(null) }
+
+    val isTerminated = lease.status == LeaseStatusDto.TERMINATED
+    val isLocked = lease.status == LeaseStatusDto.SIGNED_ACTIVE
 
     val isFullyPaid = isLocked || isTerminated || totalRemaining <= 0.0
     val isReadyToSign = !isLocked && !isTerminated && totalRemaining <= 0.0
@@ -129,10 +133,10 @@ fun LeaseDetailAdminActions(
                             style = MaterialTheme.typography.titleSmall,
                             color = if (isFullyPaid) Color(0xFF1E3A8A) else Color(0xFFBA1A1A)
                         )
-                        Text("Caution payée : $totalPaidCaution / ${lease.depositAmount} XOF (Reste: $remainingCaution XOF)", style = MaterialTheme.typography.bodySmall)
-                        Text("Loyers initiaux payés : $totalPaidRent / $totalRequiredRent XOF (Reste: $remainingRent XOF)", style = MaterialTheme.typography.bodySmall)
+                        Text("Caution payée : $totalPaidCaution / ${lease.depositAmount} $currencySymbol (Reste: $remainingCaution $currencySymbol)", style = MaterialTheme.typography.bodySmall)
+                        Text("Loyers initiaux payés : $totalPaidRent / $totalRequiredRent $currencySymbol (Reste: $remainingRent $currencySymbol)", style = MaterialTheme.typography.bodySmall)
                         Text(
-                            text = if (totalRemaining <= 0.0) "Total soldé ! Prêt pour signature." else "Reliquat total restant : $totalRemaining XOF",
+                            text = if (totalRemaining <= 0.0) "Total soldé ! Prêt pour signature." else "Reliquat total restant : $totalRemaining $currencySymbol",
                             style = MaterialTheme.typography.titleSmall,
                             color = if (totalRemaining <= 0.0) Color(0xFF006948) else Color(0xFFBA1A1A)
                         )
@@ -145,21 +149,35 @@ fun LeaseDetailAdminActions(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         FilterChip(
                             selected = paymentCategorySelected == "CAUTION",
-                            onClick = { paymentCategorySelected = "CAUTION" },
-                            label = { Text("Caution") }
+                            onClick = {
+                                if (!isCautionFullyPaid) {
+                                    paymentCategorySelected = "CAUTION"
+                                    localError = null
+                                }
+                            },
+                            enabled = !isCautionFullyPaid,
+                            label = {
+                                Text(if (isCautionFullyPaid) "Caution (Soldée)" else "Caution")
+                            }
                         )
                         FilterChip(
                             selected = paymentCategorySelected == "LOYER",
-                            onClick = { paymentCategorySelected = "LOYER" },
+                            onClick = {
+                                paymentCategorySelected = "LOYER"
+                                localError = null
+                            },
                             label = { Text("Loyer d'avance") }
                         )
                     }
 
                     com.resid.manager.ui.components.AmountTextField(
                         value = paymentAmountText,
-                        onValueChange = { paymentAmountText = it },
+                        onValueChange = {
+                            paymentAmountText = it
+                            localError = null
+                        },
                         label = "Montant reçu",
-                        currencySymbol = "XOF",
+                        currencySymbol = currencySymbol,
                         placeholder = "0.0",
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -168,12 +186,33 @@ fun LeaseDetailAdminActions(
                         onClick = {
                             val amount = paymentAmountText.toDoubleOrNull()
                             if (amount == null || amount <= 0.0) {
-                                localError = "Veuillez saisir un montant numérique valide."
-                            } else {
-                                localError = null
-                                onRecordPayment(amount, paymentCategorySelected)
-                                paymentAmountText = ""
+                                localError = "Veuillez saisir un montant numérique supérieur à zéro."
+                                return@Button
                             }
+
+                            if (paymentCategorySelected == "CAUTION") {
+                                if (isCautionFullyPaid) {
+                                    localError = "La caution est déjà intégralement réglée."
+                                    return@Button
+                                }
+                                if (amount > remainingCaution) {
+                                    localError = "Le montant saisi ($amount $currencySymbol) dépasse le solde restant de la caution ($remainingCaution $currencySymbol)."
+                                    return@Button
+                                }
+                            } else if (paymentCategorySelected == "LOYER") {
+                                if (remainingRent <= 0.0) {
+                                    localError = "Le montant de loyer d'avance exigé est déjà intégralement réglé."
+                                    return@Button
+                                }
+                                if (amount > remainingRent) {
+                                    localError = "Le montant saisi ($amount $currencySymbol) dépasse le solde restant des loyers d'avance ($remainingRent $currencySymbol)."
+                                    return@Button
+                                }
+                            }
+
+                            localError = null
+                            onRecordPayment(amount, paymentCategorySelected)
+                            paymentAmountText = ""
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948)),
                         shape = RoundedCornerShape(8.dp),

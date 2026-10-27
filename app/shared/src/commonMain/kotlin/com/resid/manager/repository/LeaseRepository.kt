@@ -1,6 +1,5 @@
 package com.resid.manager.repository
 
-import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.dto.LeaseCreateRequest
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.LeasePaymentRequest
@@ -38,8 +37,8 @@ class LeaseRepositoryImpl(
             if (response.status == HttpStatusCode.OK) {
                 Result.success(response.body())
             } else {
-                val errorBody = response.body<ErrorResponse>()
-                Result.failure(Exception(errorBody.message))
+                val errorMsg = ApiClient.parseErrorMessage(response, "Erreur lors de la récupération des baux.")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de récupération des baux : ${e.message}"))
@@ -60,8 +59,8 @@ class LeaseRepositoryImpl(
             if (response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) {
                 Result.success(response.body())
             } else {
-                val errorBody = response.body<ErrorResponse>()
-                Result.failure(Exception(errorBody.message))
+                val errorMsg = ApiClient.parseErrorMessage(response, "Erreur lors de la création du contrat de bail.")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de création de bail : ${e.message}"))
@@ -83,8 +82,8 @@ class LeaseRepositoryImpl(
             if (response.status == HttpStatusCode.OK) {
                 Result.success(response.body())
             } else {
-                val errorBody = response.body<ErrorResponse>()
-                Result.failure(Exception(errorBody.message))
+                val errorMsg = ApiClient.parseErrorMessage(response, "Erreur lors de l'enregistrement du paiement.")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur d'enregistrement du versement : ${e.message}"))
@@ -102,8 +101,8 @@ class LeaseRepositoryImpl(
             if (response.status == HttpStatusCode.OK) {
                 Result.success(response.body())
             } else {
-                val errorBody = response.body<ErrorResponse>()
-                Result.failure(Exception(errorBody.message))
+                val errorMsg = ApiClient.parseErrorMessage(response, "Erreur lors de la mise à jour du bail.")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de mise à jour du statut : ${e.message}"))

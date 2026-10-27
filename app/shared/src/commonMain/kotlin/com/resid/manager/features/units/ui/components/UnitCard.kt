@@ -46,6 +46,7 @@ import com.resid.manager.dto.UnitStatusDto
 fun ResidenceUnitCard(
     residenceUnit: ResidenceUnitDto,
     isAuthorized: Boolean,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onDetailClick: () -> Unit,
     onEditClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -141,9 +142,9 @@ fun ResidenceUnitCard(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        ResidenceUnitDetailRow(icon = Icons.Default.Star, label = "Loyer de base", value = "${residenceUnit.nominalRent} XOF / mois")
+                        ResidenceUnitDetailRow(icon = Icons.Default.Star, label = "Loyer de base", value = "${residenceUnit.nominalRent} $currencySymbol / mois")
                         ResidenceUnitDetailRow(icon = Icons.Default.Settings, label = "Index Elec initial", value = "${residenceUnit.initialElectricityIndex} kWh")
-                        ResidenceUnitDetailRow(icon = Icons.Default.Star, label = "Charges fixes", value = "${residenceUnit.serviceCharges} XOF / mois")
+                        ResidenceUnitDetailRow(icon = Icons.Default.Star, label = "Charges fixes", value = "${residenceUnit.serviceCharges} $currencySymbol / mois")
                     }
                 }
 

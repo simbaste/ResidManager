@@ -75,6 +75,17 @@ fun Route.residencesRoutes() {
                 }
             }
 
+            // PUT /api/residences/{id}/currency : Update residence currency
+            put("/{id}/currency") {
+                call.executeRequest(HttpStatusCode.OK) {
+                    val userId = call.getRequesterUuid()
+                    val residenceId = call.getPathUuid("id")
+                    val request = call.receive<ResidenceCreateRequest>()
+                    ResidenceService.updateResidenceCurrency(userId, residenceId, request.currency)
+                    mapOf("message" to "Devise mise à jour avec succès !")
+                }
+            }
+
             // PUT /api/residences/{id} : Update a residence
             put("/{id}") {
                 call.executeRequest(HttpStatusCode.OK) {

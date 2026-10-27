@@ -33,7 +33,7 @@ fun CreateResidenceDialog(
 ) {
     var name by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
-    var defaultCurrency by remember { mutableStateOf("XOF") }
+    var defaultCurrency by remember { mutableStateOf(com.resid.manager.dto.AppCurrency.DEFAULT.code) }
     var kWhPrice by remember { mutableStateOf("150.0") }
 
     val focusManager = LocalFocusManager.current
@@ -59,11 +59,12 @@ fun CreateResidenceDialog(
                     onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
                     modifier = Modifier.fillMaxWidth()
                 )
+                val currentCurrency = com.resid.manager.dto.AppCurrency.fromCode(defaultCurrency)
                 AmountTextField(
                     value = kWhPrice,
                     onValueChange = { kWhPrice = it },
                     label = "Prix du kWh *",
-                    currencySymbol = defaultCurrency,
+                    currencySymbol = currentCurrency.symbol,
                     placeholder = "150.0",
                     imeAction = ImeAction.Done,
                     onImeAction = { focusManager.clearFocus() },
@@ -75,11 +76,11 @@ fun CreateResidenceDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    listOf("XOF", "EUR", "USD").forEach { curr ->
+                    com.resid.manager.dto.AppCurrency.entries.forEach { appCurrency ->
                         FilterChip(
-                            selected = defaultCurrency == curr,
-                            onClick = { defaultCurrency = curr },
-                            label = { Text(curr) },
+                            selected = defaultCurrency == appCurrency.code,
+                            onClick = { defaultCurrency = appCurrency.code },
+                            label = { Text(appCurrency.code) },
                         )
                     }
                 }

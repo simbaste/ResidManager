@@ -53,6 +53,7 @@ fun FinancesScreen(
     FinancesContent(
         uiState = uiState,
         isAuthorized = isAuthorized,
+        currencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
         onCategoryChanged = { viewModel.onIntent(FinancesIntent.SetFormCategory(it)) },
         onAmountChanged = { viewModel.onIntent(FinancesIntent.SetFormAmount(it)) },
         onDescriptionChanged = { viewModel.onIntent(FinancesIntent.SetFormDescription(it)) },
@@ -75,6 +76,7 @@ fun FinancesScreen(
 fun FinancesContent(
     uiState: FinancesUiState,
     isAuthorized: Boolean,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onCategoryChanged: (String) -> Unit,
     onAmountChanged: (String) -> Unit,
     onDescriptionChanged: (String) -> Unit,
@@ -111,6 +113,7 @@ fun FinancesContent(
                         isSubmittingExpense = uiState.isSubmittingExpense,
                         formError = uiState.formError,
                         formSuccess = uiState.formSuccess,
+                        currencySymbol = currencySymbol,
                         onCategoryChanged = onCategoryChanged,
                         onAmountChanged = onAmountChanged,
                         onDescriptionChanged = onDescriptionChanged,
@@ -129,6 +132,7 @@ fun FinancesContent(
                     TransactionsLedger(
                         transactions = uiState.transactions,
                         isLoading = uiState.isLoading,
+                        currencySymbol = currencySymbol,
                         onTraceabilityClick = onTraceabilityClick,
                         modifier = Modifier.fillMaxWidth().height(450.dp)
                     )
@@ -148,6 +152,7 @@ fun FinancesContent(
                         isSubmittingExpense = uiState.isSubmittingExpense,
                         formError = uiState.formError,
                         formSuccess = uiState.formSuccess,
+                        currencySymbol = currencySymbol,
                         onCategoryChanged = onCategoryChanged,
                         onAmountChanged = onAmountChanged,
                         onDescriptionChanged = onDescriptionChanged,
@@ -170,6 +175,7 @@ fun FinancesContent(
                         TransactionsLedger(
                             transactions = uiState.transactions,
                             isLoading = uiState.isLoading,
+                            currencySymbol = currencySymbol,
                             onTraceabilityClick = onTraceabilityClick,
                             modifier = Modifier.weight(1f)
                         )

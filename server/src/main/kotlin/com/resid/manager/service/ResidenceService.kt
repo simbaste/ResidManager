@@ -249,6 +249,22 @@ object ResidenceService {
         )
     }
 
+    suspend fun updateResidenceCurrency(userId: UUID, residenceId: UUID, currencyCode: com.resid.manager.dto.CurrencyCodeDto) = dbQuery {
+        val dbResidence = Residence.findById(residenceId)
+            ?: throw HttpError(HttpStatusCode.NotFound, "Résidence introuvable.")
+
+        if (!isResidenceAdmin(userId, residenceId)) {
+            throw HttpError(HttpStatusCode.Forbidden, "Accès interdit: Seuls les propriétaires et administrateurs peuvent modifier cette résidence.")
+        }
+
+        val selectedCurrency = CurrencyEntity.find { Currencies.code eq currencyCode.convert() }.firstOrNull()
+            ?: throw HttpError(HttpStatusCode.BadRequest, "Devise non reconnue.")
+
+        dbResidence.currency = selectedCurrency
+        dbResidence.updatedAt = LocalDateTime.now(Clock.systemUTC())
+        dbResidence.flush()
+    }
+
     suspend fun deleteResidence(userId: UUID, residenceId: UUID) = dbQuery {
         Residence.findById(residenceId)
             ?: throw HttpError(HttpStatusCode.NotFound, "Résidence introuvable.")

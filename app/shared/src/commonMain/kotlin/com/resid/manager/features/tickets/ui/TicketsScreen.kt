@@ -92,6 +92,7 @@ fun TicketsScreen(
         TakeChargeTicketDialog(
             isSubmitting = uiState.isSubmitting,
             errorMessage = uiState.errorMessage,
+            currencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
             onDismiss = { viewModel.onIntent(TicketsIntent.SetTakeChargeTicketId(null)) },
             onSubmit = { cost, comment ->
                 viewModel.onIntent(
@@ -113,6 +114,7 @@ fun TicketsScreen(
         CloseTicketDialog(
             isSubmitting = uiState.isSubmitting,
             errorMessage = uiState.errorMessage,
+            currencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
             onDismiss = { viewModel.onIntent(TicketsIntent.SetCloseTicketId(null)) },
             onSubmit = { cost, comment ->
                 viewModel.onIntent(

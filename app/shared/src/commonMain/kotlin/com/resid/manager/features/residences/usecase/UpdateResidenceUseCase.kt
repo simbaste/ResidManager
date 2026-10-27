@@ -13,15 +13,21 @@ class UpdateResidenceUseCase(
         residenceId: String,
         name: String,
         address: String,
-        kWhPrice: Double
+        kWhPrice: Double,
+        currencyCode: String? = null
     ): Result<ResidenceSummaryItemDto> {
         if (residenceId.isBlank()) {
             return Result.failure(IllegalArgumentException("ID de résidence manquant"))
         }
+        val targetCurrency = try {
+            currencyCode?.let { CurrencyCodeDto.valueOf(it) } ?: CurrencyCodeDto.XOF
+        } catch (_: Exception) {
+            CurrencyCodeDto.XOF
+        }
         val request = ResidenceCreateRequest(
             name = name.trim(),
             address = address.trim(),
-            currency = CurrencyCodeDto.XOF,
+            currency = targetCurrency,
             kWhPrice = kWhPrice
         )
         return residenceRepository.updateResidence(token, residenceId, request)

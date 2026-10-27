@@ -40,6 +40,7 @@ fun ProfileScreen(
     jwtToken: String?,
     onLogout: () -> Unit,
     onUserUpdated: (UserDto) -> Unit = {},
+    onResidenceCurrencyUpdated: (String, String) -> Unit = { _, _ -> },
     viewModel: ProfileViewModel = koinInject()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -51,10 +52,17 @@ fun ProfileScreen(
         activeResidence.userRoleInResidence == UserRole.MANAGER
     )
 
+    LaunchedEffect(activeResidence?.currencyCode) {
+        activeResidence?.currencyCode?.let { curr ->
+            viewModel.onIntent(ProfileIntent.InitResidenceCurrency(curr))
+        }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 is ProfileEffect.UserProfileUpdated -> onUserUpdated(effect.user)
+                is ProfileEffect.ResidenceCurrencyUpdated -> onResidenceCurrencyUpdated(effect.residenceId, effect.currencyCode)
                 else -> Unit
             }
         }

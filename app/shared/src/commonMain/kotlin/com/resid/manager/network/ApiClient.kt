@@ -12,6 +12,7 @@ import io.ktor.client.plugins.plugin
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -49,34 +50,34 @@ object ApiClient {
                     val session = sessionStorage?.loadSession()
                     val refreshToken = session?.refreshToken
 
-                    if (refreshToken.isNullOrBlank()) {
-                        false
-                    } else {
-                        try {
-                            // Call refresh endpoint with a separate raw request to avoid circular interception
-                            val refreshResponse = HttpClient {
-                                install(ContentNegotiation) {
-                                    json(Json { ignoreUnknownKeys = true })
-                                }
-                            }.post("${getBaseUrl()}/api/auth/refresh") {
-                                contentType(ContentType.Application.Json)
-                                setBody(RefreshTokenRequest(refreshToken))
+                    !refreshToken.isNullOrBlank() && try {
+                        // Call refresh endpoint with a separate raw request to avoid circular interception
+                        val refreshResponse = HttpClient {
+                            install(ContentNegotiation) {
+                                json(Json {
+                                    ignoreUnknownKeys = true
+                                    isLenient = true
+                                })
                             }
+                        }.post("${getBaseUrl()}/api/auth/refresh") {
+                            contentType(ContentType.Application.Json)
+                            setBody(RefreshTokenRequest(refreshToken))
+                        }
 
-                            if (refreshResponse.status == HttpStatusCode.OK) {
-                                val refreshBody = refreshResponse.body<TokenRefreshResponse>()
-                                sessionStorage?.updateTokens(
-                                    token = refreshBody.token,
-                                    refreshToken = refreshBody.refreshToken ?: refreshToken
-                                )
-                                true
-                            } else {
-                                false
-                            }
-                        } catch (_: Exception) {
+                        if (refreshResponse.status == HttpStatusCode.OK) {
+                            val refreshBody = refreshResponse.body<TokenRefreshResponse>()
+                            sessionStorage?.updateTokens(
+                                token = refreshBody.token,
+                                refreshToken = refreshBody.refreshToken ?: refreshToken
+                            )
+                            true
+                        } else {
                             false
                         }
+                    } catch (_: Exception) {
+                        false
                     }
+                    // Call refresh endpoint with a separate raw request to avoid circular interception
                 }
 
                 if (refreshedSuccessfully) {
@@ -106,7 +107,7 @@ object ApiClient {
      * Tente de désérialiser en [ErrorResponse] si le contenu est JSON,
      * ou lit le texte brut sinon, évitant ainsi le crash NoTransformationFoundException.
      */
-    suspend fun parseErrorMessage(response: io.ktor.client.statement.HttpResponse, fallbackMessage: String): String {
+    suspend fun parseErrorMessage(response: HttpResponse, fallbackMessage: String): String {
         return try {
             val contentType = response.headers[HttpHeaders.ContentType] ?: ""
             if (contentType.contains("application/json", ignoreCase = true)) {

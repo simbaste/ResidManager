@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 fun CloseTicketDialog(
     isSubmitting: Boolean,
     errorMessage: String?,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onDismiss: () -> Unit,
     onSubmit: (Double, String?) -> Unit
 ) {
@@ -55,7 +56,7 @@ fun CloseTicketDialog(
                     value = formInterventionCostText,
                     onValueChange = { formInterventionCostText = it },
                     label = "Coût supplémentaire de clôture - Optionnel",
-                    currencySymbol = "XOF",
+                    currencySymbol = currencySymbol,
                     placeholder = "0.0",
                     imeAction = androidx.compose.ui.text.input.ImeAction.Next,
                     modifier = Modifier.fillMaxWidth()

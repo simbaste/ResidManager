@@ -26,6 +26,7 @@ fun LeaseDetailInfoAndLedger(
     lease: LeaseDto,
     matchedUnit: ResidenceUnitDto?,
     matchedTenant: ResidenceMemberSummaryDto?,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     modifier: Modifier = Modifier
 ) {
     val matchedResidenceUnitName = matchedUnit?.name ?: "Logement ${lease.residenceUnitId.take(5)}"
@@ -60,11 +61,11 @@ fun LeaseDetailInfoAndLedger(
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                    Text("Loyer de base : ${lease.monthlyRentAtSign} XOF / mois", style = MaterialTheme.typography.bodyLarge)
+                    Text("Loyer de base : ${lease.monthlyRentAtSign} $currencySymbol / mois", style = MaterialTheme.typography.bodyLarge)
                     if ((matchedUnit?.serviceCharges ?: 0.0) > 0.0) {
-                        Text("Charges fixes d'entretien : ${matchedUnit?.serviceCharges} XOF / mois", style = MaterialTheme.typography.bodyMedium)
+                        Text("Charges fixes d'entretien : ${matchedUnit?.serviceCharges} $currencySymbol / mois", style = MaterialTheme.typography.bodyMedium)
                     }
-                    Text("Caution requise : ${lease.depositAmount} XOF", style = MaterialTheme.typography.bodyLarge)
+                    Text("Caution requise : ${lease.depositAmount} $currencySymbol", style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
@@ -109,7 +110,7 @@ fun LeaseDetailInfoAndLedger(
                                         )
                                     }
                                     Text(
-                                        text = "${pay.amount} XOF",
+                                        text = "${pay.amount} $currencySymbol",
                                         style = MaterialTheme.typography.titleSmall,
                                         color = Color(0xFF006948)
                                     )

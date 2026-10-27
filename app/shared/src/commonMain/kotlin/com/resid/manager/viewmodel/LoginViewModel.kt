@@ -287,26 +287,28 @@ class LoginViewModel(
                 residenceRepository.fetchResidences(token)
                     .onSuccess { directory ->
                         val ownedContexts = directory.ownedResidences.map {
+                            val appCurrency = com.resid.manager.dto.AppCurrency.fromCode(it.currencyCode.name)
                             ResidenceContext(
                                 residenceId = it.id,
                                 residenceName = it.name,
                                 residenceAddress = it.address,
                                 userRoleInResidence = UserRole.OWNER,
                                 totalUnits = it.totalUnits,
-                                currencySymbol = it.currencySymbol.label,
-                                currencyCode = it.currencyCode.name,
+                                currencySymbol = appCurrency.symbol,
+                                currencyCode = appCurrency.code,
                                 kWhPrice = it.kWhPrice
                             )
                         }
                         val associatedContexts = directory.associatedResidences.map {
+                            val appCurrency = com.resid.manager.dto.AppCurrency.fromCode(it.currencyCode.name)
                             ResidenceContext(
                                 residenceId = it.id,
                                 residenceName = it.name,
                                 residenceAddress = it.address,
                                 userRoleInResidence = it.roleDto.toUserRole(),
                                 totalUnits = it.totalUnits,
-                                currencySymbol = it.currencySymbol.label,
-                                currencyCode = it.currencyCode.name,
+                                currencySymbol = appCurrency.symbol,
+                                currencyCode = appCurrency.code,
                                 kWhPrice = it.kWhPrice
                             )
                         }
@@ -456,12 +458,19 @@ class LoginViewModel(
 
     fun updateResidence(residenceId: String, name: String, address: String, kWhPrice: Double) {
         val token = uiState.value.jwtToken ?: return
+        val currentResidence = uiState.value.residences.firstOrNull { it.residenceId == residenceId }
+            ?: uiState.value.selectedResidenceContext
+        val targetCurrency = try {
+            currentResidence?.currencyCode?.let { CurrencyCodeDto.valueOf(it) } ?: CurrencyCodeDto.XOF
+        } catch (_: Exception) {
+            CurrencyCodeDto.XOF
+        }
         updateState { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
             try {
                 residenceRepository.updateResidence(token, residenceId, ResidenceCreateRequest(name, address,
-                    CurrencyCodeDto.XOF, kWhPrice))
+                    targetCurrency, kWhPrice))
                     .onSuccess {
                         fetchResidences()
                         updateState { it.copy(isLoading = false, errorMessage = null) }
@@ -473,6 +482,26 @@ class LoginViewModel(
                 updateState { it.copy(isLoading = false, errorMessage = "Erreur réseau : ${e.message}") }
             }
         }
+    }
+
+    fun onResidenceCurrencyUpdated(residenceId: String, newCurrencyCode: String) {
+        val symbol = com.resid.manager.dto.AppCurrency.fromCode(newCurrencyCode).symbol
+        updateState { state ->
+            val updatedList = state.residences.map { res ->
+                if (res.residenceId == residenceId) {
+                    res.copy(currencyCode = newCurrencyCode, currencySymbol = symbol)
+                } else {
+                    res
+                }
+            }
+            val updatedSelected = if (state.selectedResidenceContext?.residenceId == residenceId) {
+                state.selectedResidenceContext.copy(currencyCode = newCurrencyCode, currencySymbol = symbol)
+            } else {
+                state.selectedResidenceContext
+            }
+            state.copy(residences = updatedList, selectedResidenceContext = updatedSelected)
+        }
+        fetchResidences()
     }
 
     fun deleteResidence(residenceId: String) {

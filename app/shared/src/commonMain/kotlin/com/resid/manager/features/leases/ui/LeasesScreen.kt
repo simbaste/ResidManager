@@ -110,6 +110,7 @@ fun LeasesScreen(
                             residenceUnits = residenceUnits,
                             members = members,
                             isAuthorized = isAuthorized,
+                            currencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
                             onNewLeaseClick = { viewModel.onIntent(LeasesIntent.SetShowWizard(true)) },
                             onFilterSelected = { filter -> viewModel.onIntent(LeasesIntent.SetFilter(filter)) },
                             onLeaseClick = { lease ->
@@ -147,16 +148,20 @@ fun LeasesScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(24.dp)
                                 ) {
+                                    val currentCurrencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol
+
                                     LeaseDetailInfoAndLedger(
                                         lease = lease,
                                         matchedUnit = matchedUnit,
                                         matchedTenant = matchedTenant,
+                                        currencySymbol = currentCurrencySymbol,
                                         modifier = Modifier.weight(1.2f)
                                     )
 
                                     LeaseDetailAdminActions(
                                         lease = lease,
                                         matchedUnit = matchedUnit,
+                                        currencySymbol = currentCurrencySymbol,
                                         onRecordPayment = { amount, category ->
                                             viewModel.onIntent(LeasesIntent.RecordPayment(token, residenceId, lease.id, amount, category))
                                         },
@@ -201,6 +206,7 @@ fun LeasesScreen(
             residenceUnits = residenceUnits,
             isLoading = uiState.isLoading,
             errorMessage = uiState.errorMessage,
+            currencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
             onDismiss = { viewModel.onIntent(LeasesIntent.SetShowWizard(false)) },
             onSubmit = { unitId, request ->
                 viewModel.onIntent(LeasesIntent.CreateLease(token, residenceId, unitId, request))
@@ -215,6 +221,7 @@ fun LeasesGridContent(
     residenceUnits: List<ResidenceUnitDto>,
     members: List<ResidenceMemberSummaryDto>,
     isAuthorized: Boolean,
+    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     onNewLeaseClick: () -> Unit,
     onFilterSelected: (String) -> Unit,
     onLeaseClick: (LeaseDto) -> Unit,
@@ -284,6 +291,7 @@ fun LeasesGridContent(
                     lease = lease,
                     matchedUnit = matchedUnit,
                     matchedTenant = matchedTenant,
+                    currencySymbol = currencySymbol,
                     onClick = { onLeaseClick(lease) }
                 )
             }
