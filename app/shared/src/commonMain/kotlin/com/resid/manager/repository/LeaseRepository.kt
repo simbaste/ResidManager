@@ -24,6 +24,7 @@ interface LeaseRepository {
     suspend fun createLease(token: String, residenceUnitId: String, request: LeaseCreateRequest): Result<LeaseDto>
     suspend fun recordLeasePayment(token: String, leaseId: String, amount: Double, category: String): Result<LeaseDto>
     suspend fun updateLeaseStatus(token: String, leaseId: String, status: LeaseStatusDto): Result<LeaseDto>
+    suspend fun fetchGuarantorsByTenant(token: String, tenantId: String): Result<List<com.resid.manager.dto.GuarantorDto>>
 }
 
 class LeaseRepositoryImpl(
@@ -106,6 +107,22 @@ class LeaseRepositoryImpl(
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de mise à jour du statut : ${e.message}"))
+        }
+    }
+
+    override suspend fun fetchGuarantorsByTenant(token: String, tenantId: String): Result<List<com.resid.manager.dto.GuarantorDto>> {
+        return try {
+            val response = httpClient.get("${ApiClient.BASE_URL}/api/tenants/$tenantId/guarantors") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+            }
+            if (response.status == HttpStatusCode.OK) {
+                Result.success(response.body())
+            } else {
+                val errorMsg = ApiClient.parseErrorMessage(response, "Erreur lors de la récupération des garants.")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Erreur réseau lors de la récupération des garants : ${e.message}"))
         }
     }
 }

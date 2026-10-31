@@ -65,6 +65,18 @@ fun LeaseWizardDialog(
     var inlineEmail by remember { mutableStateOf("") }
     var inlinePhone by remember { mutableStateOf("") }
 
+    // Guarantor states
+    var existingGuarantors by remember { mutableStateOf<List<com.resid.manager.dto.GuarantorDto>>(emptyList()) }
+    var selectedGuarantorId by remember { mutableStateOf<String?>(null) }
+    var isReusingGuarantor by remember { mutableStateOf(false) }
+    var guarantorLastName by remember { mutableStateOf("") }
+    var guarantorFirstName by remember { mutableStateOf("") }
+    var guarantorPhone by remember { mutableStateOf("") }
+    var guarantorMonthlySalary by remember { mutableStateOf("") }
+    var guarantorRelationship by remember { mutableStateOf("") }
+    var guarantorJobTitle by remember { mutableStateOf("") }
+    var guarantorEmployer by remember { mutableStateOf("") }
+
     var draftResidenceUnitId by remember { mutableStateOf(initialResidenceUnitId ?: "") }
     var draftDepositAmount by remember { mutableStateOf("0.0") }
     var draftPaymentFrequency by remember { mutableStateOf("MONTHLY") }
@@ -171,7 +183,76 @@ fun LeaseWizardDialog(
                                 draftTenantName = user.name
                                 userResults = emptyList()
                                 userQuery = user.name
-                            }
+                                // Fetch existing guarantors for this tenant
+                                coroutineScope.launch {
+                                    try {
+                                        val response = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/tenants/${user.id}/guarantors") {
+                                            header(HttpHeaders.Authorization, "Bearer $jwtToken")
+                                        }
+                                        if (response.status == HttpStatusCode.OK) {
+                                            val list = response.body<List<com.resid.manager.dto.GuarantorDto>>()
+                                            existingGuarantors = list
+                                            if (list.isNotEmpty()) {
+                                                isReusingGuarantor = true
+                                                val firstG = list.first()
+                                                selectedGuarantorId = firstG.id
+                                                guarantorLastName = firstG.lastName
+                                                guarantorFirstName = firstG.firstName
+                                                guarantorPhone = firstG.phone
+                                                guarantorMonthlySalary = firstG.monthlySalary?.toString() ?: ""
+                                                guarantorRelationship = firstG.relationship ?: ""
+                                                guarantorJobTitle = firstG.jobTitle ?: ""
+                                                guarantorEmployer = firstG.employer ?: ""
+                                            }
+                                        }
+                                    } catch (_: Exception) {}
+                                }
+                            },
+                            existingGuarantors = existingGuarantors,
+                            selectedGuarantorId = selectedGuarantorId,
+                            isReusingGuarantor = isReusingGuarantor,
+                            guarantorLastName = guarantorLastName,
+                            guarantorFirstName = guarantorFirstName,
+                            guarantorPhone = guarantorPhone,
+                            guarantorMonthlySalary = guarantorMonthlySalary,
+                            guarantorRelationship = guarantorRelationship,
+                            guarantorJobTitle = guarantorJobTitle,
+                            guarantorEmployer = guarantorEmployer,
+                            currencySymbol = currencySymbol,
+                            onSelectExistingGuarantor = { g ->
+                                if (g != null) {
+                                    selectedGuarantorId = g.id
+                                    guarantorLastName = g.lastName
+                                    guarantorFirstName = g.firstName
+                                    guarantorPhone = g.phone
+                                    guarantorMonthlySalary = g.monthlySalary?.toString() ?: ""
+                                    guarantorRelationship = g.relationship ?: ""
+                                    guarantorJobTitle = g.jobTitle ?: ""
+                                    guarantorEmployer = g.employer ?: ""
+                                } else {
+                                    selectedGuarantorId = null
+                                }
+                            },
+                            onToggleReuseGuarantor = { isReusing ->
+                                isReusingGuarantor = isReusing
+                                if (!isReusing) {
+                                    selectedGuarantorId = null
+                                    guarantorLastName = ""
+                                    guarantorFirstName = ""
+                                    guarantorPhone = ""
+                                    guarantorMonthlySalary = ""
+                                    guarantorRelationship = ""
+                                    guarantorJobTitle = ""
+                                    guarantorEmployer = ""
+                                }
+                            },
+                            onGuarantorLastNameChanged = { guarantorLastName = it },
+                            onGuarantorFirstNameChanged = { guarantorFirstName = it },
+                            onGuarantorPhoneChanged = { guarantorPhone = it },
+                            onGuarantorMonthlySalaryChanged = { guarantorMonthlySalary = it },
+                            onGuarantorRelationshipChanged = { guarantorRelationship = it },
+                            onGuarantorJobTitleChanged = { guarantorJobTitle = it },
+                            onGuarantorEmployerChanged = { guarantorEmployer = it }
                         )
                     }
 
@@ -222,6 +303,18 @@ fun LeaseWizardDialog(
                 Button(
                     onClick = {
                         val rentVal = residenceUnits.firstOrNull { it.id == draftResidenceUnitId }?.nominalRent ?: 0.0
+                        val guarantorPayload = if (!isReusingGuarantor && guarantorLastName.isNotBlank() && guarantorFirstName.isNotBlank()) {
+                            com.resid.manager.dto.GuarantorDto(
+                                lastName = guarantorLastName.trim(),
+                                firstName = guarantorFirstName.trim(),
+                                phone = guarantorPhone.trim(),
+                                monthlySalary = guarantorMonthlySalary.toDoubleOrNull(),
+                                relationship = guarantorRelationship.trim().ifBlank { null },
+                                jobTitle = guarantorJobTitle.trim().ifBlank { null },
+                                employer = guarantorEmployer.trim().ifBlank { null }
+                            )
+                        } else null
+
                         val req = LeaseCreateRequest(
                             tenantId = draftTenantId,
                             inlineTenant = if (isInlineTenant) InlineTenantCreateRequest(inlineFirstName, inlineLastName, inlineEmail, inlinePhone.ifBlank { null }) else null,
@@ -232,7 +325,9 @@ fun LeaseWizardDialog(
                             endDate = draftEndDate,
                             monthlyRentAtSign = rentVal,
                             advanceMonths = if (draftPaymentFrequency == "ANNUAL") (draftAdvanceMonths.toIntOrNull() ?: 12) else 1,
-                            advancePaymentAmount = (draftAdvancePaymentAmount.toDoubleOrNull() ?: 0.0)
+                            advancePaymentAmount = (draftAdvancePaymentAmount.toDoubleOrNull() ?: 0.0),
+                            guarantorId = if (isReusingGuarantor) selectedGuarantorId else null,
+                            guarantor = guarantorPayload
                         )
                         onSubmit(draftResidenceUnitId, req)
                     },

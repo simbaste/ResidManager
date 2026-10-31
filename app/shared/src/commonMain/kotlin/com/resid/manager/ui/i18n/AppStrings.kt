@@ -45,8 +45,8 @@ object FrStrings : AppStrings {
     override val logements = "Logements"
     override val leases = "Contrats"
     override val members = "Membres"
-    override val electricity = "Facturation"
-    override val tickets = "Tickets"
+    override val electricity = "Électricité"
+    override val tickets = "Maintenance"
     override val finances = "Finance"
     override val profile = "Compte"
     
@@ -81,8 +81,8 @@ object EnStrings : AppStrings {
     override val logements = "Housing Units"
     override val leases = "Lease Agreements"
     override val members = "Members & Roles"
-    override val electricity = "Electricity Billing"
-    override val tickets = "Maintenance Tickets"
+    override val electricity = "Electricity Consumption"
+    override val tickets = "Maintenance"
     override val finances = "Cashflow & Finances"
     override val profile = "My Account"
     

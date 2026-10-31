@@ -21,18 +21,41 @@ class ResidencesViewModel(
     private val updateResidenceUseCase: UpdateResidenceUseCase,
     private val deleteResidenceUseCase: DeleteResidenceUseCase,
     private val searchResidencesUseCase: SearchResidencesUseCase,
-    private val joinResidenceUseCase: JoinResidenceUseCase
+    private val joinResidenceUseCase: JoinResidenceUseCase,
+    private val sessionStorage: com.resid.manager.SessionStorage? = null
 ) : MviViewModel<ResidencesUiState, ResidencesIntent, ResidencesEffect>(ResidencesUiState()) {
 
     private var searchJob: Job? = null
+
+    init {
+        val lastSelectedId = sessionStorage?.loadLastSelectedResidenceId()
+        val timestamps = sessionStorage?.loadResidenceConsultedTimestamps().orEmpty()
+        updateState {
+            it.copy(
+                selectedResidenceId = lastSelectedId,
+                consultedTimestamps = timestamps
+            )
+        }
+    }
 
     override fun onIntent(intent: ResidencesIntent) {
         when (intent) {
             is ResidencesIntent.LoadResidences -> loadResidences(intent.token)
             is ResidencesIntent.SelectResidence -> {
-                updateState { it.copy(selectedResidence = intent.residence) }
+                val now = com.resid.manager.getCurrentEpochMillis()
+                sessionStorage?.saveLastSelectedResidenceId(intent.residence.residenceId)
+                sessionStorage?.saveResidenceConsulted(intent.residence.residenceId, now)
+                updateState {
+                    it.copy(
+                        selectedResidence = intent.residence,
+                        selectedResidenceId = intent.residence.residenceId,
+                        consultedTimestamps = it.consultedTimestamps + (intent.residence.residenceId to now)
+                    )
+                }
                 emitEffect(ResidencesEffect.NavigateToDashboard(intent.residence))
             }
+            is ResidencesIntent.SetSortOption -> updateState { it.copy(sortOption = intent.option) }
+            is ResidencesIntent.SetSelectedResidenceId -> updateState { it.copy(selectedResidenceId = intent.residenceId) }
             is ResidencesIntent.CreateResidence -> createResidence(intent.token, intent.name, intent.address, intent.defaultCurrency, intent.kWhPrice)
             is ResidencesIntent.UpdateResidence -> updateResidence(intent.token, intent.residenceId, intent.name, intent.address, intent.kWhPrice)
             is ResidencesIntent.DeleteResidence -> deleteResidence(intent.token, intent.residenceId)
@@ -48,13 +71,17 @@ class ResidencesViewModel(
     private fun loadResidences(token: String) {
         viewModelScope.launch {
             updateState { it.copy(isLoading = true, errorMessage = null) }
+            val lastSelectedId = sessionStorage?.loadLastSelectedResidenceId()
+            val timestamps = sessionStorage?.loadResidenceConsultedTimestamps().orEmpty()
             fetchResidencesUseCase(token)
                 .onSuccess { list ->
                     updateState {
                         it.copy(
                             isLoading = false,
                             residences = list,
-                            selectedResidence = it.selectedResidence ?: list.firstOrNull(),
+                            selectedResidence = it.selectedResidence ?: list.find { r -> r.residenceId == lastSelectedId } ?: list.firstOrNull(),
+                            selectedResidenceId = lastSelectedId ?: it.selectedResidenceId,
+                            consultedTimestamps = timestamps,
                             errorMessage = null
                         )
                     }

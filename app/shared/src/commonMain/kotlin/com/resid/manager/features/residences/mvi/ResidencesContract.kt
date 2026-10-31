@@ -3,10 +3,19 @@ package com.resid.manager.features.residences.mvi
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceSummaryItemDto
 
+enum class ResidenceSortOption(val label: String) {
+    SELECTED_FIRST("Sélectionnée en premier"),
+    LAST_CONSULTED("Dernière consultation"),
+    NAME_ASC("Nom (A - Z)")
+}
+
 data class ResidencesUiState(
     val isLoading: Boolean = false,
     val residences: List<ResidenceContext> = emptyList(),
     val selectedResidence: ResidenceContext? = null,
+    val selectedResidenceId: String? = null,
+    val consultedTimestamps: Map<String, Long> = emptyMap(),
+    val sortOption: ResidenceSortOption = ResidenceSortOption.SELECTED_FIRST,
     val errorMessage: String? = null,
 
     // Dialog states
@@ -35,6 +44,10 @@ sealed interface ResidencesIntent {
     data class SetShowJoinDialog(val show: Boolean) : ResidencesIntent
     data class SetEditingResidence(val residence: ResidenceContext?) : ResidencesIntent
     data class SetDeletingResidence(val residence: ResidenceContext?) : ResidencesIntent
+
+    // Sorting and selection
+    data class SetSortOption(val option: ResidenceSortOption) : ResidencesIntent
+    data class SetSelectedResidenceId(val residenceId: String?) : ResidencesIntent
 }
 
 sealed interface ResidencesEffect {

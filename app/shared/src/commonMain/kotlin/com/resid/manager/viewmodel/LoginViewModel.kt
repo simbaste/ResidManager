@@ -47,8 +47,8 @@ enum class AppScreen(val title: String, val navPath: String) {
     UNITS("Unités / Logements", "units"),
     LEASES("Contrats de bail", "leases"),
     MEMBERS("Membres & Habilitations", "members"),
-    ELECTRICITY("Facturation Électricité", "electricity"),
-    TICKETS("Tickets d'Intervention", "tickets"),
+    ELECTRICITY("Électricité", "electricity"),
+    TICKETS("Maintenance", "tickets"),
     FINANCES("Cashflow & Finances", "finances"),
     PROFILE("Mon Compte", "profil")
 }
@@ -398,7 +398,9 @@ class LoginViewModel(
     }
 
     fun selectResidence(residence: ResidenceContext) {
+        val now = com.resid.manager.getCurrentEpochMillis()
         sessionStorage?.saveLastSelectedResidenceId(residence.residenceId)
+        sessionStorage?.saveResidenceConsulted(residence.residenceId, now)
         updateState { it.copy(selectedResidenceContext = residence, residenceUnits = emptyList(), leases = emptyList(), members = emptyList()) }
         fetchResidenceUnits()
         fetchLeases()

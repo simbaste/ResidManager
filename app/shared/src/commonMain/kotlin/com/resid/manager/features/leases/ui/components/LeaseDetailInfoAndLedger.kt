@@ -66,6 +66,22 @@ fun LeaseDetailInfoAndLedger(
                         Text("Charges fixes d'entretien : ${matchedUnit?.serviceCharges} $currencySymbol / mois", style = MaterialTheme.typography.bodyMedium)
                     }
                     Text("Caution requise : ${lease.depositAmount} $currencySymbol", style = MaterialTheme.typography.bodyLarge)
+
+                    if (lease.guarantor != null) {
+                        val g = lease.guarantor
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        Text("Garant : ${g.firstName} ${g.lastName}", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.primary)
+                        Text("Téléphone garant : ${g.phone}", style = MaterialTheme.typography.bodyMedium)
+                        if (!g.relationship.isNullOrBlank()) {
+                            Text("Lien de parenté / relation : ${g.relationship}", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        if (!g.jobTitle.isNullOrBlank()) {
+                            Text("Emploi : ${g.jobTitle}" + if (!g.employer.isNullOrBlank()) " (${g.employer})" else "", style = MaterialTheme.typography.bodyMedium)
+                        }
+                        if (g.monthlySalary != null && g.monthlySalary > 0.0) {
+                            Text("Revenu mensuel : ${g.monthlySalary} $currencySymbol", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
                 }
             }
         }

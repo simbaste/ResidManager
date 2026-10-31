@@ -1,5 +1,6 @@
 package com.resid.manager.features.residences.di
 
+import com.resid.manager.SessionStorage
 import com.resid.manager.features.residences.ResidencesViewModel
 import com.resid.manager.features.residences.usecase.CreateResidenceUseCase
 import com.resid.manager.features.residences.usecase.DeleteResidenceUseCase
@@ -22,7 +23,8 @@ val residencesFeatureModule = module {
             updateResidenceUseCase = get(),
             deleteResidenceUseCase = get(),
             searchResidencesUseCase = get(),
-            joinResidenceUseCase = get()
+            joinResidenceUseCase = get(),
+            sessionStorage = getOrNull<SessionStorage>()
         )
     }
 }

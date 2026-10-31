@@ -16,6 +16,8 @@ interface SessionStorage {
     fun clearSession()
     fun saveLastSelectedResidenceId(residenceId: String)
     fun loadLastSelectedResidenceId(): String?
+    fun saveResidenceConsulted(residenceId: String, timestamp: Long)
+    fun loadResidenceConsultedTimestamps(): Map<String, Long>
 }
 
 /**

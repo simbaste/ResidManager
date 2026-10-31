@@ -84,6 +84,25 @@ class WasmSessionStorage : SessionStorage {
     override fun loadLastSelectedResidenceId(): String? {
         return localStorage.getItem(lastSelectedResidenceKey)
     }
+
+    override fun saveResidenceConsulted(residenceId: String, timestamp: Long) {
+        localStorage.setItem("residence_consulted_$residenceId", timestamp.toString())
+    }
+
+    override fun loadResidenceConsultedTimestamps(): Map<String, Long> {
+        val result = mutableMapOf<String, Long>()
+        for (i in 0 until localStorage.length) {
+            val key = localStorage.key(i) ?: continue
+            if (key.startsWith("residence_consulted_")) {
+                val resId = key.removePrefix("residence_consulted_")
+                val ts = localStorage.getItem(key)?.toLongOrNull()
+                if (ts != null) {
+                    result[resId] = ts
+                }
+            }
+        }
+        return result
+    }
 }
 
 actual fun createPlatformSessionStorage(): SessionStorage? = WasmSessionStorage()

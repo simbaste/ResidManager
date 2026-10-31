@@ -5,6 +5,8 @@ import com.resid.manager.data.DepositStatus
 import com.resid.manager.data.EntityType
 import com.resid.manager.data.FinancialTransaction
 import com.resid.manager.data.FinancialTransactions
+import com.resid.manager.data.Guarantor
+import com.resid.manager.data.Guarantors
 import com.resid.manager.data.HttpError
 import com.resid.manager.data.InvitationStatus
 import com.resid.manager.data.Lease
@@ -173,10 +175,34 @@ object LeaseService {
         }
 
         val now = LocalDateTime.now(Clock.systemUTC())
+
+        // 3.1 Fetch or create guarantor
+        val targetGuarantor: Guarantor? = if (!request.guarantorId.isNullOrBlank()) {
+            val gid = try { UUID.fromString(request.guarantorId) } catch (_: Exception) { null }
+            gid?.let { Guarantor.findById(it) }
+        } else if (request.guarantor != null && request.guarantor!!.lastName.isNotBlank() && request.guarantor!!.firstName.isNotBlank()) {
+            val gDto = request.guarantor!!
+            Guarantor.new {
+                this.tenant = dbTenant
+                this.lastName = gDto.lastName.trim()
+                this.firstName = gDto.firstName.trim()
+                this.phone = gDto.phone.trim()
+                this.monthlySalary = gDto.monthlySalary
+                this.relationship = gDto.relationship?.trim()?.takeIf { it.isNotBlank() }
+                this.jobTitle = gDto.jobTitle?.trim()?.takeIf { it.isNotBlank() }
+                this.employer = gDto.employer?.trim()?.takeIf { it.isNotBlank() }
+                this.createdAt = now
+                this.updatedAt = now
+            }
+        } else {
+            null
+        }
+
         // Create Lease record
         val newLease = Lease.new {
             this.residenceUnit = dbResidenceUnit
             this.tenant = dbTenant
+            this.guarantor = targetGuarantor
             this.durationMonths = if (duration <= 0) 12 else duration
             this.paymentFrequency = paymentFrequencyDto
             this.depositAmount = request.depositAmount
@@ -244,6 +270,20 @@ object LeaseService {
             )
         }
 
+        val guarantorDto = newLease.guarantor?.let { g ->
+            com.resid.manager.dto.GuarantorDto(
+                id = g.id.value.toString(),
+                tenantId = g.tenant.id.value.toString(),
+                lastName = g.lastName,
+                firstName = g.firstName,
+                phone = g.phone,
+                monthlySalary = g.monthlySalary,
+                relationship = g.relationship,
+                jobTitle = g.jobTitle,
+                employer = g.employer
+            )
+        }
+
         LeaseDto(
             id = newLease.id.value.toString(),
             residenceUnitId = newLease.residenceUnit.id.value.toString(),
@@ -258,6 +298,7 @@ object LeaseService {
             paymentFrequencyDto = newLease.paymentFrequency.convert(),
             advanceMonths = newLease.advanceMonths,
             payments = payments,
+            guarantor = guarantorDto
         )
     }
 
@@ -423,6 +464,20 @@ object LeaseService {
                     )
                 }
 
+                val guarantorDto = lease.guarantor?.let { g ->
+                    com.resid.manager.dto.GuarantorDto(
+                        id = g.id.value.toString(),
+                        tenantId = g.tenant.id.value.toString(),
+                        lastName = g.lastName,
+                        firstName = g.firstName,
+                        phone = g.phone,
+                        monthlySalary = g.monthlySalary,
+                        relationship = g.relationship,
+                        jobTitle = g.jobTitle,
+                        employer = g.employer
+                    )
+                }
+
                 LeaseDto(
                     id = lease.id.value.toString(),
                     residenceUnitId = lease.residenceUnit.id.value.toString(),
@@ -436,7 +491,26 @@ object LeaseService {
                     updatedAt = lease.updatedAt.toString(),
                     paymentFrequencyDto = lease.paymentFrequency.convert(),
                     advanceMonths = lease.advanceMonths,
-                    payments = previousPayments
+                    payments = previousPayments,
+                    guarantor = guarantorDto
+                )
+            }
+    }
+
+    suspend fun getGuarantorsByTenant(tenantId: UUID): List<com.resid.manager.dto.GuarantorDto> = dbQuery {
+        Guarantor.find { Guarantors.tenantId eq tenantId }
+            .orderBy(Guarantors.updatedAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+            .map { g ->
+                com.resid.manager.dto.GuarantorDto(
+                    id = g.id.value.toString(),
+                    tenantId = g.tenant.id.value.toString(),
+                    lastName = g.lastName,
+                    firstName = g.firstName,
+                    phone = g.phone,
+                    monthlySalary = g.monthlySalary,
+                    relationship = g.relationship,
+                    jobTitle = g.jobTitle,
+                    employer = g.employer
                 )
             }
     }

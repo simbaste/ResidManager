@@ -176,6 +176,7 @@ fun AppShell(
                                     ResidencesScreen(
                                         jwtToken = uiState.jwtToken,
                                         userId = uiState.loggedInUser?.id,
+                                        activeResidenceId = uiState.selectedResidenceContext?.residenceId,
                                         onNavigateToDashboard = { residence ->
                                             viewModel.selectResidence(residence)
                                             viewModel.navigateToAppScreen(AppScreen.DASHBOARD)

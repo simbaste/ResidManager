@@ -80,9 +80,23 @@ object ResidenceUnits : UUIDTable("residence_units") {
     }
 }
 
+object Guarantors : UUIDTable("guarantors") {
+    val tenantId = reference("tenant_id", Users, onDelete = ReferenceOption.CASCADE)
+    val lastName = varchar("last_name", 100)
+    val firstName = varchar("first_name", 100)
+    val phone = varchar("phone", 50)
+    val monthlySalary = double("monthly_salary").nullable()
+    val relationship = varchar("relationship", 100).nullable()
+    val jobTitle = varchar("job_title", 150).nullable()
+    val employer = varchar("employer", 150).nullable()
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
+}
+
 object Leases : UUIDTable("leases") {
     val residenceUnitId = reference("residence_unit_id", ResidenceUnits, onDelete = ReferenceOption.RESTRICT)
     val tenantId = reference("tenant_id", Users, onDelete = ReferenceOption.RESTRICT)
+    val guarantorId = reference("guarantor_id", Guarantors, onDelete = ReferenceOption.SET_NULL).nullable()
     val durationMonths = integer("duration_months")
     val paymentFrequencyDto = enumerationByName("payment_frequency", ENUM_NAME_COLUMN_LENGTH, PaymentFrequency::class)
     val depositAmount = double("deposit_amount")
@@ -277,11 +291,27 @@ class Equipment(id: EntityID<UUID>) : UUIDEntity(id) {
     var updatedAt by Equipments.updatedAt
 }
 
+class Guarantor(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<Guarantor>(Guarantors)
+
+    var tenant by User referencedOn Guarantors.tenantId
+    var lastName by Guarantors.lastName
+    var firstName by Guarantors.firstName
+    var phone by Guarantors.phone
+    var monthlySalary by Guarantors.monthlySalary
+    var relationship by Guarantors.relationship
+    var jobTitle by Guarantors.jobTitle
+    var employer by Guarantors.employer
+    var createdAt by Guarantors.createdAt
+    var updatedAt by Guarantors.updatedAt
+}
+
 class Lease(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<Lease>(Leases)
 
     var residenceUnit by ResidenceUnit referencedOn Leases.residenceUnitId
     var tenant by User referencedOn Leases.tenantId
+    var guarantor by Guarantor optionalReferencedOn Leases.guarantorId
     var durationMonths by Leases.durationMonths
     var paymentFrequency by Leases.paymentFrequencyDto
     var depositAmount by Leases.depositAmount

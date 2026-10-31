@@ -1,12 +1,16 @@
 package com.resid.manager.features.residences.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -14,7 +18,12 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -24,9 +33,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
@@ -34,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.UserRole
 import com.resid.manager.features.residences.ResidencesViewModel
+import com.resid.manager.features.residences.mvi.ResidenceSortOption
 import com.resid.manager.features.residences.mvi.ResidencesEffect
 import com.resid.manager.features.residences.mvi.ResidencesIntent
 import com.resid.manager.features.residences.mvi.ResidencesUiState
@@ -53,11 +66,18 @@ import org.koin.compose.koinInject
 fun ResidencesScreen(
     jwtToken: String?,
     userId: String?,
+    activeResidenceId: String? = null,
     viewModel: ResidencesViewModel = koinInject(),
     onNavigateToDashboard: (ResidenceContext) -> Unit = {},
     onResidenceCreated: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(activeResidenceId) {
+        if (activeResidenceId != null) {
+            viewModel.onIntent(ResidencesIntent.SetSelectedResidenceId(activeResidenceId))
+        }
+    }
 
     LaunchedEffect(jwtToken) {
         val token = jwtToken ?: return@LaunchedEffect
@@ -148,8 +168,36 @@ fun ResidencesContent(
     onResidenceSelected: (ResidenceContext) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val ownedResidences = uiState.residences.filter { it.userRoleInResidence == UserRole.OWNER }
-    val associatedResidences = uiState.residences.filter { it.userRoleInResidence != UserRole.OWNER }
+    val selectedId = uiState.selectedResidenceId
+
+    // 1. Sort residences according to sortOption
+    val sortedResidences = remember(uiState.residences, uiState.sortOption, uiState.consultedTimestamps, selectedId) {
+        val list = uiState.residences
+        when (uiState.sortOption) {
+            ResidenceSortOption.SELECTED_FIRST -> {
+                list.sortedWith(
+                    compareByDescending<ResidenceContext> { it.residenceId == selectedId }
+                        .thenBy { it.residenceName.lowercase() }
+                )
+            }
+            ResidenceSortOption.LAST_CONSULTED -> {
+                list.sortedWith(
+                    compareByDescending<ResidenceContext> { it.residenceId == selectedId }
+                        .thenByDescending { uiState.consultedTimestamps[it.residenceId] ?: 0L }
+                        .thenBy { it.residenceName.lowercase() }
+                )
+            }
+            ResidenceSortOption.NAME_ASC -> {
+                list.sortedWith(
+                    compareByDescending<ResidenceContext> { it.residenceId == selectedId }
+                        .thenBy { it.residenceName.lowercase() }
+                )
+            }
+        }
+    }
+
+    val ownedResidences = sortedResidences.filter { it.userRoleInResidence == UserRole.OWNER }
+    val associatedResidences = sortedResidences.filter { it.userRoleInResidence != UserRole.OWNER }
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val currentResidences = if (selectedTabIndex == 0) ownedResidences else associatedResidences
@@ -180,22 +228,64 @@ fun ResidencesContent(
                     onJoinClick = { onIntent(ResidencesIntent.SetShowJoinDialog(true)) }
                 )
             } else {
-                // Segmented button to switch between Owned and Associated residences
-                SingleChoiceSegmentedButtonRow(
-                    modifier = Modifier.widthIn(max = 500.dp).fillMaxWidth()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    SegmentedButton(
-                        selected = selectedTabIndex == 0,
-                        onClick = { selectedTabIndex = 0 },
-                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                        label = { Text("Propriétés gérées (${ownedResidences.size})") }
-                    )
-                    SegmentedButton(
-                        selected = selectedTabIndex == 1,
-                        onClick = { selectedTabIndex = 1 },
-                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                        label = { Text("Propriétés associées (${associatedResidences.size})") }
-                    )
+                    // Segmented button to switch between Owned and Associated residences
+                    SingleChoiceSegmentedButtonRow(
+                        modifier = Modifier.width(420.dp)
+                    ) {
+                        SegmentedButton(
+                            selected = selectedTabIndex == 0,
+                            onClick = { selectedTabIndex = 0 },
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                            label = { Text("Propriétés gérées (${ownedResidences.size})") }
+                        )
+                        SegmentedButton(
+                            selected = selectedTabIndex == 1,
+                            onClick = { selectedTabIndex = 1 },
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                            label = { Text("Propriétés associées (${associatedResidences.size})") }
+                        )
+                    }
+
+                    // Sort dropdown button
+                    var sortMenuExpanded by remember { mutableStateOf(false) }
+                    Box {
+                        OutlinedButton(
+                            onClick = { sortMenuExpanded = true }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.List,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(uiState.sortOption.label)
+                        }
+
+                        DropdownMenu(
+                            expanded = sortMenuExpanded,
+                            onDismissRequest = { sortMenuExpanded = false }
+                        ) {
+                            ResidenceSortOption.entries.forEach { option ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = option.label,
+                                            color = if (uiState.sortOption == option) Color(0xFF006948) else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    },
+                                    onClick = {
+                                        onIntent(ResidencesIntent.SetSortOption(option))
+                                        sortMenuExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
 
                 if (currentResidences.isEmpty()) {
@@ -216,9 +306,11 @@ fun ResidencesContent(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(currentResidences, key = { it.residenceId }) { residence ->
+                            val isSelected = residence.residenceId == selectedId
                             if (selectedTabIndex == 0) {
                                 OwnedPropertyCard(
                                     residence = residence,
+                                    isSelected = isSelected,
                                     onClick = { onResidenceSelected(residence) },
                                     onEditClick = { onIntent(ResidencesIntent.SetEditingResidence(residence)) },
                                     onDeleteClick = { onIntent(ResidencesIntent.SetDeletingResidence(residence)) },
@@ -227,6 +319,7 @@ fun ResidencesContent(
                             } else {
                                 AssociatedPropertyCard(
                                     residence = residence,
+                                    isSelected = isSelected,
                                     onClick = { onResidenceSelected(residence) },
                                     modifier = Modifier.fillMaxWidth()
                                 )
@@ -242,9 +335,11 @@ fun ResidencesContent(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(currentResidences, key = { it.residenceId }) { residence ->
+                            val isSelected = residence.residenceId == selectedId
                             if (selectedTabIndex == 0) {
                                 OwnedPropertyCard(
                                     residence = residence,
+                                    isSelected = isSelected,
                                     onClick = { onResidenceSelected(residence) },
                                     onEditClick = { onIntent(ResidencesIntent.SetEditingResidence(residence)) },
                                     onDeleteClick = { onIntent(ResidencesIntent.SetDeletingResidence(residence)) },
@@ -253,6 +348,7 @@ fun ResidencesContent(
                             } else {
                                 AssociatedPropertyCard(
                                     residence = residence,
+                                    isSelected = isSelected,
                                     onClick = { onResidenceSelected(residence) },
                                     modifier = Modifier.fillMaxWidth()
                                 )

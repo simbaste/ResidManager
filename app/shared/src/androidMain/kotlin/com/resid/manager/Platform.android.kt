@@ -98,6 +98,23 @@ class AndroidSessionStorage(private val context: Context) : SessionStorage {
     override fun loadLastSelectedResidenceId(): String? {
         return prefs.getString(lastSelectedResidenceKey, null)
     }
+
+    override fun saveResidenceConsulted(residenceId: String, timestamp: Long) {
+        prefs.edit {
+            putLong("residence_consulted_$residenceId", timestamp)
+        }
+    }
+
+    override fun loadResidenceConsultedTimestamps(): Map<String, Long> {
+        val result = mutableMapOf<String, Long>()
+        prefs.all.forEach { (key, value) ->
+            if (key.startsWith("residence_consulted_") && value is Long) {
+                val resId = key.removePrefix("residence_consulted_")
+                result[resId] = value
+            }
+        }
+        return result
+    }
 }
 
 actual fun createPlatformSessionStorage(): SessionStorage? {

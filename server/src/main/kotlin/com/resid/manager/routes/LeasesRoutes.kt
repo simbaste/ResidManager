@@ -111,5 +111,13 @@ fun Route.leasesRoutes() {
                 LeaseService.updateLeaseStatus(requesterId, leaseId, status)
             }
         }
+
+        // GET /api/tenants/{tenantId}/guarantors : List guarantors associated with a tenant
+        get("/api/tenants/{tenantId}/guarantors") {
+            call.executeRequest(HttpStatusCode.OK) {
+                val tenantId = call.getPathUuid("tenantId")
+                LeaseService.getGuarantorsByTenant(tenantId)
+            }
+        }
     }
 }

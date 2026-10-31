@@ -46,7 +46,21 @@ data class LeaseDto(
     val updatedAt: String,
     val paymentFrequencyDto: PaymentFrequencyDto = PaymentFrequencyDto.MONTHLY,
     val advanceMonths: Int = 1,
-    val payments: List<LeasePaymentDto> = emptyList()
+    val payments: List<LeasePaymentDto> = emptyList(),
+    val guarantor: GuarantorDto? = null
+)
+
+@Serializable
+data class GuarantorDto(
+    val id: String? = null,
+    val tenantId: String? = null,
+    val lastName: String = "",
+    val firstName: String = "",
+    val phone: String = "",
+    val monthlySalary: Double? = null,
+    val relationship: String? = null,
+    val jobTitle: String? = null,
+    val employer: String? = null
 )
 
 @Serializable
@@ -69,7 +83,9 @@ data class LeaseCreateRequest(
     val endDate: String,   // ISO-8601 Date String
     val monthlyRentAtSign: Double, //
     val advanceMonths: Int? = null,
-    val advancePaymentAmount: Double? = null
+    val advancePaymentAmount: Double? = null,
+    val guarantorId: String? = null,
+    val guarantor: GuarantorDto? = null
 )
 
 @Serializable

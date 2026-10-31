@@ -15,16 +15,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Apartment
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -92,14 +92,14 @@ fun SidebarContent(
                 }
 
                 val icon = when (item) {
-                    AppScreen.DASHBOARD -> Icons.Default.Home
-                    AppScreen.RESIDENCES -> Icons.Default.LocationOn
-                    AppScreen.UNITS -> Icons.Default.Build
-                    AppScreen.LEASES -> Icons.Default.DateRange
-                    AppScreen.MEMBERS -> Icons.Default.Person
-                    AppScreen.ELECTRICITY -> Icons.Default.Settings
-                    AppScreen.TICKETS -> Icons.Default.Warning
-                    AppScreen.FINANCES -> Icons.Default.Star
+                    AppScreen.DASHBOARD -> Icons.Default.Dashboard
+                    AppScreen.RESIDENCES -> Icons.Default.Apartment
+                    AppScreen.UNITS -> Icons.Default.MeetingRoom
+                    AppScreen.LEASES -> Icons.Default.Description
+                    AppScreen.MEMBERS -> Icons.Default.People
+                    AppScreen.ELECTRICITY -> Icons.Default.Bolt
+                    AppScreen.TICKETS -> Icons.Default.Build
+                    AppScreen.FINANCES -> Icons.Default.AccountBalanceWallet
                     AppScreen.PROFILE -> Icons.Default.AccountCircle
                 }
 

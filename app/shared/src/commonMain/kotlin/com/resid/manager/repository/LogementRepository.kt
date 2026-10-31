@@ -1,6 +1,5 @@
 package com.resid.manager.repository
 
-import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.dto.ResidenceUnitCreateRequest
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.network.ApiClient
@@ -38,8 +37,8 @@ class ResidenceUnitRepositoryImpl(
             if (response.status == HttpStatusCode.OK) {
                 Result.success(response.body<List<ResidenceUnitDto>>())
             } else {
-                val errorBody = response.body<ErrorResponse>()
-                Result.failure(Exception(errorBody.message))
+                val errorMsg = ApiClient.parseErrorMessage(response, "Erreur lors de la récupération des logements.")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de chargement : ${e.message}"))
@@ -62,8 +61,8 @@ class ResidenceUnitRepositoryImpl(
             if (response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) {
                 Result.success(response.body<ResidenceUnitDto>())
             } else {
-                val errorBody = response.body<ErrorResponse>()
-                Result.failure(Exception(errorBody.message))
+                val errorMsg = ApiClient.parseErrorMessage(response, "Erreur lors de la création du logement.")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de création : ${e.message}"))
@@ -81,8 +80,8 @@ class ResidenceUnitRepositoryImpl(
             if (response.status == HttpStatusCode.OK) {
                 Result.success(Unit)
             } else {
-                val errorBody = response.body<ErrorResponse>()
-                Result.failure(Exception(errorBody.message))
+                val errorMsg = ApiClient.parseErrorMessage(response, "Erreur lors de la suppression du logement.")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de suppression : ${e.message}"))
@@ -107,8 +106,8 @@ class ResidenceUnitRepositoryImpl(
             if (response.status == HttpStatusCode.OK) {
                 Result.success(response.body<ResidenceUnitDto>())
             } else {
-                val errorBody = response.body<ErrorResponse>()
-                Result.failure(Exception(errorBody.message))
+                val errorMsg = ApiClient.parseErrorMessage(response, "Erreur lors de la mise à jour du logement.")
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de modification : ${e.message}"))

@@ -82,6 +82,26 @@ class IOSSessionStorage : SessionStorage {
     override fun loadLastSelectedResidenceId(): String? {
         return userDefaults.stringForKey(lastSelectedResidenceKey)
     }
+
+    override fun saveResidenceConsulted(residenceId: String, timestamp: Long) {
+        userDefaults.setObject(timestamp.toString(), forKey = "residence_consulted_$residenceId")
+    }
+
+    override fun loadResidenceConsultedTimestamps(): Map<String, Long> {
+        val result = mutableMapOf<String, Long>()
+        val dict = userDefaults.dictionaryRepresentation()
+        for ((key, value) in dict) {
+            val keyStr = key.toString()
+            if (keyStr.startsWith("residence_consulted_")) {
+                val resId = keyStr.removePrefix("residence_consulted_")
+                val ts = (value as? String)?.toLongOrNull() ?: (value as? Long)
+                if (ts != null) {
+                    result[resId] = ts
+                }
+            }
+        }
+        return result
+    }
 }
 
 actual fun createPlatformSessionStorage(): SessionStorage? = IOSSessionStorage()
