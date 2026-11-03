@@ -96,6 +96,53 @@ fun Route.residencesRoutes() {
                 }
             }
 
+            // POST /api/residences/{id}/photo-ticket : Get presigned upload ticket for residence photo
+            post("/{id}/photo-ticket") {
+                call.executeRequest(HttpStatusCode.OK) {
+                    val userId = call.getRequesterUuid()
+                    val residenceId = call.getPathUuid("id")
+                    if (!ResidenceService.isResidenceAdmin(userId, residenceId)) {
+                        throw com.resid.manager.data.HttpError(HttpStatusCode.Forbidden, "Accès interdit : Seuls les administrateurs peuvent modifier cette résidence.")
+                    }
+                    val request = call.receive<com.resid.manager.dto.AvatarUploadTicketRequest>()
+                    val storageService = com.resid.manager.storage.R2StorageService()
+                    storageService.generateResidencePhotoUploadTicket(
+                        residenceId = residenceId.toString(),
+                        extension = request.extension,
+                        mimeType = request.mimeType
+                    )
+                }
+            }
+
+            // PUT /api/residences/{id}/photo : Update photo URL of a residence
+            put("/{id}/photo") {
+                call.executeRequest(HttpStatusCode.OK) {
+                    val userId = call.getRequesterUuid()
+                    val residenceId = call.getPathUuid("id")
+                    val request = call.receive<com.resid.manager.dto.ResidencePhotoUpdateRequest>()
+                    ResidenceService.updateResidencePhoto(userId, residenceId, request.photoUrl)
+                }
+            }
+
+            // GET /api/residences/{id}/photos : Get residence gallery photos
+            get("/{id}/photos") {
+                call.executeRequest(HttpStatusCode.OK) {
+                    val userId = call.getRequesterUuid()
+                    val residenceId = call.getPathUuid("id")
+                    ResidenceService.getResidencePhotos(userId, residenceId)
+                }
+            }
+
+            // PUT /api/residences/{id}/photos : Update residence gallery photos
+            put("/{id}/photos") {
+                call.executeRequest(HttpStatusCode.OK) {
+                    val userId = call.getRequesterUuid()
+                    val residenceId = call.getPathUuid("id")
+                    val request = call.receive<com.resid.manager.dto.ResidencePhotosUpdateRequest>()
+                    ResidenceService.updateResidencePhotos(userId, residenceId, request.photos)
+                }
+            }
+
             // DELETE /api/residences/{id} : Delete a residence
             delete("/{id}") {
                 call.executeRequest(HttpStatusCode.OK) {

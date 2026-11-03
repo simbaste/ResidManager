@@ -179,10 +179,15 @@ fun AppShell(
                                         activeResidenceId = uiState.selectedResidenceContext?.residenceId,
                                         onNavigateToDashboard = { residence ->
                                             viewModel.selectResidence(residence)
-                                            viewModel.navigateToAppScreen(AppScreen.DASHBOARD)
+                                        },
+                                        onResidenceActivated = { residence ->
+                                            viewModel.selectResidence(residence)
                                         },
                                         onResidenceCreated = { newResidenceId ->
                                             viewModel.fetchResidences(autoSelectResidenceId = newResidenceId)
+                                        },
+                                        onNavigateToUnits = {
+                                            viewModel.navigateToAppScreen(AppScreen.UNITS)
                                         }
                                     )
                                 }

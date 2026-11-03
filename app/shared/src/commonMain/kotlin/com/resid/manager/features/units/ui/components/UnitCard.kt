@@ -71,18 +71,27 @@ fun ResidenceUnitCard(
                     .height(160.dp)
                     .background(Color(0xFFE2E8F0))
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Home,
-                        contentDescription = null,
-                        tint = Color(0xFF94A3B8),
-                        modifier = Modifier.size(48.dp)
+                if (!residenceUnit.photoUrl.isNullOrBlank()) {
+                    coil3.compose.AsyncImage(
+                        model = residenceUnit.photoUrl,
+                        contentDescription = residenceUnit.name,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Home,
+                            contentDescription = null,
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
                 }
 
                 Card(

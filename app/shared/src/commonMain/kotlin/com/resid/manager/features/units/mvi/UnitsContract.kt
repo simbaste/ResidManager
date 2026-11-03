@@ -1,7 +1,9 @@
 package com.resid.manager.features.units.mvi
 
 import com.resid.manager.dto.EquipmentDto
+import com.resid.manager.dto.ResidencePhotoDto
 import com.resid.manager.dto.ResidenceUnitDto
+import com.resid.manager.features.residences.mvi.ResidenceViewMode
 
 data class UnitsUiState(
     val isLoading: Boolean = false,
@@ -11,6 +13,9 @@ data class UnitsUiState(
     val deletingUnitId: String? = null,
     val assigningLeaseUnitId: String? = null,
     val showCreateDialog: Boolean = false,
+    val viewMode: ResidenceViewMode = ResidenceViewMode.GRID,
+    val detailUnitPhotos: List<ResidencePhotoDto> = emptyList(),
+    val isSavingPhotos: Boolean = false,
     val availableEquipments: List<EquipmentDto> = emptyList(),
     val errorMessage: String? = null
 )
@@ -18,6 +23,14 @@ data class UnitsUiState(
 sealed interface UnitsIntent {
     data class LoadUnits(val token: String, val residenceId: String) : UnitsIntent
     data class SelectUnitForDetail(val unit: ResidenceUnitDto?) : UnitsIntent
+    data class SetViewMode(val mode: ResidenceViewMode) : UnitsIntent
+    data class LoadUnitPhotos(val token: String, val residenceId: String, val unitId: String) : UnitsIntent
+    data class UpdateUnitPhotos(
+        val token: String,
+        val residenceId: String,
+        val unitId: String,
+        val photos: List<com.resid.manager.features.residences.usecase.PhotoUploadItem>
+    ) : UnitsIntent
     data class SetEditingUnit(val unit: ResidenceUnitDto?) : UnitsIntent
     data class SetDeletingUnitId(val unitId: String?) : UnitsIntent
     data class SetAssigningLeaseUnitId(val unitId: String?) : UnitsIntent

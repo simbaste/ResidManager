@@ -11,5 +11,6 @@ data class ResidenceContext(
     val totalUnits: Int = 0,
     val currencySymbol: String = "FCFA",
     val currencyCode: String = "XOF",
-    val kWhPrice: Double = 150.0
+    val kWhPrice: Double = 150.0,
+    val photoUrl: String? = null
 )

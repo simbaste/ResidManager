@@ -62,6 +62,68 @@ class R2StorageService(
         )
     }
 
+    suspend fun generateResidencePhotoUploadTicket(residenceId: String, extension: String, mimeType: String): AvatarUploadTicketResponse {
+        val normalizedMimeType = mimeType.trim().lowercase()
+        val normalizedExtension = extension.trim().lowercase().removePrefix(".")
+
+        val allowedExtensionsForMime = allowedMimeTypes[normalizedMimeType]
+        if (allowedExtensionsForMime == null || !allowedExtensionsForMime.contains(normalizedExtension)) {
+            throw HttpError(
+                HttpStatusCode.BadRequest,
+                "Format d'image non supporté. Types acceptés : image/jpeg (.jpg, .jpeg), image/png (.png), image/webp (.webp)."
+            )
+        }
+
+        val key = "residences/$residenceId/${UUID.randomUUID()}.$normalizedExtension"
+        val putRequest = PutObjectRequest {
+            bucket = config.bucketName
+            this.key = key
+            contentType = normalizedMimeType
+        }
+
+        val presignedUrl = client.presignPutObject(putRequest, 300.seconds)
+
+        val uploadUrl = presignedUrl.url.toString()
+        val publicUrl = "${config.publicDomain}/$key"
+
+        return AvatarUploadTicketResponse(
+            uploadUrl = uploadUrl,
+            publicUrl = publicUrl,
+            expiresInSeconds = 300
+        )
+    }
+
+    suspend fun generateUnitPhotoUploadTicket(unitId: String, extension: String, mimeType: String): AvatarUploadTicketResponse {
+        val normalizedMimeType = mimeType.trim().lowercase()
+        val normalizedExtension = extension.trim().lowercase().removePrefix(".")
+
+        val allowedExtensionsForMime = allowedMimeTypes[normalizedMimeType]
+        if (allowedExtensionsForMime == null || !allowedExtensionsForMime.contains(normalizedExtension)) {
+            throw HttpError(
+                HttpStatusCode.BadRequest,
+                "Format d'image non supporté. Types acceptés : image/jpeg (.jpg, .jpeg), image/png (.png), image/webp (.webp)."
+            )
+        }
+
+        val key = "units/$unitId/${UUID.randomUUID()}.$normalizedExtension"
+        val putRequest = PutObjectRequest {
+            bucket = config.bucketName
+            this.key = key
+            contentType = normalizedMimeType
+        }
+
+        val presignedUrl = client.presignPutObject(putRequest, 300.seconds)
+
+        val uploadUrl = presignedUrl.url.toString()
+        val publicUrl = "${config.publicDomain}/$key"
+
+        return AvatarUploadTicketResponse(
+            uploadUrl = uploadUrl,
+            publicUrl = publicUrl,
+            expiresInSeconds = 300
+        )
+    }
+
     suspend fun deleteFileByUrl(publicUrl: String?) {
         if (publicUrl.isNullOrBlank()) return
         val domain = config.publicDomain.trimEnd('/')

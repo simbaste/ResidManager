@@ -24,6 +24,7 @@ class FetchResidencesUseCase(
                     totalUnits = it.totalUnits,
                     currencySymbol = appCurrency.symbol,
                     currencyCode = appCurrency.code,
+                    photoUrl = it.photoUrl
                 )
             }
             val associated = directory.associatedResidences.map {
@@ -36,6 +37,7 @@ class FetchResidencesUseCase(
                     totalUnits = it.totalUnits,
                     currencySymbol = appCurrency.symbol,
                     currencyCode = appCurrency.code,
+                    photoUrl = it.photoUrl
                 )
             }
             owned + associated

@@ -13,15 +13,20 @@ import kotlinx.coroutines.launch
 
 class UnitsViewModel(
     private val fetchUnitsUseCase: FetchUnitsUseCase,
+    private val fetchUnitPhotosUseCase: com.resid.manager.features.units.usecase.FetchUnitPhotosUseCase,
     private val createUnitUseCase: CreateUnitUseCase,
     private val updateUnitUseCase: UpdateUnitUseCase,
+    private val updateUnitPhotosUseCase: com.resid.manager.features.units.usecase.UpdateUnitPhotosUseCase,
     private val deleteUnitUseCase: DeleteUnitUseCase
 ) : MviViewModel<UnitsUiState, UnitsIntent, UnitsEffect>(UnitsUiState()) {
 
     override fun onIntent(intent: UnitsIntent) {
         when (intent) {
             is UnitsIntent.LoadUnits -> loadUnits(intent.token, intent.residenceId)
-            is UnitsIntent.SelectUnitForDetail -> updateState { it.copy(selectedUnitForDetail = intent.unit) }
+            is UnitsIntent.SelectUnitForDetail -> updateState { it.copy(selectedUnitForDetail = intent.unit, detailUnitPhotos = emptyList()) }
+            is UnitsIntent.SetViewMode -> updateState { it.copy(viewMode = intent.mode) }
+            is UnitsIntent.LoadUnitPhotos -> loadUnitPhotos(intent.token, intent.residenceId, intent.unitId)
+            is UnitsIntent.UpdateUnitPhotos -> updateUnitPhotos(intent.token, intent.residenceId, intent.unitId, intent.photos)
             is UnitsIntent.SetEditingUnit -> updateState { it.copy(editingUnit = intent.unit) }
             is UnitsIntent.SetDeletingUnitId -> updateState { it.copy(deletingUnitId = intent.unitId) }
             is UnitsIntent.SetAssigningLeaseUnitId -> updateState { it.copy(assigningLeaseUnitId = intent.unitId) }
@@ -29,6 +34,38 @@ class UnitsViewModel(
             is UnitsIntent.CreateUnit -> createUnit(intent)
             is UnitsIntent.UpdateUnit -> updateUnit(intent)
             is UnitsIntent.DeleteUnit -> deleteUnit(intent)
+        }
+    }
+
+    private fun loadUnitPhotos(token: String, residenceId: String, unitId: String) {
+        viewModelScope.launch {
+            fetchUnitPhotosUseCase(token, residenceId, unitId)
+                .onSuccess { list ->
+                    updateState { it.copy(detailUnitPhotos = list) }
+                }
+                .onFailure { error ->
+                    updateState { it.copy(errorMessage = error.message) }
+                }
+        }
+    }
+
+    private fun updateUnitPhotos(
+        token: String,
+        residenceId: String,
+        unitId: String,
+        photos: List<com.resid.manager.features.residences.usecase.PhotoUploadItem>
+    ) {
+        viewModelScope.launch {
+            updateState { it.copy(isSavingPhotos = true, errorMessage = null) }
+            updateUnitPhotosUseCase(token, residenceId, unitId, photos)
+                .onSuccess { updatedPhotos ->
+                    updateState { it.copy(isSavingPhotos = false, detailUnitPhotos = updatedPhotos) }
+                    emitEffect(UnitsEffect.ShowToast("Photos du logement enregistrées avec succès !"))
+                    loadUnits(token, residenceId)
+                }
+                .onFailure { error ->
+                    updateState { it.copy(isSavingPhotos = false, errorMessage = error.message) }
+                }
         }
     }
 

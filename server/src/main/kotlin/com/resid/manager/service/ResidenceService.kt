@@ -28,6 +28,7 @@ import com.resid.manager.dto.ResidenceSummaryItemDto
 import io.ktor.http.HttpStatusCode
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.deleteWhere
@@ -41,13 +42,30 @@ import java.util.UUID
 
 object ResidenceService {
 
-    suspend fun isResidenceAdmin(userId: UUID, residenceId: UUID): Boolean = dbQuery {
-        ResidenceMembers.select(ResidenceMembers.role)
+    private fun checkResidenceAdmin(userId: UUID, residenceId: UUID): Boolean {
+        return ResidenceMembers.select(ResidenceMembers.role)
             .where {
                 (ResidenceMembers.userId eq userId) and
                 (ResidenceMembers.residenceId eq residenceId) and
                 (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
             }.any { it[ResidenceMembers.role].isAdmin() }
+    }
+
+    private fun checkResidenceMember(userId: UUID, residenceId: UUID): Boolean {
+        return ResidenceMembers.select(ResidenceMembers.role)
+            .where {
+                (ResidenceMembers.userId eq userId) and
+                (ResidenceMembers.residenceId eq residenceId) and
+                (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
+            }.any()
+    }
+
+    suspend fun isResidenceAdmin(userId: UUID, residenceId: UUID): Boolean = dbQuery {
+        checkResidenceAdmin(userId, residenceId)
+    }
+
+    suspend fun isResidenceMember(userId: UUID, residenceId: UUID): Boolean = dbQuery {
+        checkResidenceMember(userId, residenceId)
     }
 
     suspend fun isResidenceOwner(userId: UUID, residenceId: UUID): Boolean = dbQuery {
@@ -179,7 +197,7 @@ object ResidenceService {
         val r = Residence.new {
             name = request.name
             address = request.address
-            photoUrl = null
+            photoUrl = request.photoUrl
             currency = selectedCurrency
             kWhPrice = request.kWhPrice
             createdAt = now
@@ -227,6 +245,9 @@ object ResidenceService {
 
         dbResidence.name = request.name
         dbResidence.address = request.address
+        if (request.photoUrl != null) {
+            dbResidence.photoUrl = request.photoUrl
+        }
         dbResidence.currency = selectedCurrency
         dbResidence.kWhPrice = request.kWhPrice
         dbResidence.updatedAt = LocalDateTime.now(Clock.systemUTC())
@@ -263,6 +284,133 @@ object ResidenceService {
         dbResidence.currency = selectedCurrency
         dbResidence.updatedAt = LocalDateTime.now(Clock.systemUTC())
         dbResidence.flush()
+    }
+
+    suspend fun updateResidencePhoto(userId: UUID, residenceId: UUID, photoUrl: String): ResidenceSummaryItemDto = dbQuery {
+        val dbResidence = Residence.findById(residenceId)
+            ?: throw HttpError(HttpStatusCode.NotFound, "Résidence introuvable.")
+
+        if (!isResidenceAdmin(userId, residenceId)) {
+            throw HttpError(HttpStatusCode.Forbidden, "Accès interdit: Seuls les propriétaires et administrateurs peuvent modifier cette résidence.")
+        }
+
+        dbResidence.photoUrl = photoUrl
+        dbResidence.updatedAt = LocalDateTime.now(Clock.systemUTC())
+        dbResidence.flush()
+
+        val totalUnits = ResidenceUnits.select(ResidenceUnits.id)
+            .where { ResidenceUnits.residenceId eq residenceId }
+            .count()
+            .toInt()
+
+        ResidenceSummaryItemDto(
+            id = dbResidence.id.value.toString(),
+            name = dbResidence.name,
+            address = dbResidence.address,
+            photoUrl = dbResidence.photoUrl,
+            totalUnits = totalUnits,
+            currencyCode = dbResidence.currency.code.convert(),
+            currencySymbol = dbResidence.currency.symbol.convert(),
+            kWhPrice = dbResidence.kWhPrice
+        )
+    }
+
+    suspend fun getResidencePhotos(userId: UUID, residenceId: UUID): List<com.resid.manager.dto.ResidencePhotoDto> = dbQuery {
+        if (!checkResidenceMember(userId, residenceId)) {
+            throw HttpError(HttpStatusCode.Forbidden, "Accès interdit.")
+        }
+        val photos = com.resid.manager.data.ResidencePhoto.find {
+            com.resid.manager.data.ResidencePhotos.residenceId eq residenceId
+        }.sortedBy { it.sortOrder }
+
+        if (photos.isEmpty()) {
+            val dbResidence = Residence.findById(residenceId)
+            if (dbResidence?.photoUrl != null && dbResidence.photoUrl!!.isNotBlank()) {
+                listOf(com.resid.manager.dto.ResidencePhotoDto(url = dbResidence.photoUrl!!, description = "Photo principale"))
+            } else {
+                emptyList()
+            }
+        } else {
+            photos.map { com.resid.manager.dto.ResidencePhotoDto(url = it.url, description = it.description) }
+        }
+    }
+
+    suspend fun updateResidencePhotos(
+        userId: UUID,
+        residenceId: UUID,
+        newPhotos: List<com.resid.manager.dto.ResidencePhotoDto>
+    ): List<com.resid.manager.dto.ResidencePhotoDto> {
+        val (photosToDeleteUrls, newPhotosList) = dbQuery {
+            val dbResidence = Residence.findById(residenceId)
+                ?: throw HttpError(HttpStatusCode.NotFound, "Résidence introuvable.")
+
+            if (!checkResidenceAdmin(userId, residenceId)) {
+                throw HttpError(HttpStatusCode.Forbidden, "Accès interdit: Seuls les propriétaires et administrateurs peuvent modifier cette résidence.")
+            }
+
+            // Récupérer les photos existantes avec Exposed DSL direct
+            val existingPhotos = com.resid.manager.data.ResidencePhotos.select(
+                com.resid.manager.data.ResidencePhotos.id,
+                com.resid.manager.data.ResidencePhotos.url
+            ).where {
+                com.resid.manager.data.ResidencePhotos.residenceId eq residenceId
+            }.map {
+                it[com.resid.manager.data.ResidencePhotos.id].value to it[com.resid.manager.data.ResidencePhotos.url]
+            }
+
+            val newUrls = newPhotos.map { it.url }.toSet()
+            val photosToDelete = existingPhotos.filter { it.second !in newUrls }
+            val deleteUrls = photosToDelete.map { it.second }
+
+            // Supprimer les photos retirées
+            if (photosToDelete.isNotEmpty()) {
+                val deleteIds = photosToDelete.map { it.first }
+                com.resid.manager.data.ResidencePhotos.deleteWhere {
+                    com.resid.manager.data.ResidencePhotos.id inList deleteIds
+                }
+            }
+
+            // Mettre à jour ou insérer chaque photo via Exposed DSL explicite
+            val now = LocalDateTime.now(Clock.systemUTC())
+            newPhotos.forEachIndexed { index, photoDto ->
+                val existing = existingPhotos.find { it.second == photoDto.url }
+                if (existing != null) {
+                    com.resid.manager.data.ResidencePhotos.update({ com.resid.manager.data.ResidencePhotos.id eq existing.first }) {
+                        it[description] = photoDto.description
+                        it[sortOrder] = index
+                        it[updatedAt] = now
+                    }
+                } else {
+                    com.resid.manager.data.ResidencePhotos.insert {
+                        it[id] = UUID.randomUUID()
+                        it[com.resid.manager.data.ResidencePhotos.residenceId] = residenceId
+                        it[url] = photoDto.url
+                        it[description] = photoDto.description
+                        it[sortOrder] = index
+                        it[createdAt] = now
+                        it[updatedAt] = now
+                    }
+                }
+            }
+
+            dbResidence.photoUrl = newPhotos.firstOrNull()?.url
+            dbResidence.updatedAt = now
+            dbResidence.flush()
+
+            Pair(deleteUrls, newPhotos)
+        }
+
+        // Nettoyage Cloudflare R2 hors de la transaction DB
+        val r2Service = com.resid.manager.storage.R2StorageService()
+        photosToDeleteUrls.forEach { url ->
+            try {
+                r2Service.deleteFileByUrl(url)
+            } catch (e: Exception) {
+                println("Avertissement suppression R2 pour $url: ${e.message}")
+            }
+        }
+
+        return newPhotosList
     }
 
     suspend fun deleteResidence(userId: UUID, residenceId: UUID) = dbQuery {

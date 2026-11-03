@@ -9,14 +9,24 @@ enum class ResidenceSortOption(val label: String) {
     NAME_ASC("Nom (A - Z)")
 }
 
+enum class ResidenceViewMode {
+    GRID,
+    LIST
+}
+
 data class ResidencesUiState(
     val isLoading: Boolean = false,
     val residences: List<ResidenceContext> = emptyList(),
     val selectedResidence: ResidenceContext? = null,
     val selectedResidenceId: String? = null,
+    val selectedResidenceForDetail: ResidenceContext? = null,
+    val detailResidencePhotos: List<com.resid.manager.dto.ResidencePhotoDto> = emptyList(),
+    val isSavingPhotos: Boolean = false,
     val consultedTimestamps: Map<String, Long> = emptyMap(),
     val sortOption: ResidenceSortOption = ResidenceSortOption.SELECTED_FIRST,
+    val viewMode: ResidenceViewMode = ResidenceViewMode.GRID,
     val errorMessage: String? = null,
+    val isUploadingPhoto: Boolean = false,
 
     // Dialog states
     val showCreateDialog: Boolean = false,
@@ -33,8 +43,11 @@ data class ResidencesUiState(
 sealed interface ResidencesIntent {
     data class LoadResidences(val token: String) : ResidencesIntent
     data class SelectResidence(val residence: ResidenceContext) : ResidencesIntent
-    data class CreateResidence(val token: String, val name: String, val address: String, val defaultCurrency: String, val kWhPrice: Double) : ResidencesIntent
-    data class UpdateResidence(val token: String, val residenceId: String, val name: String, val address: String, val kWhPrice: Double) : ResidencesIntent
+    data class SelectResidenceForDetail(val residence: ResidenceContext?) : ResidencesIntent
+    data class LoadResidencePhotos(val token: String, val residenceId: String) : ResidencesIntent
+    data class CreateResidence(val token: String, val name: String, val address: String, val defaultCurrency: String, val kWhPrice: Double, val imageBytes: ByteArray? = null) : ResidencesIntent
+    data class UpdateResidence(val token: String, val residenceId: String, val name: String, val address: String, val kWhPrice: Double, val imageBytes: ByteArray? = null) : ResidencesIntent
+    data class UpdateResidencePhotos(val token: String, val residenceId: String, val photos: List<com.resid.manager.features.residences.usecase.PhotoUploadItem>) : ResidencesIntent
     data class DeleteResidence(val token: String, val residenceId: String) : ResidencesIntent
     data class SearchResidences(val token: String, val query: String) : ResidencesIntent
     data class JoinResidence(val token: String, val userId: String, val residenceId: String) : ResidencesIntent
@@ -45,13 +58,15 @@ sealed interface ResidencesIntent {
     data class SetEditingResidence(val residence: ResidenceContext?) : ResidencesIntent
     data class SetDeletingResidence(val residence: ResidenceContext?) : ResidencesIntent
 
-    // Sorting and selection
+    // View mode and Sorting
+    data class SetViewMode(val mode: ResidenceViewMode) : ResidencesIntent
     data class SetSortOption(val option: ResidenceSortOption) : ResidencesIntent
     data class SetSelectedResidenceId(val residenceId: String?) : ResidencesIntent
 }
 
 sealed interface ResidencesEffect {
     data class NavigateToDashboard(val residence: ResidenceContext) : ResidencesEffect
+    data class NavigateToDetail(val residence: ResidenceContext) : ResidencesEffect
     data class ResidenceCreated(val newResidenceId: String) : ResidencesEffect
     data class ShowToast(val message: String) : ResidencesEffect
 }

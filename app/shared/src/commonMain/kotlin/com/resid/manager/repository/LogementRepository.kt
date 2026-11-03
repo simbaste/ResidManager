@@ -22,6 +22,8 @@ interface ResidenceUnitRepository {
     suspend fun createResidenceUnit(token: String, residenceId: String, request: ResidenceUnitCreateRequest): Result<ResidenceUnitDto>
     suspend fun deleteResidenceUnit(token: String, residenceId: String, residenceUnitId: String): Result<Unit>
     suspend fun updateResidenceUnit(token: String, residenceId: String, residenceUnitId: String, request: ResidenceUnitCreateRequest): Result<ResidenceUnitDto>
+    suspend fun fetchUnitPhotos(token: String, residenceId: String, unitId: String): Result<List<com.resid.manager.dto.ResidencePhotoDto>>
+    suspend fun updateUnitPhotos(token: String, residenceId: String, unitId: String, photos: List<com.resid.manager.dto.ResidencePhotoDto>): Result<List<com.resid.manager.dto.ResidencePhotoDto>>
 }
 
 class ResidenceUnitRepositoryImpl(
@@ -111,6 +113,53 @@ class ResidenceUnitRepositoryImpl(
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de modification : ${e.message}"))
+        }
+    }
+
+    override suspend fun fetchUnitPhotos(
+        token: String,
+        residenceId: String,
+        unitId: String
+    ): Result<List<com.resid.manager.dto.ResidencePhotoDto>> {
+        return try {
+            val response = httpClient.get("${ApiClient.BASE_URL}/api/units/$unitId/photos") {
+                parameter("residenceId", residenceId)
+                header(HttpHeaders.Authorization, "Bearer $token")
+            }
+
+            if (response.status == HttpStatusCode.OK) {
+                Result.success(response.body<List<com.resid.manager.dto.ResidencePhotoDto>>())
+            } else {
+                val errorMsg = ApiClient.parseErrorMessage(response, "Erreur lors de la récupération des photos du logement.")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Erreur lors de la récupération des photos : ${e.message}"))
+        }
+    }
+
+    override suspend fun updateUnitPhotos(
+        token: String,
+        residenceId: String,
+        unitId: String,
+        photos: List<com.resid.manager.dto.ResidencePhotoDto>
+    ): Result<List<com.resid.manager.dto.ResidencePhotoDto>> {
+        return try {
+            val response = httpClient.put("${ApiClient.BASE_URL}/api/units/$unitId/photos") {
+                parameter("residenceId", residenceId)
+                contentType(ContentType.Application.Json)
+                header(HttpHeaders.Authorization, "Bearer $token")
+                setBody(com.resid.manager.dto.ResidencePhotosUpdateRequest(photos = photos))
+            }
+
+            if (response.status == HttpStatusCode.OK) {
+                Result.success(response.body<List<com.resid.manager.dto.ResidencePhotoDto>>())
+            } else {
+                val errorMsg = ApiClient.parseErrorMessage(response, "Erreur lors de la mise à jour des photos du logement.")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Erreur lors de la mise à jour des photos : ${e.message}"))
         }
     }
 }

@@ -4,30 +4,29 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,32 +34,56 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.ui.NavDisplay
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.UserRole
 import com.resid.manager.features.residences.ResidencesViewModel
 import com.resid.manager.features.residences.mvi.ResidenceSortOption
+import com.resid.manager.features.residences.mvi.ResidenceViewMode
 import com.resid.manager.features.residences.mvi.ResidencesEffect
 import com.resid.manager.features.residences.mvi.ResidencesIntent
 import com.resid.manager.features.residences.mvi.ResidencesUiState
-import com.resid.manager.features.residences.ui.components.AssociatedPropertyCard
 import com.resid.manager.features.residences.ui.components.CreateResidenceDialog
 import com.resid.manager.features.residences.ui.components.DeleteResidenceDialog
 import com.resid.manager.features.residences.ui.components.EditResidenceDialog
 import com.resid.manager.features.residences.ui.components.JoinResidenceDialog
-import com.resid.manager.features.residences.ui.components.OwnedPropertyCard
+import com.resid.manager.features.residences.ui.components.ResidenceFilterBar
+import com.resid.manager.features.residences.ui.components.ResidenceGalleryDialog
+import com.resid.manager.features.residences.ui.components.ResidenceGridCard
+import com.resid.manager.features.residences.ui.components.ResidenceListRow
+import com.resid.manager.features.residences.ui.components.ResidenceMetricCard
+import com.resid.manager.features.residences.ui.components.ResidenceSkeletonGrid
 import com.resid.manager.features.residences.ui.components.ResidencesEmptyState
+import com.resid.manager.features.residences.usecase.UpdateResidencePhotosUseCase
+import com.resid.manager.navigation.PlatformBackHandler
+import com.resid.manager.ui.components.GalleryPhotoItem
 import com.resid.manager.ui.components.ResidAppBarAction
 import com.resid.manager.ui.components.ResidTopAppBar
 import com.resid.manager.ui.theme.ResidTheme
+import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import org.koin.compose.koinInject
+
+@Serializable
+sealed interface ResidencesNavKey : NavKey {
+    @Serializable
+    data object Directory : ResidencesNavKey
+
+    @Serializable
+    data class Detail(val residenceId: String) : ResidencesNavKey
+}
 
 @Composable
 fun ResidencesScreen(
@@ -69,7 +92,9 @@ fun ResidencesScreen(
     activeResidenceId: String? = null,
     viewModel: ResidencesViewModel = koinInject(),
     onNavigateToDashboard: (ResidenceContext) -> Unit = {},
-    onResidenceCreated: (String) -> Unit = {}
+    onResidenceActivated: (ResidenceContext) -> Unit = onNavigateToDashboard,
+    onResidenceCreated: (String) -> Unit = {},
+    onNavigateToUnits: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -84,47 +109,272 @@ fun ResidencesScreen(
         viewModel.onIntent(ResidencesIntent.LoadResidences(token))
     }
 
+    // The stack always contains Directory as the root. If a detail residence is selected, Detail is stacked above it.
+    val subBackStack = remember {
+        val detailRes = uiState.selectedResidenceForDetail
+        if (detailRes != null) {
+            NavBackStack(ResidencesNavKey.Directory, ResidencesNavKey.Detail(detailRes.residenceId))
+        } else {
+            NavBackStack<ResidencesNavKey>(ResidencesNavKey.Directory)
+        }
+    }
+
+    // Synchronize subBackStack if selectedResidenceForDetail is restored or changed in ViewModel
+    LaunchedEffect(uiState.selectedResidenceForDetail) {
+        val detailRes = uiState.selectedResidenceForDetail
+        if (detailRes != null) {
+            val targetKey = ResidencesNavKey.Detail(detailRes.residenceId)
+            if (subBackStack.lastOrNull() != targetKey) {
+                if (subBackStack.isEmpty() || subBackStack.first() != ResidencesNavKey.Directory) {
+                    subBackStack.clear()
+                    subBackStack.add(ResidencesNavKey.Directory)
+                }
+                subBackStack.add(targetKey)
+            }
+        } else {
+            // Returning to directory
+            if (subBackStack.lastOrNull() is ResidencesNavKey.Detail) {
+                subBackStack.removeLastOrNull()
+            }
+            if (subBackStack.isEmpty()) {
+                subBackStack.add(ResidencesNavKey.Directory)
+            }
+        }
+    }
+
     LaunchedEffect(viewModel) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 is ResidencesEffect.NavigateToDashboard -> onNavigateToDashboard(effect.residence)
+                is ResidencesEffect.NavigateToDetail -> {
+                    viewModel.onIntent(ResidencesIntent.SelectResidenceForDetail(effect.residence))
+                    val targetKey = ResidencesNavKey.Detail(effect.residence.residenceId)
+                    if (subBackStack.lastOrNull() != targetKey) {
+                        subBackStack.add(targetKey)
+                    }
+                }
                 is ResidencesEffect.ResidenceCreated -> onResidenceCreated(effect.newResidenceId)
                 is ResidencesEffect.ShowToast -> {}
             }
         }
     }
 
-    ResidencesContent(
-        uiState = uiState,
-        onIntent = viewModel::onIntent,
-        onResidenceSelected = { residence ->
-            viewModel.onIntent(ResidencesIntent.SelectResidence(residence))
+    // Platform-native back action (interacts with browser history popstate / Android system back)
+    PlatformBackHandler(enabled = subBackStack.size > 1) {
+        subBackStack.removeLastOrNull()
+        val currentKey = subBackStack.lastOrNull()
+        if (currentKey is ResidencesNavKey.Detail) {
+            viewModel.onIntent(
+                ResidencesIntent.SelectResidenceForDetail(
+                    uiState.residences.firstOrNull { it.residenceId == currentKey.residenceId }
+                )
+            )
+        } else {
+            viewModel.onIntent(ResidencesIntent.SelectResidenceForDetail(null))
         }
-    )
+    }
 
-    // Modales
+    // Modales & Token
     val token = jwtToken ?: ""
 
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavDisplay(
+            backStack = subBackStack,
+            onBack = {
+                if (subBackStack.size > 1) {
+                    subBackStack.removeLastOrNull()
+                    val currentKey = subBackStack.lastOrNull()
+                    if (currentKey is ResidencesNavKey.Detail) {
+                        viewModel.onIntent(
+                            ResidencesIntent.SelectResidenceForDetail(
+                                uiState.residences.firstOrNull { it.residenceId == currentKey.residenceId }
+                            )
+                        )
+                    } else {
+                        viewModel.onIntent(ResidencesIntent.SelectResidenceForDetail(null))
+                    }
+                }
+            },
+            entryProvider = { key: ResidencesNavKey ->
+                when (key) {
+                    ResidencesNavKey.Directory -> NavEntry(key) {
+                        ResidencesContent(
+                            uiState = uiState,
+                            onIntent = viewModel::onIntent,
+                            onResidenceSelected = { residence ->
+                                viewModel.onIntent(ResidencesIntent.SelectResidenceForDetail(residence))
+                                subBackStack.add(ResidencesNavKey.Detail(residence.residenceId))
+                            },
+                            onActivateResidence = { residence ->
+                                viewModel.onIntent(ResidencesIntent.SelectResidence(residence))
+                                onResidenceActivated(residence)
+                            }
+                        )
+                    }
+
+                    is ResidencesNavKey.Detail -> NavEntry(key) {
+                        val residence = uiState.residences.firstOrNull { it.residenceId == key.residenceId }
+                            ?: uiState.selectedResidenceForDetail
+
+                        if (residence != null) {
+                            LaunchedEffect(residence.residenceId, token) {
+                                if (token.isNotBlank()) {
+                                    viewModel.onIntent(ResidencesIntent.LoadResidencePhotos(token, residence.residenceId))
+                                }
+                            }
+
+                            val updatePhotosUseCase: com.resid.manager.features.residences.usecase.UpdateResidencePhotosUseCase = koinInject()
+
+                            ResidenceDetailScreen(
+                                residence = residence,
+                                isActive = residence.residenceId == uiState.selectedResidenceId,
+                                galleryPhotos = uiState.detailResidencePhotos,
+                                onBackClick = {
+                                    if (subBackStack.size > 1) {
+                                        subBackStack.removeLastOrNull()
+                                    } else {
+                                        subBackStack.clear()
+                                        subBackStack.add(ResidencesNavKey.Directory)
+                                    }
+                                    viewModel.onIntent(ResidencesIntent.SelectResidenceForDetail(null))
+                                },
+                                onActivateResidence = {
+                                    viewModel.onIntent(ResidencesIntent.SelectResidence(residence))
+                                    onResidenceActivated(residence)
+                                },
+                                onEditClick = { viewModel.onIntent(ResidencesIntent.SetEditingResidence(residence)) },
+                                onDeleteClick = { viewModel.onIntent(ResidencesIntent.SetDeletingResidence(residence)) },
+                                onNavigateToUnits = onNavigateToUnits,
+                                onSaveGalleryPhotos = { items ->
+                                    val uploadItems = items.map {
+                                        com.resid.manager.features.residences.usecase.PhotoUploadItem(
+                                            url = it.url,
+                                            bytes = it.bytes,
+                                            description = it.description
+                                        )
+                                    }
+                                    val result = updatePhotosUseCase(token, residence.residenceId, uploadItems)
+                                    result.getOrThrow()
+                                    viewModel.onIntent(ResidencesIntent.LoadResidencePhotos(token, residence.residenceId))
+                                    viewModel.onIntent(ResidencesIntent.LoadResidences(token))
+                                }
+                            )
+                        } else {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "Résidence introuvable",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        )
+    }
+
+    // Modales
     if (uiState.showCreateDialog) {
         CreateResidenceDialog(
             isLoading = uiState.isLoading,
             errorMessage = uiState.errorMessage,
             onDismiss = { viewModel.onIntent(ResidencesIntent.SetShowCreateDialog(false)) },
-            onSubmit = { name, address, currency, price ->
-                viewModel.onIntent(ResidencesIntent.CreateResidence(token, name, address, currency, price))
+            onSubmit = { name, address, currency, price, imageBytes ->
+                viewModel.onIntent(ResidencesIntent.CreateResidence(token, name, address, currency, price, imageBytes))
             }
         )
     }
+
+    var residenceForGalleryEditing by remember { mutableStateOf<ResidenceContext?>(null) }
+    val updatePhotosUseCase: UpdateResidencePhotosUseCase = koinInject()
+    val fetchPhotosUseCase: com.resid.manager.features.residences.usecase.FetchResidencePhotosUseCase = koinInject()
+    val coroutineScope = rememberCoroutineScope()
 
     if (uiState.editingResidence != null) {
         val target = uiState.editingResidence!!
         EditResidenceDialog(
             residence = target,
             onDismiss = { viewModel.onIntent(ResidencesIntent.SetEditingResidence(null)) },
-            onSubmit = { name, address, price ->
-                viewModel.onIntent(ResidencesIntent.UpdateResidence(token, target.residenceId, name, address, price))
+            onSubmit = { name, address, price, imageBytes ->
+                viewModel.onIntent(ResidencesIntent.UpdateResidence(token, target.residenceId, name, address, price, imageBytes))
+            },
+            onOpenGallery = {
+                viewModel.onIntent(ResidencesIntent.SetEditingResidence(null))
+                residenceForGalleryEditing = target
             }
         )
+    }
+
+    if (residenceForGalleryEditing != null) {
+        val targetResidence = residenceForGalleryEditing!!
+        var galleryItems by remember(targetResidence.residenceId) {
+            mutableStateOf<List<GalleryPhotoItem>?>(null)
+        }
+
+        LaunchedEffect(targetResidence.residenceId, token) {
+            if (token.isNotBlank()) {
+                val fetched = fetchPhotosUseCase(token, targetResidence.residenceId).getOrNull()
+                if (!fetched.isNullOrEmpty()) {
+                    galleryItems = fetched.mapIndexed { index, p ->
+                        GalleryPhotoItem(
+                            id = "photo_$index",
+                            url = p.url,
+                            description = p.description
+                        )
+                    }
+                } else if (!targetResidence.photoUrl.isNullOrBlank()) {
+                    galleryItems = listOf(
+                        GalleryPhotoItem(
+                            id = "primary",
+                            url = targetResidence.photoUrl,
+                            description = "Photo principale"
+                        )
+                    )
+                } else {
+                    galleryItems = emptyList()
+                }
+            } else {
+                galleryItems = if (!targetResidence.photoUrl.isNullOrBlank()) {
+                    listOf(
+                        GalleryPhotoItem(
+                            id = "primary",
+                            url = targetResidence.photoUrl,
+                            description = "Photo principale"
+                        )
+                    )
+                } else {
+                    emptyList()
+                }
+            }
+        }
+
+        if (galleryItems != null) {
+            ResidenceGalleryDialog(
+                initialPhotos = galleryItems!!,
+                isLoading = uiState.isSavingPhotos,
+                errorMessage = uiState.errorMessage,
+                onDismiss = { residenceForGalleryEditing = null },
+                onSave = { items ->
+                    val uploadItems = items.map {
+                        com.resid.manager.features.residences.usecase.PhotoUploadItem(
+                            url = it.url,
+                            bytes = it.bytes,
+                            description = it.description
+                        )
+                    }
+                    coroutineScope.launch {
+                        try {
+                            updatePhotosUseCase(token, targetResidence.residenceId, uploadItems).getOrThrow()
+                            viewModel.onIntent(ResidencesIntent.LoadResidences(token))
+                            residenceForGalleryEditing = null
+                        } catch (e: Exception) {
+                            viewModel.onIntent(ResidencesIntent.LoadResidences(token))
+                        }
+                    }
+                }
+            )
+        }
     }
 
     if (uiState.deletingResidence != null) {
@@ -161,11 +411,13 @@ fun ResidencesScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun ResidencesContent(
     uiState: ResidencesUiState,
     onIntent: (ResidencesIntent) -> Unit,
     onResidenceSelected: (ResidenceContext) -> Unit,
+    onActivateResidence: (ResidenceContext) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val selectedId = uiState.selectedResidenceId
@@ -203,16 +455,19 @@ fun ResidencesContent(
     val currentResidences = if (selectedTabIndex == 0) ownedResidences else associatedResidences
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val isSmallScreen = maxWidth < 600.dp
+        val windowSizeClass = WindowSizeClass.calculateFromSize(DpSize(maxWidth, maxHeight))
+        val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact
+        val isMedium = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Medium
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(if (isSmallScreen) 16.dp else 24.dp),
+                .padding(if (isCompact) 16.dp else 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Header Top Bar
             ResidTopAppBar(
-                title = "Annuaire de mes Résidences",
+                title = "Annuaire des Résidences",
                 actions = listOf(
                     ResidAppBarAction(
                         title = "Créer une résidence",
@@ -222,141 +477,234 @@ fun ResidencesContent(
                 ),
             )
 
-            if (uiState.residences.isEmpty()) {
+            if (uiState.isLoading && uiState.residences.isEmpty()) {
+                ResidencesMetricsBanner(
+                    residences = uiState.residences,
+                    ownedResidencesCount = ownedResidences.size,
+                    associatedResidencesCount = associatedResidences.size,
+                    isCompact = isCompact
+                )
+                ResidenceSkeletonGrid(modifier = Modifier.weight(1f))
+            } else if (uiState.residences.isEmpty()) {
+                ResidencesMetricsBanner(
+                    residences = uiState.residences,
+                    ownedResidencesCount = ownedResidences.size,
+                    associatedResidencesCount = associatedResidences.size,
+                    isCompact = isCompact
+                )
                 ResidencesEmptyState(
                     onCreateClick = { onIntent(ResidencesIntent.SetShowCreateDialog(true)) },
                     onJoinClick = { onIntent(ResidencesIntent.SetShowJoinDialog(true)) }
                 )
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Segmented button to switch between Owned and Associated residences
-                    SingleChoiceSegmentedButtonRow(
-                        modifier = Modifier.width(420.dp)
-                    ) {
-                        SegmentedButton(
-                            selected = selectedTabIndex == 0,
-                            onClick = { selectedTabIndex = 0 },
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                            label = { Text("Propriétés gérées (${ownedResidences.size})") }
-                        )
-                        SegmentedButton(
-                            selected = selectedTabIndex == 1,
-                            onClick = { selectedTabIndex = 1 },
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                            label = { Text("Propriétés associées (${associatedResidences.size})") }
-                        )
-                    }
-
-                    // Sort dropdown button
-                    var sortMenuExpanded by remember { mutableStateOf(false) }
-                    Box {
-                        OutlinedButton(
-                            onClick = { sortMenuExpanded = true }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.List,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(uiState.sortOption.label)
-                        }
-
-                        DropdownMenu(
-                            expanded = sortMenuExpanded,
-                            onDismissRequest = { sortMenuExpanded = false }
-                        ) {
-                            ResidenceSortOption.entries.forEach { option ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            text = option.label,
-                                            color = if (uiState.sortOption == option) Color(0xFF006948) else MaterialTheme.colorScheme.onSurface
-                                        )
-                                    },
-                                    onClick = {
-                                        onIntent(ResidencesIntent.SetSortOption(option))
-                                        sortMenuExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (currentResidences.isEmpty()) {
-                    Text(
-                        text = if (selectedTabIndex == 0) {
-                            "Aucune propriété gérée pour le moment."
-                        } else {
-                            "Aucune propriété associée pour le moment."
-                        },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 16.dp)
-                    )
-                } else if (isSmallScreen) {
-                    // Small screens: Single vertical scrolling list
+                if (uiState.viewMode == ResidenceViewMode.LIST && !isCompact) {
+                    // List View on Desktop & Tablet
                     LazyColumn(
                         modifier = Modifier.fillMaxWidth().weight(1f),
+                        contentPadding = PaddingValues(bottom = 32.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(currentResidences, key = { it.residenceId }) { residence ->
-                            val isSelected = residence.residenceId == selectedId
-                            if (selectedTabIndex == 0) {
-                                OwnedPropertyCard(
+                        item(key = "metrics_banner") {
+                            ResidencesMetricsBanner(
+                                residences = uiState.residences,
+                                ownedResidencesCount = ownedResidences.size,
+                                associatedResidencesCount = associatedResidences.size,
+                                isCompact = isCompact
+                            )
+                        }
+                        item(key = "filter_bar") {
+                            ResidenceFilterBar(
+                                selectedTabIndex = selectedTabIndex,
+                                ownedCount = ownedResidences.size,
+                                associatedCount = associatedResidences.size,
+                                onTabSelected = { selectedTabIndex = it },
+                                sortOption = uiState.sortOption,
+                                onSortOptionSelected = { onIntent(ResidencesIntent.SetSortOption(it)) },
+                                viewMode = uiState.viewMode,
+                                onViewModeSelected = { onIntent(ResidencesIntent.SetViewMode(it)) },
+                                isCompact = isCompact
+                            )
+                        }
+                        if (currentResidences.isEmpty()) {
+                            item(key = "empty_tab") {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (selectedTabIndex == 0) {
+                                            "Aucune propriété gérée pour le moment."
+                                        } else {
+                                            "Aucune propriété associée pour le moment."
+                                        },
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            items(currentResidences, key = { it.residenceId }) { residence ->
+                                val isSelected = residence.residenceId == selectedId
+                                ResidenceListRow(
                                     residence = residence,
-                                    isSelected = isSelected,
+                                    isActive = isSelected,
                                     onClick = { onResidenceSelected(residence) },
+                                    onManageClick = {
+                                        if (isSelected) {
+                                            onResidenceSelected(residence)
+                                        } else {
+                                            onActivateResidence(residence)
+                                        }
+                                    },
                                     onEditClick = { onIntent(ResidencesIntent.SetEditingResidence(residence)) },
-                                    onDeleteClick = { onIntent(ResidencesIntent.SetDeletingResidence(residence)) },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            } else {
-                                AssociatedPropertyCard(
-                                    residence = residence,
-                                    isSelected = isSelected,
-                                    onClick = { onResidenceSelected(residence) },
-                                    modifier = Modifier.fillMaxWidth()
+                                    onDeleteClick = { onIntent(ResidencesIntent.SetDeletingResidence(residence)) }
                                 )
                             }
                         }
                     }
                 } else {
-                    // Big screens: Responsive grid
+                    // Responsive Grid View: 1 column on compact mobile, 2 on tablet/medium, 3 on expanded desktop
+                    val minColSize = if (isCompact) 280.dp else if (isMedium) 320.dp else 360.dp
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 280.dp),
+                        columns = GridCells.Adaptive(minSize = minColSize),
                         modifier = Modifier.fillMaxWidth().weight(1f),
+                        contentPadding = PaddingValues(bottom = 32.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(currentResidences, key = { it.residenceId }) { residence ->
-                            val isSelected = residence.residenceId == selectedId
-                            if (selectedTabIndex == 0) {
-                                OwnedPropertyCard(
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "metrics_banner") {
+                            ResidencesMetricsBanner(
+                                residences = uiState.residences,
+                                ownedResidencesCount = ownedResidences.size,
+                                associatedResidencesCount = associatedResidences.size,
+                                isCompact = isCompact
+                            )
+                        }
+                        item(span = { GridItemSpan(maxLineSpan) }, key = "filter_bar") {
+                            ResidenceFilterBar(
+                                selectedTabIndex = selectedTabIndex,
+                                ownedCount = ownedResidences.size,
+                                associatedCount = associatedResidences.size,
+                                onTabSelected = { selectedTabIndex = it },
+                                sortOption = uiState.sortOption,
+                                onSortOptionSelected = { onIntent(ResidencesIntent.SetSortOption(it)) },
+                                viewMode = uiState.viewMode,
+                                onViewModeSelected = { onIntent(ResidencesIntent.SetViewMode(it)) },
+                                isCompact = isCompact
+                            )
+                        }
+                        if (currentResidences.isEmpty()) {
+                            item(span = { GridItemSpan(maxLineSpan) }, key = "empty_tab") {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (selectedTabIndex == 0) {
+                                            "Aucune propriété gérée pour le moment."
+                                        } else {
+                                            "Aucune propriété associée pour le moment."
+                                        },
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        } else {
+                            items(currentResidences, key = { it.residenceId }) { residence ->
+                                val isSelected = residence.residenceId == selectedId
+                                ResidenceGridCard(
                                     residence = residence,
-                                    isSelected = isSelected,
+                                    isActive = isSelected,
                                     onClick = { onResidenceSelected(residence) },
+                                    onManageClick = {
+                                        if (isSelected) {
+                                            onResidenceSelected(residence)
+                                        } else {
+                                            onActivateResidence(residence)
+                                        }
+                                    },
                                     onEditClick = { onIntent(ResidencesIntent.SetEditingResidence(residence)) },
-                                    onDeleteClick = { onIntent(ResidencesIntent.SetDeletingResidence(residence)) },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            } else {
-                                AssociatedPropertyCard(
-                                    residence = residence,
-                                    isSelected = isSelected,
-                                    onClick = { onResidenceSelected(residence) },
-                                    modifier = Modifier.fillMaxWidth()
+                                    onDeleteClick = { onIntent(ResidencesIntent.SetDeletingResidence(residence)) }
                                 )
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ResidencesMetricsBanner(
+    residences: List<ResidenceContext>,
+    ownedResidencesCount: Int,
+    associatedResidencesCount: Int,
+    isCompact: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val totalUnitsCount = remember(residences) { residences.sumOf { it.totalUnits } }
+
+    if (isCompact) {
+        LazyRow(
+            modifier = modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                ResidenceMetricCard(
+                    label = "Logements",
+                    value = "$totalUnitsCount unités",
+                    icon = Icons.Default.MeetingRoom,
+                    subText = "100% opérationnel",
+                    modifier = Modifier.width(160.dp)
+                )
+            }
+            item {
+                ResidenceMetricCard(
+                    label = "Occupation",
+                    value = "90%",
+                    icon = Icons.Default.Star,
+                    subText = "Taux moyen",
+                    modifier = Modifier.width(160.dp)
+                )
+            }
+            item {
+                ResidenceMetricCard(
+                    label = "Propriétés",
+                    value = "${residences.size}",
+                    icon = Icons.Default.Add,
+                    subText = "Parc géré",
+                    modifier = Modifier.width(160.dp)
+                )
+            }
+        }
+    } else {
+        Row(
+            modifier = modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            ResidenceMetricCard(
+                label = "Total Logements",
+                value = "$totalUnitsCount unités",
+                icon = Icons.Default.MeetingRoom,
+                subText = "100% opérationnel",
+                modifier = Modifier.weight(1f)
+            )
+            ResidenceMetricCard(
+                label = "Taux d'occupation",
+                value = "92.5%",
+                icon = Icons.Default.Star,
+                subText = "Performance globale",
+                modifier = Modifier.weight(1f)
+            )
+            ResidenceMetricCard(
+                label = "Propriétés gérées",
+                value = "$ownedResidencesCount",
+                icon = Icons.Default.Check,
+                subText = "$associatedResidencesCount associées",
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }

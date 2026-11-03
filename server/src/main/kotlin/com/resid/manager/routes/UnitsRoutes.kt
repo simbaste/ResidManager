@@ -74,6 +74,46 @@ fun Route.unitsRoutes() {
                     mapOf("message" to "Le logement a été supprimé de la base de données avec succès !")
                 }
             }
+
+            // POST /api/units/{unitId}/photo-ticket : Presigned upload ticket for unit photo
+            post("/{unitId}/photo-ticket") {
+                call.executeRequest(HttpStatusCode.OK) {
+                    val requesterId = call.getRequesterUuid()
+                    val unitId = call.getPathUuid("unitId")
+                    val residenceId = call.getQueryUuid("residenceId", required = true)!!
+                    if (!UnitService.isResidenceManager(requesterId, residenceId)) {
+                        throw com.resid.manager.data.HttpError(HttpStatusCode.Forbidden, "Accès interdit : Seuls les gestionnaires peuvent modifier ce logement.")
+                    }
+                    val request = call.receive<com.resid.manager.dto.AvatarUploadTicketRequest>()
+                    val storageService = com.resid.manager.storage.R2StorageService()
+                    storageService.generateUnitPhotoUploadTicket(
+                        unitId = unitId.toString(),
+                        extension = request.extension,
+                        mimeType = request.mimeType
+                    )
+                }
+            }
+
+            // GET /api/units/{unitId}/photos : Get photos of a unit
+            get("/{unitId}/photos") {
+                call.executeRequest(HttpStatusCode.OK) {
+                    val requesterId = call.getRequesterUuid()
+                    val unitId = call.getPathUuid("unitId")
+                    val residenceId = call.getQueryUuid("residenceId", required = true)!!
+                    UnitService.getUnitPhotos(requesterId, residenceId, unitId)
+                }
+            }
+
+            // PUT /api/units/{unitId}/photos : Update photos of a unit
+            put("/{unitId}/photos") {
+                call.executeRequest(HttpStatusCode.OK) {
+                    val requesterId = call.getRequesterUuid()
+                    val unitId = call.getPathUuid("unitId")
+                    val residenceId = call.getQueryUuid("residenceId", required = true)!!
+                    val request = call.receive<com.resid.manager.dto.ResidencePhotosUpdateRequest>()
+                    UnitService.updateUnitPhotos(requesterId, residenceId, unitId, request.photos)
+                }
+            }
         }
     }
 }

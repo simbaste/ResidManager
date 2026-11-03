@@ -18,7 +18,8 @@ data class ResidenceCreateRequest(
     val name: String,
     val address: String,
     val currency: CurrencyCodeDto,
-    val kWhPrice: Double
+    val kWhPrice: Double,
+    val photoUrl: String? = null
 )
 
 @Serializable
@@ -26,7 +27,24 @@ data class ResidenceUpdateRequest(
     val name: String? = null,
     val address: String? = null,
     val defaultCurrency: String? = null,
-    val kWhPrice: Double? = null
+    val kWhPrice: Double? = null,
+    val photoUrl: String? = null
+)
+
+@Serializable
+data class ResidencePhotoUpdateRequest(
+    val photoUrl: String
+)
+
+@Serializable
+data class ResidencePhotoDto(
+    val url: String,
+    val description: String = ""
+)
+
+@Serializable
+data class ResidencePhotosUpdateRequest(
+    val photos: List<ResidencePhotoDto>
 )
 
 @Serializable

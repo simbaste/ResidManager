@@ -25,8 +25,10 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.like
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.lowerCase
 import org.jetbrains.exposed.sql.or
+import org.jetbrains.exposed.sql.update
 import java.time.Clock
 import java.time.LocalDateTime
 import java.util.UUID
@@ -184,6 +186,7 @@ object UnitService {
             serviceCharges = dbUnit.serviceCharges,
             initialElectricityIndex = dbUnit.initialElectricityIndex,
             status = dbUnit.status.convert(),
+            photoUrl = dbUnit.photoUrl,
             equipments = dbUnit.equipments.map { eq ->
                 EquipmentDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
             }
@@ -224,6 +227,7 @@ object UnitService {
                 serviceCharges = it.serviceCharges,
                 initialElectricityIndex = it.initialElectricityIndex,
                 status = it.status.convert(),
+                photoUrl = it.photoUrl,
                 equipments = it.equipments.map { eq ->
                     EquipmentDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
                 },
@@ -291,6 +295,7 @@ object UnitService {
                 serviceCharges = it.serviceCharges,
                 initialElectricityIndex = it.initialElectricityIndex,
                 status = it.status.convert(),
+                photoUrl = it.photoUrl,
                 equipments = it.equipments.map { eq ->
                     EquipmentDto(id = eq.id.value.toString(), key = eq.key, label = eq.label)
                 },
@@ -335,5 +340,113 @@ object UnitService {
         }
 
         ResidenceUnits.deleteWhere { id eq unitId }
+    }
+
+    suspend fun getUnitPhotos(userId: UUID, residenceId: UUID, unitId: UUID): List<com.resid.manager.dto.ResidencePhotoDto> = dbQuery {
+        val dbUnit = ResidenceUnit.findById(unitId)
+            ?: throw HttpError(HttpStatusCode.NotFound, "Logement introuvable.")
+        if (dbUnit.residence.id.value != residenceId) {
+            throw HttpError(HttpStatusCode.BadRequest, "Ce logement n'appartient pas à la résidence spécifiée.")
+        }
+
+        val photos = com.resid.manager.data.ResidenceUnitPhotos.select(
+            com.resid.manager.data.ResidenceUnitPhotos.url,
+            com.resid.manager.data.ResidenceUnitPhotos.description
+        ).where {
+            com.resid.manager.data.ResidenceUnitPhotos.residenceUnitId eq unitId
+        }.orderBy(com.resid.manager.data.ResidenceUnitPhotos.sortOrder)
+        .map {
+            com.resid.manager.dto.ResidencePhotoDto(
+                url = it[com.resid.manager.data.ResidenceUnitPhotos.url],
+                description = it[com.resid.manager.data.ResidenceUnitPhotos.description]
+            )
+        }
+
+        if (photos.isEmpty() && !dbUnit.photoUrl.isNullOrBlank()) {
+            listOf(com.resid.manager.dto.ResidencePhotoDto(url = dbUnit.photoUrl!!, description = "Photo principale"))
+        } else {
+            photos
+        }
+    }
+
+    suspend fun updateUnitPhotos(
+        userId: UUID,
+        residenceId: UUID,
+        unitId: UUID,
+        newPhotos: List<com.resid.manager.dto.ResidencePhotoDto>
+    ): List<com.resid.manager.dto.ResidencePhotoDto> {
+        val (photosToDeleteUrls, newPhotosList) = dbQuery {
+            if (!isResidenceManager(userId, residenceId)) {
+                throw HttpError(
+                    HttpStatusCode.Forbidden,
+                    "Accès interdit : Seuls les administrateurs et gestionnaires peuvent modifier les photos de ce logement."
+                )
+            }
+
+            val dbUnit = ResidenceUnit.findById(unitId)
+                ?: throw HttpError(HttpStatusCode.NotFound, "Logement introuvable.")
+            if (dbUnit.residence.id.value != residenceId) {
+                throw HttpError(HttpStatusCode.BadRequest, "Ce logement n'appartient pas à la résidence spécifiée.")
+            }
+
+            val existingPhotos = com.resid.manager.data.ResidenceUnitPhotos.select(
+                com.resid.manager.data.ResidenceUnitPhotos.id,
+                com.resid.manager.data.ResidenceUnitPhotos.url
+            ).where {
+                com.resid.manager.data.ResidenceUnitPhotos.residenceUnitId eq unitId
+            }.map {
+                it[com.resid.manager.data.ResidenceUnitPhotos.id].value to it[com.resid.manager.data.ResidenceUnitPhotos.url]
+            }
+
+            val newUrls = newPhotos.map { it.url }.toSet()
+            val photosToDelete = existingPhotos.filter { it.second !in newUrls }
+            val deleteUrls = photosToDelete.map { it.second }
+
+            if (photosToDelete.isNotEmpty()) {
+                val deleteIds = photosToDelete.map { it.first }
+                com.resid.manager.data.ResidenceUnitPhotos.deleteWhere {
+                    com.resid.manager.data.ResidenceUnitPhotos.id inList deleteIds
+                }
+            }
+
+            val now = LocalDateTime.now(Clock.systemUTC())
+            newPhotos.forEachIndexed { index, photoDto ->
+                val existing = existingPhotos.find { it.second == photoDto.url }
+                if (existing != null) {
+                    com.resid.manager.data.ResidenceUnitPhotos.update({ com.resid.manager.data.ResidenceUnitPhotos.id eq existing.first }) {
+                        it[description] = photoDto.description
+                        it[sortOrder] = index
+                        it[updatedAt] = now
+                    }
+                } else {
+                    com.resid.manager.data.ResidenceUnitPhotos.insert {
+                        it[id] = UUID.randomUUID()
+                        it[com.resid.manager.data.ResidenceUnitPhotos.residenceUnitId] = unitId
+                        it[url] = photoDto.url
+                        it[description] = photoDto.description
+                        it[sortOrder] = index
+                        it[createdAt] = now
+                        it[updatedAt] = now
+                    }
+                }
+            }
+
+            dbUnit.photoUrl = newPhotos.firstOrNull()?.url
+            dbUnit.updatedAt = now
+            dbUnit.flush()
+
+            Pair(deleteUrls, newPhotos)
+        }
+
+        val r2Service = com.resid.manager.storage.R2StorageService()
+        photosToDeleteUrls.forEach { url ->
+            try {
+                r2Service.deleteFileByUrl(url)
+            } catch (e: Exception) {
+                println("Avertissement suppression R2 pour $url: ${e.message}")
+            }
+        }
+
+        return newPhotosList
     }
 }

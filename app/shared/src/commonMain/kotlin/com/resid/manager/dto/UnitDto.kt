@@ -25,6 +25,7 @@ data class ResidenceUnitDto(
     val serviceCharges: Double,
     val initialElectricityIndex: Double,
     val status: UnitStatusDto,
+    val photoUrl: String? = null,
     val equipments: List<EquipmentDto> = emptyList(),
     val currentTenantName: String? = null
 )

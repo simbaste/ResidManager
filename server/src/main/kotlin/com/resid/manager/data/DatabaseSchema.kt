@@ -43,6 +43,15 @@ object Residences : UUIDTable("residences") {
     val updatedAt = datetime("updated_at")
 }
 
+object ResidencePhotos : UUIDTable("residence_photos") {
+    val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE)
+    val url = text("url")
+    val description = varchar("description", 255).default("")
+    val sortOrder = integer("sort_order").default(0)
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
+}
+
 object ResidenceMembers : Table("residence_members") {
     val userId = reference("user_id", Users, onDelete = ReferenceOption.CASCADE)
     val residenceId = reference("residence_id", Residences, onDelete = ReferenceOption.CASCADE)
@@ -72,12 +81,22 @@ object ResidenceUnits : UUIDTable("residence_units") {
     val serviceCharges = double("service_charges")
     val initialElectricityIndex = double("initial_electricity_index")
     val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, UnitStatus::class).default(UnitStatus.AVAILABLE)
+    val photoUrl = text("photo_url").nullable()
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
 
     init {
         uniqueIndex("uk_residence_units_residence_name", residenceId, name)
     }
+}
+
+object ResidenceUnitPhotos : UUIDTable("residence_unit_photos") {
+    val residenceUnitId = reference("residence_unit_id", ResidenceUnits, onDelete = ReferenceOption.CASCADE)
+    val url = text("url")
+    val description = varchar("description", 255).default("")
+    val sortOrder = integer("sort_order").default(0)
+    val createdAt = datetime("created_at")
+    val updatedAt = datetime("updated_at")
 }
 
 object Guarantors : UUIDTable("guarantors") {
@@ -263,6 +282,19 @@ class Residence(id: EntityID<UUID>) : UUIDEntity(id) {
     var kWhPrice by Residences.kWhPrice
     var createdAt by Residences.createdAt
     var updatedAt by Residences.updatedAt
+
+    val photos by ResidencePhoto referrersOn ResidencePhotos.residenceId
+}
+
+class ResidencePhoto(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<ResidencePhoto>(ResidencePhotos)
+
+    var residence by Residence referencedOn ResidencePhotos.residenceId
+    var url by ResidencePhotos.url
+    var description by ResidencePhotos.description
+    var sortOrder by ResidencePhotos.sortOrder
+    var createdAt by ResidencePhotos.createdAt
+    var updatedAt by ResidencePhotos.updatedAt
 }
 
 class ResidenceUnit(id: EntityID<UUID>) : UUIDEntity(id) {
@@ -276,10 +308,23 @@ class ResidenceUnit(id: EntityID<UUID>) : UUIDEntity(id) {
     var serviceCharges by ResidenceUnits.serviceCharges
     var initialElectricityIndex by ResidenceUnits.initialElectricityIndex
     var status by ResidenceUnits.status
+    var photoUrl by ResidenceUnits.photoUrl
     var createdAt by ResidenceUnits.createdAt
     var updatedAt by ResidenceUnits.updatedAt
 
     var equipments by Equipment via ResidenceUnitEquipments
+    val photos by ResidenceUnitPhoto referrersOn ResidenceUnitPhotos.residenceUnitId
+}
+
+class ResidenceUnitPhoto(id: EntityID<UUID>) : UUIDEntity(id) {
+    companion object : UUIDEntityClass<ResidenceUnitPhoto>(ResidenceUnitPhotos)
+
+    var residenceUnit by ResidenceUnit referencedOn ResidenceUnitPhotos.residenceUnitId
+    var url by ResidenceUnitPhotos.url
+    var description by ResidenceUnitPhotos.description
+    var sortOrder by ResidenceUnitPhotos.sortOrder
+    var createdAt by ResidenceUnitPhotos.createdAt
+    var updatedAt by ResidenceUnitPhotos.updatedAt
 }
 
 class Equipment(id: EntityID<UUID>) : UUIDEntity(id) {

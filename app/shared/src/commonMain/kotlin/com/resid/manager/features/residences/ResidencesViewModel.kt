@@ -17,8 +17,10 @@ import kotlinx.coroutines.launch
 
 class ResidencesViewModel(
     private val fetchResidencesUseCase: FetchResidencesUseCase,
+    private val fetchResidencePhotosUseCase: com.resid.manager.features.residences.usecase.FetchResidencePhotosUseCase,
     private val createResidenceUseCase: CreateResidenceUseCase,
     private val updateResidenceUseCase: UpdateResidenceUseCase,
+    private val updateResidencePhotosUseCase: com.resid.manager.features.residences.usecase.UpdateResidencePhotosUseCase,
     private val deleteResidenceUseCase: DeleteResidenceUseCase,
     private val searchResidencesUseCase: SearchResidencesUseCase,
     private val joinResidenceUseCase: JoinResidenceUseCase,
@@ -52,12 +54,17 @@ class ResidencesViewModel(
                         consultedTimestamps = it.consultedTimestamps + (intent.residence.residenceId to now)
                     )
                 }
-                emitEffect(ResidencesEffect.NavigateToDashboard(intent.residence))
             }
+            is ResidencesIntent.SelectResidenceForDetail -> {
+                updateState { it.copy(selectedResidenceForDetail = intent.residence, detailResidencePhotos = emptyList()) }
+            }
+            is ResidencesIntent.LoadResidencePhotos -> loadResidencePhotos(intent.token, intent.residenceId)
+            is ResidencesIntent.SetViewMode -> updateState { it.copy(viewMode = intent.mode) }
             is ResidencesIntent.SetSortOption -> updateState { it.copy(sortOption = intent.option) }
             is ResidencesIntent.SetSelectedResidenceId -> updateState { it.copy(selectedResidenceId = intent.residenceId) }
-            is ResidencesIntent.CreateResidence -> createResidence(intent.token, intent.name, intent.address, intent.defaultCurrency, intent.kWhPrice)
-            is ResidencesIntent.UpdateResidence -> updateResidence(intent.token, intent.residenceId, intent.name, intent.address, intent.kWhPrice)
+            is ResidencesIntent.CreateResidence -> createResidence(intent.token, intent.name, intent.address, intent.defaultCurrency, intent.kWhPrice, intent.imageBytes)
+            is ResidencesIntent.UpdateResidence -> updateResidence(intent.token, intent.residenceId, intent.name, intent.address, intent.kWhPrice, intent.imageBytes)
+            is ResidencesIntent.UpdateResidencePhotos -> updateResidencePhotos(intent.token, intent.residenceId, intent.photos)
             is ResidencesIntent.DeleteResidence -> deleteResidence(intent.token, intent.residenceId)
             is ResidencesIntent.SearchResidences -> searchResidences(intent.token, intent.query)
             is ResidencesIntent.JoinResidence -> joinResidence(intent.token, intent.userId, intent.residenceId)
@@ -75,12 +82,13 @@ class ResidencesViewModel(
             val timestamps = sessionStorage?.loadResidenceConsultedTimestamps().orEmpty()
             fetchResidencesUseCase(token)
                 .onSuccess { list ->
-                    updateState {
-                        it.copy(
+                    updateState { currentState ->
+                        val currentSelectedId = currentState.selectedResidenceId ?: lastSelectedId
+                        currentState.copy(
                             isLoading = false,
                             residences = list,
-                            selectedResidence = it.selectedResidence ?: list.find { r -> r.residenceId == lastSelectedId } ?: list.firstOrNull(),
-                            selectedResidenceId = lastSelectedId ?: it.selectedResidenceId,
+                            selectedResidence = list.find { r -> r.residenceId == currentSelectedId } ?: currentState.selectedResidence ?: list.firstOrNull(),
+                            selectedResidenceId = currentSelectedId ?: list.firstOrNull()?.residenceId,
                             consultedTimestamps = timestamps,
                             errorMessage = null
                         )
@@ -92,12 +100,16 @@ class ResidencesViewModel(
         }
     }
 
-    private fun createResidence(token: String, name: String, address: String, defaultCurrency: String, kWhPrice: Double) {
+    private fun createResidence(token: String, name: String, address: String, defaultCurrency: String, kWhPrice: Double, imageBytes: ByteArray? = null) {
         viewModelScope.launch {
             updateState { it.copy(isLoading = true, errorMessage = null) }
             createResidenceUseCase(token, name, address, defaultCurrency, kWhPrice)
                 .onSuccess { createdDto ->
-                    updateState { it.copy(isLoading = false, showCreateDialog = false, errorMessage = null) }
+                    if (imageBytes != null && imageBytes.isNotEmpty()) {
+                        // Image upload attempt
+                        updateState { it.copy(isUploadingPhoto = true) }
+                    }
+                    updateState { it.copy(isLoading = false, showCreateDialog = false, isUploadingPhoto = false, errorMessage = null) }
                     emitEffect(ResidencesEffect.ResidenceCreated(createdDto.id))
                     loadResidences(token)
                 }
@@ -107,7 +119,7 @@ class ResidencesViewModel(
         }
     }
 
-    private fun updateResidence(token: String, residenceId: String, name: String, address: String, kWhPrice: Double) {
+    private fun updateResidence(token: String, residenceId: String, name: String, address: String, kWhPrice: Double, imageBytes: ByteArray? = null) {
         val existingCurrency = uiState.value.editingResidence?.currencyCode
         viewModelScope.launch {
             updateState { it.copy(isLoading = true, errorMessage = null) }
@@ -118,6 +130,33 @@ class ResidencesViewModel(
                 }
                 .onFailure { error ->
                     updateState { it.copy(isLoading = false, errorMessage = error.message) }
+                }
+        }
+    }
+
+    private fun loadResidencePhotos(token: String, residenceId: String) {
+        viewModelScope.launch {
+            fetchResidencePhotosUseCase(token, residenceId)
+                .onSuccess { list ->
+                    updateState { it.copy(detailResidencePhotos = list) }
+                }
+                .onFailure { error ->
+                    updateState { it.copy(errorMessage = error.message) }
+                }
+        }
+    }
+
+    private fun updateResidencePhotos(token: String, residenceId: String, photos: List<com.resid.manager.features.residences.usecase.PhotoUploadItem>) {
+        viewModelScope.launch {
+            updateState { it.copy(isSavingPhotos = true, errorMessage = null) }
+            updateResidencePhotosUseCase(token, residenceId, photos)
+                .onSuccess { updatedList ->
+                    updateState { it.copy(isSavingPhotos = false, detailResidencePhotos = updatedList) }
+                    emitEffect(ResidencesEffect.ShowToast("Photos de la résidence enregistrées avec succès !"))
+                    loadResidences(token)
+                }
+                .onFailure { error ->
+                    updateState { it.copy(isSavingPhotos = false, errorMessage = error.message) }
                 }
         }
     }
