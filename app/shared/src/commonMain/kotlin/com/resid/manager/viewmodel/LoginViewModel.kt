@@ -3,6 +3,7 @@ package com.resid.manager.viewmodel
 import androidx.lifecycle.viewModelScope
 import com.resid.manager.SessionStorage
 import com.resid.manager.base.MviViewModel
+import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.ApplicationRequest
 import com.resid.manager.dto.CurrencyCodeDto
 import com.resid.manager.dto.EquipmentDto
@@ -287,7 +288,7 @@ class LoginViewModel(
                 residenceRepository.fetchResidences(token)
                     .onSuccess { directory ->
                         val ownedContexts = directory.ownedResidences.map {
-                            val appCurrency = com.resid.manager.dto.AppCurrency.fromCode(it.currencyCode.name)
+                            val appCurrency = AppCurrency.fromCode(it.currencyCode.name)
                             ResidenceContext(
                                 residenceId = it.id,
                                 residenceName = it.name,

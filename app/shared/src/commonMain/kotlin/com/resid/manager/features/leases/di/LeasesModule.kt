@@ -1,5 +1,6 @@
 package com.resid.manager.features.leases.di
 
+import com.resid.manager.SessionStorage
 import com.resid.manager.features.leases.LeasesViewModel
 import com.resid.manager.features.leases.usecase.CreateLeaseUseCase
 import com.resid.manager.features.leases.usecase.FetchLeasesUseCase
@@ -18,7 +19,11 @@ val leasesFeatureModule = module {
             fetchLeasesUseCase = get(),
             createLeaseUseCase = get(),
             recordLeasePaymentUseCase = get(),
-            updateLeaseStatusUseCase = get()
+            updateLeaseStatusUseCase = get(),
+            fetchResidencesUseCase = get(),
+            fetchUnitsUseCase = get(),
+            fetchMembersUseCase = get(),
+            sessionStorage = getOrNull<SessionStorage>()
         )
     }
 }

@@ -1,7 +1,10 @@
 package com.resid.manager.features.leases
 
 import androidx.lifecycle.viewModelScope
+import com.resid.manager.SessionStorage
 import com.resid.manager.base.MviViewModel
+import com.resid.manager.dto.ResidenceContext
+import com.resid.manager.dto.UserRole
 import com.resid.manager.features.leases.mvi.LeasesEffect
 import com.resid.manager.features.leases.mvi.LeasesIntent
 import com.resid.manager.features.leases.mvi.LeasesUiState
@@ -9,18 +12,41 @@ import com.resid.manager.features.leases.usecase.CreateLeaseUseCase
 import com.resid.manager.features.leases.usecase.FetchLeasesUseCase
 import com.resid.manager.features.leases.usecase.RecordLeasePaymentUseCase
 import com.resid.manager.features.leases.usecase.UpdateLeaseStatusUseCase
+import com.resid.manager.features.members.usecase.FetchMembersUseCase
+import com.resid.manager.features.residences.usecase.FetchResidencesUseCase
+import com.resid.manager.features.units.usecase.FetchUnitsUseCase
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 class LeasesViewModel(
     private val fetchLeasesUseCase: FetchLeasesUseCase,
     private val createLeaseUseCase: CreateLeaseUseCase,
     private val recordLeasePaymentUseCase: RecordLeasePaymentUseCase,
-    private val updateLeaseStatusUseCase: UpdateLeaseStatusUseCase
+    private val updateLeaseStatusUseCase: UpdateLeaseStatusUseCase,
+    private val fetchResidencesUseCase: FetchResidencesUseCase,
+    private val fetchUnitsUseCase: FetchUnitsUseCase,
+    private val fetchMembersUseCase: FetchMembersUseCase,
+    private val sessionStorage: SessionStorage? = null
 ) : MviViewModel<LeasesUiState, LeasesIntent, LeasesEffect>(LeasesUiState()) {
+
+    init {
+        val lastSelectedId = sessionStorage?.loadLastSelectedResidenceId()
+        if (!lastSelectedId.isNullOrBlank()) {
+            loadResidenceAndLeases(lastSelectedId)
+        }
+    }
 
     override fun onIntent(intent: LeasesIntent) {
         when (intent) {
-            is LeasesIntent.LoadLeases -> loadLeases(intent.token, intent.residenceId)
+            is LeasesIntent.Refresh -> {
+                val residenceId = uiState.value.activeResidence?.residenceId
+                    ?: sessionStorage?.loadLastSelectedResidenceId()
+                if (!residenceId.isNullOrBlank()) {
+                    loadLeases(residenceId)
+                }
+            }
+            is LeasesIntent.LoadLeases -> loadResidenceAndLeases(intent.residenceId)
             is LeasesIntent.SelectLeaseForDetail -> updateState { it.copy(selectedLeaseForDetail = intent.lease) }
             is LeasesIntent.SetFilter -> updateState { it.copy(activeFilter = intent.filter) }
             is LeasesIntent.SetShowWizard -> updateState { it.copy(showWizard = intent.show, errorMessage = null) }
@@ -31,37 +57,114 @@ class LeasesViewModel(
         }
     }
 
-    private fun loadLeases(token: String, residenceId: String) {
+    fun updateActiveResidence(residence: ResidenceContext?) {
+        if (residence == null) {
+            updateState {
+                it.copy(
+                    activeResidence = null,
+                    isAuthorized = false,
+                    currencySymbol = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
+                    units = emptyList(),
+                    leases = emptyList(),
+                    members = emptyList()
+                )
+            }
+            return
+        }
+        val isAuth = residence.userRoleInResidence == UserRole.ADMIN ||
+            residence.userRoleInResidence == UserRole.OWNER ||
+            residence.userRoleInResidence == UserRole.MANAGER
+        updateState {
+            it.copy(
+                activeResidence = residence,
+                isAuthorized = isAuth,
+                currencySymbol = residence.currencySymbol
+            )
+        }
+        loadLeases(residence.residenceId)
+    }
+
+    private fun loadResidenceAndLeases(residenceId: String) {
+        val session = sessionStorage?.loadSession() ?: return
         viewModelScope.launch {
-            updateState { it.copy(isLoading = true, errorMessage = null) }
-            fetchLeasesUseCase(token, residenceId)
-                .onSuccess { list ->
-                    updateState {
-                        it.copy(
-                            isLoading = false,
-                            leases = list,
-                            selectedLeaseForDetail = it.selectedLeaseForDetail?.let { selected -> list.firstOrNull { l -> l.id == selected.id } },
-                            errorMessage = null
-                        )
+            if (uiState.value.activeResidence == null || uiState.value.activeResidence?.residenceId != residenceId) {
+                fetchResidencesUseCase(session.token).onSuccess { list ->
+                    val matched = list.firstOrNull { it.residenceId == residenceId }
+                    if (matched != null) {
+                        val isAuth = matched.userRoleInResidence == UserRole.ADMIN ||
+                            matched.userRoleInResidence == UserRole.OWNER ||
+                            matched.userRoleInResidence == UserRole.MANAGER
+                        updateState {
+                            it.copy(
+                                activeResidence = matched,
+                                isAuthorized = isAuth,
+                                currencySymbol = matched.currencySymbol
+                            )
+                        }
                     }
                 }
-                .onFailure { error ->
-                    updateState { it.copy(isLoading = false, errorMessage = error.message) }
-                }
+            }
+            loadLeases(residenceId)
+        }
+    }
+
+    private fun loadLeases(residenceId: String) {
+        val session = sessionStorage?.loadSession() ?: return
+        viewModelScope.launch {
+            updateState { it.copy(isLoading = true, errorMessage = null) }
+            coroutineScope {
+                val leasesDeferred = async { fetchLeasesUseCase(session.token, residenceId) }
+                val unitsDeferred = async { fetchUnitsUseCase(session.token, residenceId) }
+                val membersDeferred = async { fetchMembersUseCase(session.token, residenceId) }
+
+                val leasesResult = leasesDeferred.await()
+                val unitsResult = unitsDeferred.await()
+                val membersResult = membersDeferred.await()
+
+                val units = unitsResult.getOrDefault(emptyList())
+                val members = membersResult.getOrDefault(emptyList())
+
+                leasesResult
+                    .onSuccess { list ->
+                        updateState {
+                            it.copy(
+                                isLoading = false,
+                                leases = list,
+                                units = units,
+                                members = members,
+                                selectedLeaseForDetail = it.selectedLeaseForDetail?.let { selected -> list.firstOrNull { l -> l.id == selected.id } },
+                                errorMessage = null
+                            )
+                        }
+                    }
+                    .onFailure { error ->
+                        updateState {
+                            it.copy(
+                                isLoading = false,
+                                units = units,
+                                members = members,
+                                errorMessage = error.message
+                            )
+                        }
+                    }
+            }
         }
     }
 
     private fun recordPayment(intent: LeasesIntent.RecordPayment) {
+        val session = sessionStorage?.loadSession() ?: return
+        val residenceId = uiState.value.activeResidence?.residenceId
+            ?: sessionStorage.loadLastSelectedResidenceId() ?: return
         viewModelScope.launch {
             updateState { it.copy(isLoading = true, errorMessage = null) }
-            recordLeasePaymentUseCase(intent.token, intent.leaseId, intent.amount, intent.category)
+            recordLeasePaymentUseCase(session.token, intent.leaseId, intent.amount, intent.category)
                 .onSuccess { updated ->
                     updateState {
                         it.copy(
                             selectedLeaseForDetail = updated
                         )
                     }
-                    loadLeases(intent.token, intent.residenceId)
+                    loadLeases(residenceId)
                 }
                 .onFailure { error ->
                     updateState { it.copy(isLoading = false, errorMessage = error.message) }
@@ -70,16 +173,19 @@ class LeasesViewModel(
     }
 
     private fun updateStatus(intent: LeasesIntent.UpdateStatus) {
+        val session = sessionStorage?.loadSession() ?: return
+        val residenceId = uiState.value.activeResidence?.residenceId
+            ?: sessionStorage.loadLastSelectedResidenceId() ?: return
         viewModelScope.launch {
             updateState { it.copy(isLoading = true, errorMessage = null, showTerminateConfirmation = false) }
-            updateLeaseStatusUseCase(intent.token, intent.leaseId, intent.status)
+            updateLeaseStatusUseCase(session.token, intent.leaseId, intent.status)
                 .onSuccess { updated ->
                     updateState {
                         it.copy(
                             selectedLeaseForDetail = updated
                         )
                     }
-                    loadLeases(intent.token, intent.residenceId)
+                    loadLeases(residenceId)
                 }
                 .onFailure { error ->
                     updateState { it.copy(isLoading = false, errorMessage = error.message) }
@@ -88,13 +194,16 @@ class LeasesViewModel(
     }
 
     private fun createLease(intent: LeasesIntent.CreateLease) {
+        val session = sessionStorage?.loadSession() ?: return
+        val residenceId = uiState.value.activeResidence?.residenceId
+            ?: sessionStorage.loadLastSelectedResidenceId() ?: return
         viewModelScope.launch {
             updateState { it.copy(isLoading = true, errorMessage = null) }
-            createLeaseUseCase(intent.token, intent.residenceUnitId, intent.request)
+            createLeaseUseCase(session.token, intent.residenceUnitId, intent.request)
                 .onSuccess {
                     updateState { it.copy(showWizard = false) }
                     emitEffect(LeasesEffect.LeaseCreatedSuccess)
-                    loadLeases(intent.token, intent.residenceId)
+                    loadLeases(residenceId)
                 }
                 .onFailure { error ->
                     updateState { it.copy(isLoading = false, errorMessage = error.message) }

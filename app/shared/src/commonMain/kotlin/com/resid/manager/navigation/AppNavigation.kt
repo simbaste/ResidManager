@@ -41,6 +41,9 @@ sealed interface AppNavKey : NavKey {
 
     @Serializable
     data object Profile : AppNavKey
+
+    @Serializable
+    data object CreateUnit : AppNavKey
 }
 
 /**

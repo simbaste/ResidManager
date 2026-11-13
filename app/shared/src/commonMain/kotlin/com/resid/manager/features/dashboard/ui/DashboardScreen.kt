@@ -33,9 +33,7 @@ import org.koin.compose.koinInject
 
 @Composable
 fun DashboardScreen(
-    activeResidence: ResidenceContext?,
-    firstName: String,
-    jwtToken: String?,
+    activeResidence: ResidenceContext? = null,
     viewModel: DashboardViewModel = koinInject(),
     onCreateResidenceClick: () -> Unit = {},
     onJoinResidenceClick: () -> Unit = {},
@@ -46,13 +44,15 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(activeResidence?.residenceId, jwtToken) {
-        val token = jwtToken ?: return@LaunchedEffect
-        val residenceId = activeResidence?.residenceId ?: return@LaunchedEffect
-        viewModel.onIntent(DashboardIntent.LoadData(token, residenceId))
+    LaunchedEffect(activeResidence?.residenceId) {
+        if (activeResidence != null) {
+            viewModel.updateActiveResidence(activeResidence)
+        }
     }
 
-    if (activeResidence == null) {
+    val currentResidence = uiState.activeResidence ?: activeResidence
+
+    if (currentResidence == null) {
         DashboardEmptyState(
             onCreateResidence = onCreateResidenceClick,
             onJoinResidence = onJoinResidenceClick
@@ -60,19 +60,15 @@ fun DashboardScreen(
     } else {
         DashboardContent(
             uiState = uiState,
-            activeResidence = activeResidence,
-            firstName = firstName,
+            activeResidence = currentResidence,
             onPeriodFilterChanged = { filter ->
-                val token = jwtToken ?: return@DashboardContent
-                viewModel.onIntent(DashboardIntent.ChangePeriodFilter(filter, token, activeResidence.residenceId))
+                viewModel.onIntent(DashboardIntent.ChangePeriodFilter(filter))
             },
             onCustomStartChanged = { date ->
-                val token = jwtToken ?: return@DashboardContent
-                viewModel.onIntent(DashboardIntent.UpdateCustomStart(date, token, activeResidence.residenceId))
+                viewModel.onIntent(DashboardIntent.UpdateCustomStart(date))
             },
             onCustomEndChanged = { date ->
-                val token = jwtToken ?: return@DashboardContent
-                viewModel.onIntent(DashboardIntent.UpdateCustomEnd(date, token, activeResidence.residenceId))
+                viewModel.onIntent(DashboardIntent.UpdateCustomEnd(date))
             },
             onNewUnitClick = onNewUnitClick,
             onNewLeaseClick = onNewLeaseClick,
@@ -86,7 +82,6 @@ fun DashboardScreen(
 fun DashboardContent(
     uiState: DashboardUiState,
     activeResidence: ResidenceContext,
-    firstName: String,
     onPeriodFilterChanged: (String) -> Unit,
     onCustomStartChanged: (String) -> Unit,
     onCustomEndChanged: (String) -> Unit,
@@ -107,7 +102,7 @@ fun DashboardContent(
     ) {
         // 1. Welcome Banner Section
         DashboardWelcomeBanner(
-            firstName = firstName,
+            firstName = uiState.firstName.ifBlank { "Utilisateur" },
             residenceName = activeResidence.residenceName,
             roleName = activeResidence.userRoleInResidence.name
         )

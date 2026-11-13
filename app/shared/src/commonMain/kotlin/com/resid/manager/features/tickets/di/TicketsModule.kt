@@ -1,5 +1,6 @@
 package com.resid.manager.features.tickets.di
 
+import com.resid.manager.SessionStorage
 import com.resid.manager.features.tickets.TicketsViewModel
 import com.resid.manager.features.tickets.data.TicketRepository
 import com.resid.manager.features.tickets.data.TicketRepositoryImpl
@@ -21,7 +22,10 @@ val ticketsFeatureModule = module {
             fetchTicketsUseCase = get(),
             fetchTicketCategoriesUseCase = get(),
             createTicketUseCase = get(),
-            updateTicketStatusUseCase = get()
+            updateTicketStatusUseCase = get(),
+            fetchResidencesUseCase = get(),
+            fetchUnitsUseCase = get(),
+            sessionStorage = getOrNull<SessionStorage>()
         )
     }
 }

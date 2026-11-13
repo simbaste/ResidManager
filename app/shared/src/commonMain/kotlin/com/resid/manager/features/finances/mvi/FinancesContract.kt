@@ -1,10 +1,14 @@
 package com.resid.manager.features.finances.mvi
 
 import com.resid.manager.dto.FinanceTransactionDto
+import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.ui.components.getTodayIsoDate
 
 data class FinancesUiState(
     val isLoading: Boolean = false,
+    val activeResidence: ResidenceContext? = null,
+    val isAuthorized: Boolean = false,
+    val currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     val transactions: List<FinanceTransactionDto> = emptyList(),
 
     // Formulaire de saisie rapide
@@ -29,19 +33,20 @@ data class FinancesUiState(
 )
 
 sealed interface FinancesIntent {
-    data class LoadTransactions(val token: String, val residenceId: String) : FinancesIntent
-    data class SetFilterType(val type: String, val token: String, val residenceId: String) : FinancesIntent
-    data class SetFilterCategory(val category: String, val token: String, val residenceId: String) : FinancesIntent
-    data class SetFilterStartDate(val date: String, val token: String, val residenceId: String) : FinancesIntent
-    data class SetFilterEndDate(val date: String, val token: String, val residenceId: String) : FinancesIntent
-    data class SetFilterQuery(val query: String, val token: String, val residenceId: String) : FinancesIntent
+    data object Refresh : FinancesIntent
+    data class LoadTransactions(val residenceId: String) : FinancesIntent
+    data class SetFilterType(val type: String) : FinancesIntent
+    data class SetFilterCategory(val category: String) : FinancesIntent
+    data class SetFilterStartDate(val date: String) : FinancesIntent
+    data class SetFilterEndDate(val date: String) : FinancesIntent
+    data class SetFilterQuery(val query: String) : FinancesIntent
 
     // Form state updates
     data class SetFormCategory(val category: String) : FinancesIntent
     data class SetFormAmount(val amount: String) : FinancesIntent
     data class SetFormDescription(val description: String) : FinancesIntent
     data class SetFormDate(val date: String) : FinancesIntent
-    data class SubmitExpense(val token: String, val residenceId: String) : FinancesIntent
+    data object SubmitExpense : FinancesIntent
 
     // Traçabilité
     data class SetTraceabilityPayload(val payload: Pair<String, String>?) : FinancesIntent

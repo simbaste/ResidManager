@@ -34,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,7 +42,6 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.ui.NavDisplay
@@ -55,7 +53,7 @@ import com.resid.manager.features.residences.mvi.ResidenceViewMode
 import com.resid.manager.features.residences.mvi.ResidencesEffect
 import com.resid.manager.features.residences.mvi.ResidencesIntent
 import com.resid.manager.features.residences.mvi.ResidencesUiState
-import com.resid.manager.features.residences.ui.components.CreateResidenceDialog
+import com.resid.manager.features.residences.ui.components.CreateResidenceContent
 import com.resid.manager.features.residences.ui.components.DeleteResidenceDialog
 import com.resid.manager.features.residences.ui.components.EditResidenceDialog
 import com.resid.manager.features.residences.ui.components.JoinResidenceDialog
@@ -66,13 +64,14 @@ import com.resid.manager.features.residences.ui.components.ResidenceListRow
 import com.resid.manager.features.residences.ui.components.ResidenceMetricCard
 import com.resid.manager.features.residences.ui.components.ResidenceSkeletonGrid
 import com.resid.manager.features.residences.ui.components.ResidencesEmptyState
-import com.resid.manager.features.residences.usecase.UpdateResidencePhotosUseCase
+import com.resid.manager.features.residences.usecase.PhotoUploadItem
+import com.resid.manager.navigation.AdaptiveModalSceneStrategy
 import com.resid.manager.navigation.PlatformBackHandler
+import com.resid.manager.navigation.adaptiveModal
 import com.resid.manager.ui.components.GalleryPhotoItem
 import com.resid.manager.ui.components.ResidAppBarAction
 import com.resid.manager.ui.components.ResidTopAppBar
 import com.resid.manager.ui.theme.ResidTheme
-import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.koin.compose.koinInject
 
@@ -83,12 +82,17 @@ sealed interface ResidencesNavKey : NavKey {
 
     @Serializable
     data class Detail(val residenceId: String) : ResidencesNavKey
+
+    @Serializable
+    data object Create : ResidencesNavKey
 }
 
+@OptIn(
+    ExperimentalMaterial3WindowSizeClassApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class
+)
 @Composable
 fun ResidencesScreen(
-    jwtToken: String?,
-    userId: String?,
     activeResidenceId: String? = null,
     viewModel: ResidencesViewModel = koinInject(),
     onNavigateToDashboard: (ResidenceContext) -> Unit = {},
@@ -104,40 +108,22 @@ fun ResidencesScreen(
         }
     }
 
-    LaunchedEffect(jwtToken) {
-        val token = jwtToken ?: return@LaunchedEffect
-        viewModel.onIntent(ResidencesIntent.LoadResidences(token))
-    }
+    val navigator = com.resid.manager.navigation.rememberNavigator(
+        startEntry = ResidencesNavKey.Directory
+    )
 
-    // The stack always contains Directory as the root. If a detail residence is selected, Detail is stacked above it.
-    val subBackStack = remember {
-        val detailRes = uiState.selectedResidenceForDetail
-        if (detailRes != null) {
-            NavBackStack(ResidencesNavKey.Directory, ResidencesNavKey.Detail(detailRes.residenceId))
-        } else {
-            NavBackStack<ResidencesNavKey>(ResidencesNavKey.Directory)
-        }
-    }
-
-    // Synchronize subBackStack if selectedResidenceForDetail is restored or changed in ViewModel
+    // Synchronize navigator if selectedResidenceForDetail is restored or changed in ViewModel
     LaunchedEffect(uiState.selectedResidenceForDetail) {
         val detailRes = uiState.selectedResidenceForDetail
         if (detailRes != null) {
             val targetKey = ResidencesNavKey.Detail(detailRes.residenceId)
-            if (subBackStack.lastOrNull() != targetKey) {
-                if (subBackStack.isEmpty() || subBackStack.first() != ResidencesNavKey.Directory) {
-                    subBackStack.clear()
-                    subBackStack.add(ResidencesNavKey.Directory)
-                }
-                subBackStack.add(targetKey)
+            if (navigator.current() != targetKey) {
+                navigator.push(targetKey)
             }
         } else {
             // Returning to directory
-            if (subBackStack.lastOrNull() is ResidencesNavKey.Detail) {
-                subBackStack.removeLastOrNull()
-            }
-            if (subBackStack.isEmpty()) {
-                subBackStack.add(ResidencesNavKey.Directory)
+            if (navigator.current() is ResidencesNavKey.Detail) {
+                navigator.popBack()
             }
         }
     }
@@ -149,20 +135,21 @@ fun ResidencesScreen(
                 is ResidencesEffect.NavigateToDetail -> {
                     viewModel.onIntent(ResidencesIntent.SelectResidenceForDetail(effect.residence))
                     val targetKey = ResidencesNavKey.Detail(effect.residence.residenceId)
-                    if (subBackStack.lastOrNull() != targetKey) {
-                        subBackStack.add(targetKey)
+                    if (navigator.current() != targetKey) {
+                        navigator.push(targetKey)
                     }
                 }
                 is ResidencesEffect.ResidenceCreated -> onResidenceCreated(effect.newResidenceId)
+                is ResidencesEffect.ResidenceActivated -> onResidenceActivated(effect.residence)
                 is ResidencesEffect.ShowToast -> {}
             }
         }
     }
 
     // Platform-native back action (interacts with browser history popstate / Android system back)
-    PlatformBackHandler(enabled = subBackStack.size > 1) {
-        subBackStack.removeLastOrNull()
-        val currentKey = subBackStack.lastOrNull()
+    PlatformBackHandler(enabled = navigator.backStack().size > 1) {
+        navigator.popBack()
+        val currentKey = navigator.current()
         if (currentKey is ResidencesNavKey.Detail) {
             viewModel.onIntent(
                 ResidencesIntent.SelectResidenceForDetail(
@@ -174,16 +161,22 @@ fun ResidencesScreen(
         }
     }
 
-    // Modales & Token
-    val token = jwtToken ?: ""
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val windowSizeClass = WindowSizeClass.calculateFromSize(
+            DpSize(maxWidth, maxHeight)
+        )
+        val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact || maxWidth < 600.dp
 
-    Box(modifier = Modifier.fillMaxSize()) {
         NavDisplay(
-            backStack = subBackStack,
+            backStack = navigator.backStack(),
+            sceneStrategies = listOf(
+                remember(isCompact) {
+                    AdaptiveModalSceneStrategy(isCompact = isCompact)
+                }
+            ),
             onBack = {
-                if (subBackStack.size > 1) {
-                    subBackStack.removeLastOrNull()
-                    val currentKey = subBackStack.lastOrNull()
+                if (navigator.popBack()) {
+                    val currentKey = navigator.current()
                     if (currentKey is ResidencesNavKey.Detail) {
                         viewModel.onIntent(
                             ResidencesIntent.SelectResidenceForDetail(
@@ -195,7 +188,7 @@ fun ResidencesScreen(
                     }
                 }
             },
-            entryProvider = { key: ResidencesNavKey ->
+            entryProvider = { key: NavKey ->
                 when (key) {
                     ResidencesNavKey.Directory -> NavEntry(key) {
                         ResidencesContent(
@@ -203,7 +196,7 @@ fun ResidencesScreen(
                             onIntent = viewModel::onIntent,
                             onResidenceSelected = { residence ->
                                 viewModel.onIntent(ResidencesIntent.SelectResidenceForDetail(residence))
-                                subBackStack.add(ResidencesNavKey.Detail(residence.residenceId))
+                                navigator.push(ResidencesNavKey.Detail(residence.residenceId))
                             },
                             onActivateResidence = { residence ->
                                 viewModel.onIntent(ResidencesIntent.SelectResidence(residence))
@@ -217,25 +210,16 @@ fun ResidencesScreen(
                             ?: uiState.selectedResidenceForDetail
 
                         if (residence != null) {
-                            LaunchedEffect(residence.residenceId, token) {
-                                if (token.isNotBlank()) {
-                                    viewModel.onIntent(ResidencesIntent.LoadResidencePhotos(token, residence.residenceId))
-                                }
+                            LaunchedEffect(residence.residenceId) {
+                                viewModel.onIntent(ResidencesIntent.LoadResidencePhotos(residence.residenceId))
                             }
-
-                            val updatePhotosUseCase: com.resid.manager.features.residences.usecase.UpdateResidencePhotosUseCase = koinInject()
 
                             ResidenceDetailScreen(
                                 residence = residence,
                                 isActive = residence.residenceId == uiState.selectedResidenceId,
                                 galleryPhotos = uiState.detailResidencePhotos,
                                 onBackClick = {
-                                    if (subBackStack.size > 1) {
-                                        subBackStack.removeLastOrNull()
-                                    } else {
-                                        subBackStack.clear()
-                                        subBackStack.add(ResidencesNavKey.Directory)
-                                    }
+                                    navigator.popBack()
                                     viewModel.onIntent(ResidencesIntent.SelectResidenceForDetail(null))
                                 },
                                 onActivateResidence = {
@@ -253,10 +237,7 @@ fun ResidencesScreen(
                                             description = it.description
                                         )
                                     }
-                                    val result = updatePhotosUseCase(token, residence.residenceId, uploadItems)
-                                    result.getOrThrow()
-                                    viewModel.onIntent(ResidencesIntent.LoadResidencePhotos(token, residence.residenceId))
-                                    viewModel.onIntent(ResidencesIntent.LoadResidences(token))
+                                    viewModel.onIntent(ResidencesIntent.UpdateResidencePhotos(residence.residenceId, uploadItems))
                                 }
                             )
                         } else {
@@ -269,27 +250,44 @@ fun ResidencesScreen(
                             }
                         }
                     }
+
+                    ResidencesNavKey.Create -> NavEntry(
+                        key = key,
+                        metadata = adaptiveModal()
+                    ) {
+                        CreateResidenceContent(
+                            isLoading = uiState.isLoading,
+                            errorMessage = uiState.errorMessage,
+                            onDismiss = {
+                                navigator.popBack()
+                                viewModel.onIntent(ResidencesIntent.SetShowCreateDialog(false))
+                            },
+                            onSubmit = { name, address, currency, price, imageBytes ->
+                                viewModel.onIntent(ResidencesIntent.CreateResidence(name, address, currency, price, imageBytes))
+                            }
+                        )
+                    }
+
+                    else -> NavEntry(key) {}
                 }
             }
         )
     }
 
-    // Modales
-    if (uiState.showCreateDialog) {
-        CreateResidenceDialog(
-            isLoading = uiState.isLoading,
-            errorMessage = uiState.errorMessage,
-            onDismiss = { viewModel.onIntent(ResidencesIntent.SetShowCreateDialog(false)) },
-            onSubmit = { name, address, currency, price, imageBytes ->
-                viewModel.onIntent(ResidencesIntent.CreateResidence(token, name, address, currency, price, imageBytes))
+    // Synchronisation si le state déclenche l'ouverture de création
+    LaunchedEffect(uiState.showCreateDialog) {
+        if (uiState.showCreateDialog) {
+            if (navigator.current() != ResidencesNavKey.Create) {
+                navigator.push(ResidencesNavKey.Create)
             }
-        )
+        } else {
+            if (navigator.current() == ResidencesNavKey.Create) {
+                navigator.popBack()
+            }
+        }
     }
 
     var residenceForGalleryEditing by remember { mutableStateOf<ResidenceContext?>(null) }
-    val updatePhotosUseCase: UpdateResidencePhotosUseCase = koinInject()
-    val fetchPhotosUseCase: com.resid.manager.features.residences.usecase.FetchResidencePhotosUseCase = koinInject()
-    val coroutineScope = rememberCoroutineScope()
 
     if (uiState.editingResidence != null) {
         val target = uiState.editingResidence!!
@@ -297,7 +295,7 @@ fun ResidencesScreen(
             residence = target,
             onDismiss = { viewModel.onIntent(ResidencesIntent.SetEditingResidence(null)) },
             onSubmit = { name, address, price, imageBytes ->
-                viewModel.onIntent(ResidencesIntent.UpdateResidence(token, target.residenceId, name, address, price, imageBytes))
+                viewModel.onIntent(ResidencesIntent.UpdateResidence(target.residenceId, name, address, price, imageBytes))
             },
             onOpenGallery = {
                 viewModel.onIntent(ResidencesIntent.SetEditingResidence(null))
@@ -312,40 +310,30 @@ fun ResidencesScreen(
             mutableStateOf<List<GalleryPhotoItem>?>(null)
         }
 
-        LaunchedEffect(targetResidence.residenceId, token) {
-            if (token.isNotBlank()) {
-                val fetched = fetchPhotosUseCase(token, targetResidence.residenceId).getOrNull()
-                if (!fetched.isNullOrEmpty()) {
-                    galleryItems = fetched.mapIndexed { index, p ->
-                        GalleryPhotoItem(
-                            id = "photo_$index",
-                            url = p.url,
-                            description = p.description
-                        )
-                    }
-                } else if (!targetResidence.photoUrl.isNullOrBlank()) {
-                    galleryItems = listOf(
-                        GalleryPhotoItem(
-                            id = "primary",
-                            url = targetResidence.photoUrl,
-                            description = "Photo principale"
-                        )
+        LaunchedEffect(targetResidence.residenceId) {
+            viewModel.onIntent(ResidencesIntent.LoadResidencePhotos(targetResidence.residenceId))
+        }
+
+        val photos = uiState.detailResidencePhotos
+        galleryItems = remember(photos, targetResidence) {
+            if (photos.isNotEmpty()) {
+                photos.mapIndexed { index, p ->
+                    GalleryPhotoItem(
+                        id = "photo_$index",
+                        url = p.url,
+                        description = p.description
                     )
-                } else {
-                    galleryItems = emptyList()
                 }
+            } else if (!targetResidence.photoUrl.isNullOrBlank()) {
+                listOf(
+                    GalleryPhotoItem(
+                        id = "primary",
+                        url = targetResidence.photoUrl,
+                        description = "Photo principale"
+                    )
+                )
             } else {
-                galleryItems = if (!targetResidence.photoUrl.isNullOrBlank()) {
-                    listOf(
-                        GalleryPhotoItem(
-                            id = "primary",
-                            url = targetResidence.photoUrl,
-                            description = "Photo principale"
-                        )
-                    )
-                } else {
-                    emptyList()
-                }
+                emptyList()
             }
         }
 
@@ -357,21 +345,14 @@ fun ResidencesScreen(
                 onDismiss = { residenceForGalleryEditing = null },
                 onSave = { items ->
                     val uploadItems = items.map {
-                        com.resid.manager.features.residences.usecase.PhotoUploadItem(
+                        PhotoUploadItem(
                             url = it.url,
                             bytes = it.bytes,
                             description = it.description
                         )
                     }
-                    coroutineScope.launch {
-                        try {
-                            updatePhotosUseCase(token, targetResidence.residenceId, uploadItems).getOrThrow()
-                            viewModel.onIntent(ResidencesIntent.LoadResidences(token))
-                            residenceForGalleryEditing = null
-                        } catch (e: Exception) {
-                            viewModel.onIntent(ResidencesIntent.LoadResidences(token))
-                        }
-                    }
+                    viewModel.onIntent(ResidencesIntent.UpdateResidencePhotos(targetResidence.residenceId, uploadItems))
+                    residenceForGalleryEditing = null
                 }
             )
         }
@@ -383,7 +364,7 @@ fun ResidencesScreen(
             residenceName = target.residenceName,
             onDismiss = { viewModel.onIntent(ResidencesIntent.SetDeletingResidence(null)) },
             onConfirm = {
-                viewModel.onIntent(ResidencesIntent.DeleteResidence(token, target.residenceId))
+                viewModel.onIntent(ResidencesIntent.DeleteResidence(target.residenceId))
             }
         )
     }
@@ -399,13 +380,11 @@ fun ResidencesScreen(
                 uiState.residences.map { it.residenceId }.toSet()
             },
             onSearchQueryChanged = { query ->
-                viewModel.onIntent(ResidencesIntent.SearchResidences(token, query))
+                viewModel.onIntent(ResidencesIntent.SearchResidences(query))
             },
             onDismiss = { viewModel.onIntent(ResidencesIntent.SetShowJoinDialog(false)) },
             onSubmit = { residenceId ->
-                userId?.let { uid ->
-                    viewModel.onIntent(ResidencesIntent.JoinResidence(token, uid, residenceId))
-                }
+                viewModel.onIntent(ResidencesIntent.JoinResidence(residenceId))
             }
         )
     }

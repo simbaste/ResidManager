@@ -1,10 +1,17 @@
 package com.resid.manager.features.profile.mvi
 
+import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.TicketCategoryDto
 import com.resid.manager.dto.UserDto
 
 data class ProfileUiState(
     val activeTab: Int = 0, // 0: Mon Compte, 1: Configuration Résidence
+    val user: UserDto? = null,
+    val firstName: String = "",
+    val lastName: String = "",
+    val phone: String = "",
+    val activeResidence: ResidenceContext? = null,
+    val isManagement: Boolean = false,
 
     // Profile form
     val isEditingProfile: Boolean = false,
@@ -45,6 +52,12 @@ data class ProfileUiState(
         other as ProfileUiState
         if (!editAvatarBytes.contentEquals(other.editAvatarBytes)) return false
         return activeTab == other.activeTab &&
+                user == other.user &&
+                firstName == other.firstName &&
+                lastName == other.lastName &&
+                phone == other.phone &&
+                activeResidence == other.activeResidence &&
+                isManagement == other.isManagement &&
                 isEditingProfile == other.isEditingProfile &&
                 editFirstName == other.editFirstName &&
                 editLastName == other.editLastName &&
@@ -74,6 +87,12 @@ data class ProfileUiState(
 
     override fun hashCode(): Int {
         var result = activeTab
+        result = 31 * result + (user?.hashCode() ?: 0)
+        result = 31 * result + firstName.hashCode()
+        result = 31 * result + lastName.hashCode()
+        result = 31 * result + phone.hashCode()
+        result = 31 * result + (activeResidence?.hashCode() ?: 0)
+        result = 31 * result + isManagement.hashCode()
         result = 31 * result + isEditingProfile.hashCode()
         result = 31 * result + editFirstName.hashCode()
         result = 31 * result + editLastName.hashCode()
@@ -87,10 +106,10 @@ data class ProfileUiState(
 }
 
 sealed interface ProfileIntent {
-    data class SetTab(val tab: Int, val token: String, val residenceId: String?) : ProfileIntent
+    data class SetTab(val tab: Int) : ProfileIntent
 
     // User profile actions
-    data class StartEditingProfile(val firstName: String, val lastName: String, val phone: String, val avatarUrl: String?) : ProfileIntent
+    data object StartEditingProfile : ProfileIntent
     data object CancelEditingProfile : ProfileIntent
     data class SetEditFirstName(val firstName: String) : ProfileIntent
     data class SetEditLastName(val lastName: String) : ProfileIntent
@@ -105,21 +124,21 @@ sealed interface ProfileIntent {
         override fun hashCode(): Int = bytes.contentHashCode()
     }
     data object RemoveEditAvatar : ProfileIntent
-    data class SaveProfile(val token: String) : ProfileIntent
+    data object SaveProfile : ProfileIntent
 
     // Categories actions
-    data class LoadCategories(val token: String, val residenceId: String) : ProfileIntent
+    data object LoadCategories : ProfileIntent
     data class SetCategoryKey(val key: String) : ProfileIntent
     data class SetCategoryLabel(val label: String) : ProfileIntent
-    data class SubmitCategory(val token: String, val residenceId: String) : ProfileIntent
+    data object SubmitCategory : ProfileIntent
     data class SetEditingCategory(val category: TicketCategoryDto?) : ProfileIntent
     data class SetEditCategoryLabel(val label: String) : ProfileIntent
-    data class SaveCategoryEdit(val token: String) : ProfileIntent
+    data object SaveCategoryEdit : ProfileIntent
 
     // Currency actions
     data class InitResidenceCurrency(val currency: String) : ProfileIntent
     data class SelectCurrency(val currency: String) : ProfileIntent
-    data class SubmitCurrency(val token: String, val residenceId: String) : ProfileIntent
+    data object SubmitCurrency : ProfileIntent
 }
 
 sealed interface ProfileEffect {

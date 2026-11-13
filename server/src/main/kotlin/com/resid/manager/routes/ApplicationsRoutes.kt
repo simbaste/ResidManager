@@ -54,7 +54,7 @@ fun Route.applications() {
                 call.executeRequest(HttpStatusCode.Created) {
                     val requesterUuid = call.getRequesterUuid()
                     val residenceUuid = call.getQueryUuid("residenceId", required = true)!!
-                    val userUuid = call.getQueryUuid("userId", required = true)!!
+                    val userUuid = call.getQueryUuid("userId", required = false) ?: requesterUuid
                     val request = call.receive<ApplicationRequest>()
 
                     ApplicationService.applyToResidence(

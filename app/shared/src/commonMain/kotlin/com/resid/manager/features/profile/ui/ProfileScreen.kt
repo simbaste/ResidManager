@@ -20,7 +20,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.UserDto
-import com.resid.manager.dto.UserRole
 import com.resid.manager.features.profile.ProfileViewModel
 import com.resid.manager.features.profile.mvi.ProfileEffect
 import com.resid.manager.features.profile.mvi.ProfileIntent
@@ -32,29 +31,24 @@ import org.koin.compose.koinInject
 
 @Composable
 fun ProfileScreen(
-    user: UserDto?,
-    firstName: String,
-    lastName: String,
-    phone: String,
-    activeResidence: ResidenceContext?,
-    jwtToken: String?,
+    user: UserDto? = null,
+    activeResidence: ResidenceContext? = null,
     onLogout: () -> Unit,
     onUserUpdated: (UserDto) -> Unit = {},
     onResidenceCurrencyUpdated: (String, String) -> Unit = { _, _ -> },
     viewModel: ProfileViewModel = koinInject()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val token = jwtToken ?: ""
-    val residenceId = activeResidence?.residenceId
-    val isManagement = activeResidence != null && (
-        activeResidence.userRoleInResidence == UserRole.OWNER ||
-        activeResidence.userRoleInResidence == UserRole.ADMIN ||
-        activeResidence.userRoleInResidence == UserRole.MANAGER
-    )
 
-    LaunchedEffect(activeResidence?.currencyCode) {
-        activeResidence?.currencyCode?.let { curr ->
-            viewModel.onIntent(ProfileIntent.InitResidenceCurrency(curr))
+    LaunchedEffect(user) {
+        if (user != null) {
+            viewModel.updateUser(user)
+        }
+    }
+
+    LaunchedEffect(activeResidence?.residenceId) {
+        if (activeResidence != null) {
+            viewModel.updateActiveResidence(activeResidence)
         }
     }
 
@@ -67,6 +61,10 @@ fun ProfileScreen(
             }
         }
     }
+
+    val currentResidence = uiState.activeResidence ?: activeResidence
+    val isManagement = uiState.isManagement
+    val residenceId = currentResidence?.residenceId
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -83,13 +81,13 @@ fun ProfileScreen(
         ) {
             Tab(
                 selected = uiState.activeTab == 0,
-                onClick = { viewModel.onIntent(ProfileIntent.SetTab(0, token, residenceId)) },
+                onClick = { viewModel.onIntent(ProfileIntent.SetTab(0)) },
                 text = { Text("Mon Compte", style = MaterialTheme.typography.titleMedium) }
             )
             if (isManagement) {
                 Tab(
                     selected = uiState.activeTab == 1,
-                    onClick = { viewModel.onIntent(ProfileIntent.SetTab(1, token, residenceId)) },
+                    onClick = { viewModel.onIntent(ProfileIntent.SetTab(1)) },
                     text = { Text("Configuration Résidence", style = MaterialTheme.typography.titleMedium) }
                 )
             }
@@ -99,10 +97,10 @@ fun ProfileScreen(
 
         if (uiState.activeTab == 0) {
             UserAccountTab(
-                user = user,
-                firstName = firstName,
-                lastName = lastName,
-                phone = phone,
+                user = uiState.user ?: user,
+                firstName = uiState.firstName,
+                lastName = uiState.lastName,
+                phone = uiState.phone,
                 isEditingProfile = uiState.isEditingProfile,
                 editFirstName = uiState.editFirstName,
                 editLastName = uiState.editLastName,
@@ -113,14 +111,7 @@ fun ProfileScreen(
                 isSavingProfile = uiState.isSavingProfile,
                 profileError = uiState.profileError,
                 onStartEditing = {
-                    viewModel.onIntent(
-                        ProfileIntent.StartEditingProfile(
-                            firstName = firstName,
-                            lastName = lastName,
-                            phone = phone,
-                            avatarUrl = user?.avatarUrl
-                        )
-                    )
+                    viewModel.onIntent(ProfileIntent.StartEditingProfile)
                 },
                 onCancelEditing = { viewModel.onIntent(ProfileIntent.CancelEditingProfile) },
                 onFirstNameChanged = { viewModel.onIntent(ProfileIntent.SetEditFirstName(it)) },
@@ -130,7 +121,7 @@ fun ProfileScreen(
                     viewModel.onIntent(ProfileIntent.SetEditAvatar(bytes, mimeType, extension))
                 },
                 onRemoveAvatar = { viewModel.onIntent(ProfileIntent.RemoveEditAvatar) },
-                onSaveProfile = { viewModel.onIntent(ProfileIntent.SaveProfile(token)) },
+                onSaveProfile = { viewModel.onIntent(ProfileIntent.SaveProfile) },
                 onLogout = onLogout,
                 modifier = Modifier.weight(1f)
             )
@@ -148,9 +139,9 @@ fun ProfileScreen(
                 currencyErrorMsg = uiState.currencyErrorMsg,
                 onCategoryKeyChanged = { viewModel.onIntent(ProfileIntent.SetCategoryKey(it)) },
                 onCategoryLabelChanged = { viewModel.onIntent(ProfileIntent.SetCategoryLabel(it)) },
-                onSubmitCategory = { viewModel.onIntent(ProfileIntent.SubmitCategory(token, residenceId)) },
+                onSubmitCategory = { viewModel.onIntent(ProfileIntent.SubmitCategory) },
                 onSelectCurrency = { viewModel.onIntent(ProfileIntent.SelectCurrency(it)) },
-                onSubmitCurrency = { viewModel.onIntent(ProfileIntent.SubmitCurrency(token, residenceId)) },
+                onSubmitCurrency = { viewModel.onIntent(ProfileIntent.SubmitCurrency) },
                 onEditCategoryClick = { cat -> viewModel.onIntent(ProfileIntent.SetEditingCategory(cat)) },
                 modifier = Modifier.weight(1f)
             )
@@ -164,7 +155,7 @@ fun ProfileScreen(
             errorMessage = uiState.editError,
             onLabelChanged = { viewModel.onIntent(ProfileIntent.SetEditCategoryLabel(it)) },
             onDismiss = { viewModel.onIntent(ProfileIntent.SetEditingCategory(null)) },
-            onSubmit = { viewModel.onIntent(ProfileIntent.SaveCategoryEdit(token)) }
+            onSubmit = { viewModel.onIntent(ProfileIntent.SaveCategoryEdit) }
         )
     }
 }

@@ -1,5 +1,6 @@
 package com.resid.manager.features.profile.di
 
+import com.resid.manager.SessionStorage
 import com.resid.manager.features.profile.ProfileViewModel
 import com.resid.manager.features.profile.data.ProfileRepository
 import com.resid.manager.features.profile.data.ProfileRepositoryImpl
@@ -25,8 +26,9 @@ val profileFeatureModule = module {
             addTicketCategoryUseCase = get(),
             updateTicketCategoryUseCase = get(),
             updateResidenceCurrencyUseCase = get(),
+            fetchResidencesUseCase = get(),
             storageRepository = get(),
-            sessionStorage = getOrNull()
+            sessionStorage = getOrNull<SessionStorage>()
         )
     }
 }

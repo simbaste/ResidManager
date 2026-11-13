@@ -1,10 +1,13 @@
 package com.resid.manager.features.members.mvi
 
+import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceMemberSummaryDto
 import com.resid.manager.dto.UserSearchDto
 
 data class MembersUiState(
     val isLoading: Boolean = false,
+    val activeResidence: ResidenceContext? = null,
+    val isAuthorized: Boolean = false,
     val members: List<ResidenceMemberSummaryDto> = emptyList(),
     val sortBy: String = "name", // "name", "role", "status"
     val sortAscending: Boolean = true,
@@ -21,13 +24,14 @@ data class MembersUiState(
 )
 
 sealed interface MembersIntent {
-    data class LoadMembers(val token: String, val residenceId: String) : MembersIntent
+    data object Refresh : MembersIntent
+    data class LoadMembers(val residenceId: String) : MembersIntent
     data class ChangeSort(val column: String) : MembersIntent
     data class SetShowInviteDialog(val show: Boolean) : MembersIntent
-    data class SearchUsers(val token: String, val query: String) : MembersIntent
+    data class SearchUsers(val query: String) : MembersIntent
     data class SelectUser(val user: UserSearchDto) : MembersIntent
     data class SelectRole(val role: String) : MembersIntent
-    data class SubmitInvite(val token: String, val residenceId: String) : MembersIntent
+    data object SubmitInvite : MembersIntent
 }
 
 sealed interface MembersEffect {

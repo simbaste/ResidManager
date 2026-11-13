@@ -1,13 +1,17 @@
 package com.resid.manager.features.members
 
 import androidx.lifecycle.viewModelScope
+import com.resid.manager.SessionStorage
 import com.resid.manager.base.MviViewModel
+import com.resid.manager.dto.ResidenceContext
+import com.resid.manager.dto.UserRole
 import com.resid.manager.dto.UserSearchDto
 import com.resid.manager.features.members.mvi.MembersEffect
 import com.resid.manager.features.members.mvi.MembersIntent
 import com.resid.manager.features.members.mvi.MembersUiState
 import com.resid.manager.features.members.usecase.FetchMembersUseCase
 import com.resid.manager.features.members.usecase.InviteMemberUseCase
+import com.resid.manager.features.residences.usecase.FetchResidencesUseCase
 import com.resid.manager.network.ApiClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -18,17 +22,34 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 class MembersViewModel(
     private val fetchMembersUseCase: FetchMembersUseCase,
-    private val inviteMemberUseCase: InviteMemberUseCase
+    private val inviteMemberUseCase: InviteMemberUseCase,
+    private val fetchResidencesUseCase: FetchResidencesUseCase,
+    private val sessionStorage: SessionStorage? = null
 ) : MviViewModel<MembersUiState, MembersIntent, MembersEffect>(MembersUiState()) {
 
     private var searchJob: Job? = null
 
+    init {
+        val lastSelectedId = sessionStorage?.loadLastSelectedResidenceId()
+        if (!lastSelectedId.isNullOrBlank()) {
+            loadResidenceAndMembers(lastSelectedId)
+        }
+    }
+
     override fun onIntent(intent: MembersIntent) {
         when (intent) {
-            is MembersIntent.LoadMembers -> loadMembers(intent.token, intent.residenceId)
+            is MembersIntent.Refresh -> {
+                val residenceId = uiState.value.activeResidence?.residenceId
+                    ?: sessionStorage?.loadLastSelectedResidenceId()
+                if (!residenceId.isNullOrBlank()) {
+                    loadMembers(residenceId)
+                }
+            }
+            is MembersIntent.LoadMembers -> loadResidenceAndMembers(intent.residenceId)
             is MembersIntent.ChangeSort -> {
                 val currentSort = uiState.value.sortBy
                 val currentAsc = uiState.value.sortAscending
@@ -51,7 +72,7 @@ class MembersViewModel(
                     )
                 }
             }
-            is MembersIntent.SearchUsers -> searchUsers(intent.token, intent.query)
+            is MembersIntent.SearchUsers -> searchUsers(intent.query)
             is MembersIntent.SelectUser -> {
                 updateState {
                     it.copy(
@@ -63,14 +84,61 @@ class MembersViewModel(
                 }
             }
             is MembersIntent.SelectRole -> updateState { it.copy(selectedRole = intent.role) }
-            is MembersIntent.SubmitInvite -> submitInvite(intent.token, intent.residenceId)
+            is MembersIntent.SubmitInvite -> submitInvite()
         }
     }
 
-    private fun loadMembers(token: String, residenceId: String) {
+    fun updateActiveResidence(residence: ResidenceContext?) {
+        if (residence == null) {
+            updateState {
+                it.copy(
+                    activeResidence = null,
+                    isAuthorized = false,
+                    members = emptyList()
+                )
+            }
+            return
+        }
+        val isAuth = residence.userRoleInResidence == UserRole.OWNER ||
+            residence.userRoleInResidence == UserRole.ADMIN ||
+            residence.userRoleInResidence == UserRole.MANAGER
+        updateState {
+            it.copy(
+                activeResidence = residence,
+                isAuthorized = isAuth
+            )
+        }
+        loadMembers(residence.residenceId)
+    }
+
+    private fun loadResidenceAndMembers(residenceId: String) {
+        val session = sessionStorage?.loadSession() ?: return
+        viewModelScope.launch {
+            if (uiState.value.activeResidence == null || uiState.value.activeResidence?.residenceId != residenceId) {
+                fetchResidencesUseCase(session.token).onSuccess { list ->
+                    val matched = list.firstOrNull { it.residenceId == residenceId }
+                    if (matched != null) {
+                        val isAuth = matched.userRoleInResidence == UserRole.OWNER ||
+                            matched.userRoleInResidence == UserRole.ADMIN ||
+                            matched.userRoleInResidence == UserRole.MANAGER
+                        updateState {
+                            it.copy(
+                                activeResidence = matched,
+                                isAuthorized = isAuth
+                            )
+                        }
+                    }
+                }
+            }
+            loadMembers(residenceId)
+        }
+    }
+
+    private fun loadMembers(residenceId: String) {
+        val session = sessionStorage?.loadSession() ?: return
         viewModelScope.launch {
             updateState { it.copy(isLoading = true, errorMessage = null) }
-            fetchMembersUseCase(token, residenceId)
+            fetchMembersUseCase(session.token, residenceId)
                 .onSuccess { list ->
                     updateState { it.copy(isLoading = false, members = list, errorMessage = null) }
                 }
@@ -80,7 +148,8 @@ class MembersViewModel(
         }
     }
 
-    private fun searchUsers(token: String, query: String) {
+    private fun searchUsers(query: String) {
+        val session = sessionStorage?.loadSession() ?: return
         updateState { it.copy(userSearchQuery = query, isSearchingUsers = true, inviteErrorMessage = null) }
         searchJob?.cancel()
 
@@ -90,11 +159,11 @@ class MembersViewModel(
         }
 
         searchJob = viewModelScope.launch {
-            delay(350)
+            delay(350.milliseconds)
             try {
                 val response = ApiClient.httpClient.get("${ApiClient.BASE_URL}/api/users/search") {
                     parameter("q", query)
-                    header(HttpHeaders.Authorization, "Bearer $token")
+                    header(HttpHeaders.Authorization, "Bearer ${session.token}")
                 }
                 if (response.status == HttpStatusCode.OK) {
                     val list = response.body<List<UserSearchDto>>()
@@ -108,7 +177,10 @@ class MembersViewModel(
         }
     }
 
-    private fun submitInvite(token: String, residenceId: String) {
+    private fun submitInvite() {
+        val session = sessionStorage?.loadSession() ?: return
+        val residenceId = uiState.value.activeResidence?.residenceId
+            ?: sessionStorage.loadLastSelectedResidenceId() ?: return
         val state = uiState.value
         if (state.selectedUserEmail.isBlank()) {
             updateState { it.copy(inviteErrorMessage = "Veuillez rechercher et sélectionner un destinataire.") }
@@ -117,11 +189,11 @@ class MembersViewModel(
 
         viewModelScope.launch {
             updateState { it.copy(isInviteLoading = true, inviteErrorMessage = null) }
-            inviteMemberUseCase(token, residenceId, state.selectedUserEmail, state.selectedRole)
+            inviteMemberUseCase(session.token, residenceId, state.selectedUserEmail, state.selectedRole)
                 .onSuccess {
                     updateState { it.copy(isInviteLoading = false, showInviteDialog = false) }
                     emitEffect(MembersEffect.MemberInvitedSuccess)
-                    loadMembers(token, residenceId)
+                    loadMembers(residenceId)
                 }
                 .onFailure { error ->
                     updateState { it.copy(isInviteLoading = false, inviteErrorMessage = error.message) }

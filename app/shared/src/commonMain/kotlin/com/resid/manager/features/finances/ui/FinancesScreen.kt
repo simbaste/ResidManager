@@ -18,7 +18,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceContext
-import com.resid.manager.dto.UserRole
 import com.resid.manager.features.finances.FinancesViewModel
 import com.resid.manager.features.finances.mvi.FinancesIntent
 import com.resid.manager.features.finances.mvi.FinancesUiState
@@ -31,36 +30,30 @@ import org.koin.compose.koinInject
 
 @Composable
 fun FinancesScreen(
-    activeResidence: ResidenceContext?,
-    jwtToken: String?,
+    activeResidence: ResidenceContext? = null,
     viewModel: FinancesViewModel = koinInject()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val token = jwtToken ?: ""
-    val residenceId = activeResidence?.residenceId ?: ""
-    val isAuthorized = activeResidence != null && (
-        activeResidence.userRoleInResidence == UserRole.OWNER ||
-        activeResidence.userRoleInResidence == UserRole.ADMIN ||
-        activeResidence.userRoleInResidence == UserRole.MANAGER
-    )
 
-    LaunchedEffect(token, residenceId) {
-        if (token.isNotBlank() && residenceId.isNotBlank()) {
-            viewModel.onIntent(FinancesIntent.LoadTransactions(token, residenceId))
+    LaunchedEffect(activeResidence?.residenceId) {
+        if (activeResidence != null) {
+            viewModel.updateActiveResidence(activeResidence)
         }
     }
 
+    val effectiveCurrencySymbol = uiState.currencySymbol
+
     FinancesContent(
         uiState = uiState,
-        isAuthorized = isAuthorized,
-        currencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
+        isAuthorized = uiState.isAuthorized,
+        currencySymbol = effectiveCurrencySymbol,
         onCategoryChanged = { viewModel.onIntent(FinancesIntent.SetFormCategory(it)) },
         onAmountChanged = { viewModel.onIntent(FinancesIntent.SetFormAmount(it)) },
         onDescriptionChanged = { viewModel.onIntent(FinancesIntent.SetFormDescription(it)) },
         onDateChanged = { viewModel.onIntent(FinancesIntent.SetFormDate(it)) },
-        onSubmitExpense = { viewModel.onIntent(FinancesIntent.SubmitExpense(token, residenceId)) },
-        onFilterTypeChanged = { viewModel.onIntent(FinancesIntent.SetFilterType(it, token, residenceId)) },
-        onFilterQueryChanged = { viewModel.onIntent(FinancesIntent.SetFilterQuery(it, token, residenceId)) },
+        onSubmitExpense = { viewModel.onIntent(FinancesIntent.SubmitExpense) },
+        onFilterTypeChanged = { viewModel.onIntent(FinancesIntent.SetFilterType(it)) },
+        onFilterQueryChanged = { viewModel.onIntent(FinancesIntent.SetFilterQuery(it)) },
         onTraceabilityClick = { viewModel.onIntent(FinancesIntent.SetTraceabilityPayload(it)) }
     )
 

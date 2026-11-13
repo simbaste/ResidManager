@@ -1,5 +1,6 @@
 package com.resid.manager.features.electricity.di
 
+import com.resid.manager.SessionStorage
 import com.resid.manager.features.electricity.ElectricityViewModel
 import com.resid.manager.features.electricity.data.ElectricityRepository
 import com.resid.manager.features.electricity.data.ElectricityRepositoryImpl
@@ -21,7 +22,10 @@ val electricityFeatureModule = module {
             fetchElectricityStatementsUseCase = get(),
             fetchPreviousIndexUseCase = get(),
             createElectricityStatementUseCase = get(),
-            markStatementPaidUseCase = get()
+            markStatementPaidUseCase = get(),
+            fetchResidencesUseCase = get(),
+            fetchUnitsUseCase = get(),
+            sessionStorage = getOrNull<SessionStorage>()
         )
     }
 }

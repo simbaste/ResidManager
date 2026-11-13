@@ -1,5 +1,6 @@
 package com.resid.manager.features.members.di
 
+import com.resid.manager.SessionStorage
 import com.resid.manager.features.members.MembersViewModel
 import com.resid.manager.features.members.usecase.FetchMembersUseCase
 import com.resid.manager.features.members.usecase.InviteMemberUseCase
@@ -12,7 +13,9 @@ val membersFeatureModule = module {
     single {
         MembersViewModel(
             fetchMembersUseCase = get(),
-            inviteMemberUseCase = get()
+            inviteMemberUseCase = get(),
+            fetchResidencesUseCase = get(),
+            sessionStorage = getOrNull<SessionStorage>()
         )
     }
 }

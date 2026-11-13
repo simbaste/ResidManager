@@ -1,0 +1,6 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Web: Debug JS (Compound)" type="CompoundRunConfigurationType">
+    <toRun name="Web: JS Dev Server (:app:webApp)" type="GradleRunConfiguration" />
+    <method v="2" />
+  </configuration>
+</component>

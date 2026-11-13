@@ -4,63 +4,49 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
-import com.resid.manager.dto.ElectricityStatusDto
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceUnitDto
-import com.resid.manager.dto.UserRole
 import com.resid.manager.features.electricity.ElectricityViewModel
 import com.resid.manager.features.electricity.mvi.ElectricityIntent
 import com.resid.manager.features.electricity.mvi.ElectricityUiState
 import com.resid.manager.features.electricity.ui.components.CreateStatementDialog
 import com.resid.manager.features.electricity.ui.components.ElectricityFilterBar
+import com.resid.manager.features.electricity.ui.components.ElectricityHeader
 import com.resid.manager.features.electricity.ui.components.ElectricityStatementsGrid
 import com.resid.manager.features.electricity.ui.components.StatementPaymentDialog
 import com.resid.manager.network.ApiClient
-import com.resid.manager.ui.components.ResidAppBarAction
-import com.resid.manager.ui.components.ResidTopAppBar
 import org.koin.compose.koinInject
 
 @Composable
 fun ElectricityScreen(
-    activeResidence: ResidenceContext?,
-    jwtToken: String?,
-    residenceUnits: List<ResidenceUnitDto>,
+    activeResidence: ResidenceContext? = null,
     viewModel: ElectricityViewModel = koinInject()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val token = jwtToken ?: ""
-    val residenceId = activeResidence?.residenceId ?: ""
-    val isAuthorized = activeResidence != null && (
-        activeResidence.userRoleInResidence == UserRole.OWNER ||
-        activeResidence.userRoleInResidence == UserRole.ADMIN ||
-        activeResidence.userRoleInResidence == UserRole.MANAGER
-    )
     val uriHandler = LocalUriHandler.current
 
-    LaunchedEffect(token, residenceId) {
-        if (token.isNotBlank() && residenceId.isNotBlank()) {
-            viewModel.onIntent(ElectricityIntent.LoadStatements(token, residenceId))
+    LaunchedEffect(activeResidence?.residenceId) {
+        if (activeResidence != null) {
+            viewModel.updateActiveResidence(activeResidence)
         }
     }
 
-    val effectiveCurrencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol
+    val currentResidence = uiState.activeResidence ?: activeResidence
+    val effectiveCurrencySymbol = uiState.currencySymbol
+    val residenceId = currentResidence?.residenceId.orEmpty()
 
     ElectricityContent(
         uiState = uiState,
-        residenceUnits = residenceUnits,
+        residenceUnits = uiState.residenceUnits,
         currencySymbol = effectiveCurrencySymbol,
-        isAuthorized = isAuthorized,
+        isAuthorized = uiState.isAuthorized,
         onAddStatementClick = { viewModel.onIntent(ElectricityIntent.SetShowCreateDialog(true)) },
         onEcoPrintClick = {
             val selectedKeys = uiState.selectedStatementIds.filter { it.value }.keys.joinToString(",")
@@ -77,21 +63,19 @@ fun ElectricityScreen(
 
     if (uiState.showCreateDialog) {
         CreateStatementDialog(
-            residenceUnits = residenceUnits,
+            residenceUnits = uiState.residenceUnits,
             formPreviousIndex = uiState.formPreviousIndex,
             isLoadingPreviousIndex = uiState.isLoadingPreviousIndex,
             errorMessage = uiState.errorMessage,
-            defaultKWhPrice = activeResidence?.kWhPrice ?: 150.0,
+            defaultKWhPrice = currentResidence?.kWhPrice ?: 150.0,
             currencySymbol = effectiveCurrencySymbol,
             onSelectUnitForPreviousIndex = { unitId ->
-                viewModel.onIntent(ElectricityIntent.LoadPreviousIndex(token, unitId))
+                viewModel.onIntent(ElectricityIntent.LoadPreviousIndex(unitId))
             },
             onDismiss = { viewModel.onIntent(ElectricityIntent.SetShowCreateDialog(false)) },
             onSubmit = { unitId, oldIdx, newIdx, price, date ->
                 viewModel.onIntent(
                     ElectricityIntent.CreateStatement(
-                        token = token,
-                        residenceId = residenceId,
                         unitId = unitId,
                         previousIndex = oldIdx,
                         newIndex = newIdx,
@@ -110,7 +94,7 @@ fun ElectricityScreen(
             currencySymbol = effectiveCurrencySymbol,
             onDismiss = { viewModel.onIntent(ElectricityIntent.SetConfirmingPaymentStatement(null)) },
             onConfirm = {
-                viewModel.onIntent(ElectricityIntent.MarkPaid(token, residenceId, stmt.id))
+                viewModel.onIntent(ElectricityIntent.MarkPaid(stmt.id))
             }
         )
     }
@@ -131,63 +115,15 @@ fun ElectricityContent(
     onMarkPaidClick: (com.resid.manager.dto.ElectricityStatementDto) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val filteredStatements = remember(
-        uiState.statements,
-        uiState.statusFilter,
-        uiState.floorFilterText,
-        uiState.tenantFilterText,
-        residenceUnits
-    ) {
-        uiState.statements.filter { stmt ->
-            val matchStatus = when (uiState.statusFilter) {
-                "PAID" -> stmt.status == ElectricityStatusDto.PAID
-                "UNPAID" -> stmt.status == ElectricityStatusDto.UNPAID
-                else -> true
-            }
-
-            val matchedUnit = residenceUnits.firstOrNull { it.id == stmt.unitId }
-            val matchFloor = if (uiState.floorFilterText.isNotEmpty()) {
-                matchedUnit?.floor?.contains(uiState.floorFilterText, ignoreCase = true) == true
-            } else true
-
-            val matchTenant = if (uiState.tenantFilterText.isNotEmpty()) {
-                matchedUnit?.name?.contains(uiState.tenantFilterText, ignoreCase = true) == true
-            } else true
-
-            matchStatus && matchFloor && matchTenant
-        }
-    }
-
-    val selectedCount = uiState.selectedStatementIds.count { it.value }
-
     Column(
         modifier = modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        val appActions = buildList {
-            if (isAuthorized) {
-                add(
-                    ResidAppBarAction(
-                        title = "Nouveau Relevé",
-                        icon = Icons.Default.Add,
-                        onClick = onAddStatementClick
-                    )
-                )
-            }
-            if (selectedCount > 0) {
-                add(
-                    ResidAppBarAction(
-                        title = "Export Eco-Print ($selectedCount)",
-                        icon = Icons.Default.PictureAsPdf,
-                        onClick = onEcoPrintClick
-                    )
-                )
-            }
-        }
-
-        ResidTopAppBar(
-            title = "Facturation Électricité",
-            actions = appActions
+        ElectricityHeader(
+            isAuthorized = isAuthorized,
+            selectedCount = uiState.selectedStatementIds.count { it.value },
+            onAddStatementClick = onAddStatementClick,
+            onEcoPrintClick = onEcoPrintClick
         )
 
         ElectricityFilterBar(
@@ -200,7 +136,7 @@ fun ElectricityContent(
         )
 
         ElectricityStatementsGrid(
-            statements = filteredStatements,
+            statements = uiState.statements,
             residenceUnits = residenceUnits,
             currencySymbol = currencySymbol,
             selectedStatementIds = uiState.selectedStatementIds,

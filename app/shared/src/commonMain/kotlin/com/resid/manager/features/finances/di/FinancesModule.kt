@@ -1,5 +1,6 @@
 package com.resid.manager.features.finances.di
 
+import com.resid.manager.SessionStorage
 import com.resid.manager.features.finances.FinancesViewModel
 import com.resid.manager.features.finances.data.FinanceRepository
 import com.resid.manager.features.finances.data.FinanceRepositoryImpl
@@ -15,7 +16,9 @@ val financesFeatureModule = module {
     single {
         FinancesViewModel(
             fetchTransactionsUseCase = get(),
-            recordExpenseUseCase = get()
+            recordExpenseUseCase = get(),
+            fetchResidencesUseCase = get(),
+            sessionStorage = getOrNull<SessionStorage>()
         )
     }
 }

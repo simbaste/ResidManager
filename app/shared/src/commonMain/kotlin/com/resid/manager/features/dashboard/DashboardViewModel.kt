@@ -1,37 +1,100 @@
 package com.resid.manager.features.dashboard
 
 import androidx.lifecycle.viewModelScope
+import com.resid.manager.SessionStorage
 import com.resid.manager.base.MviViewModel
+import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.features.dashboard.mvi.DashboardEffect
 import com.resid.manager.features.dashboard.mvi.DashboardIntent
 import com.resid.manager.features.dashboard.mvi.DashboardUiState
 import com.resid.manager.features.dashboard.usecase.GetDashboardDataUseCase
+import com.resid.manager.features.residences.usecase.FetchResidencesUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class DashboardViewModel(
-    private val getDashboardDataUseCase: GetDashboardDataUseCase
+    private val getDashboardDataUseCase: GetDashboardDataUseCase,
+    private val fetchResidencesUseCase: FetchResidencesUseCase,
+    private val sessionStorage: SessionStorage? = null
 ) : MviViewModel<DashboardUiState, DashboardIntent, DashboardEffect>(DashboardUiState()) {
 
     private var loadJob: Job? = null
 
+    init {
+        sessionStorage?.loadSession()?.let { session ->
+            updateState { it.copy(firstName = session.firstName) }
+            val lastResId = sessionStorage.loadLastSelectedResidenceId()
+            if (!lastResId.isNullOrBlank()) {
+                loadResidenceAndData(session.token, lastResId)
+            }
+        }
+    }
+
     override fun onIntent(intent: DashboardIntent) {
         when (intent) {
+            is DashboardIntent.Refresh -> {
+                val session = sessionStorage?.loadSession()
+                val residenceId = uiState.value.activeResidence?.residenceId
+                    ?: sessionStorage?.loadLastSelectedResidenceId()
+                if (session != null && !residenceId.isNullOrBlank()) {
+                    fetchData(session.token, residenceId, uiState.value.periodFilter, uiState.value.customStartText, uiState.value.customEndText)
+                }
+            }
             is DashboardIntent.LoadData -> {
-                fetchData(intent.token, intent.residenceId, uiState.value.periodFilter, uiState.value.customStartText, uiState.value.customEndText)
+                val session = sessionStorage?.loadSession()
+                if (session != null) {
+                    loadResidenceAndData(session.token, intent.residenceId)
+                }
             }
             is DashboardIntent.ChangePeriodFilter -> {
                 updateState { it.copy(periodFilter = intent.filter) }
-                fetchData(intent.token, intent.residenceId, intent.filter, uiState.value.customStartText, uiState.value.customEndText)
+                val session = sessionStorage?.loadSession()
+                val residenceId = uiState.value.activeResidence?.residenceId
+                    ?: sessionStorage?.loadLastSelectedResidenceId()
+                if (session != null && !residenceId.isNullOrBlank()) {
+                    fetchData(session.token, residenceId, intent.filter, uiState.value.customStartText, uiState.value.customEndText)
+                }
             }
             is DashboardIntent.UpdateCustomStart -> {
                 updateState { it.copy(customStartText = intent.startDate) }
-                fetchData(intent.token, intent.residenceId, uiState.value.periodFilter, intent.startDate, uiState.value.customEndText)
+                val session = sessionStorage?.loadSession()
+                val residenceId = uiState.value.activeResidence?.residenceId
+                    ?: sessionStorage?.loadLastSelectedResidenceId()
+                if (session != null && !residenceId.isNullOrBlank()) {
+                    fetchData(session.token, residenceId, uiState.value.periodFilter, intent.startDate, uiState.value.customEndText)
+                }
             }
             is DashboardIntent.UpdateCustomEnd -> {
                 updateState { it.copy(customEndText = intent.endDate) }
-                fetchData(intent.token, intent.residenceId, uiState.value.periodFilter, uiState.value.customStartText, intent.endDate)
+                val session = sessionStorage?.loadSession()
+                val residenceId = uiState.value.activeResidence?.residenceId
+                    ?: sessionStorage?.loadLastSelectedResidenceId()
+                if (session != null && !residenceId.isNullOrBlank()) {
+                    fetchData(session.token, residenceId, uiState.value.periodFilter, uiState.value.customStartText, intent.endDate)
+                }
             }
+        }
+    }
+
+    fun updateActiveResidence(residence: ResidenceContext?) {
+        updateState { it.copy(activeResidence = residence) }
+        val session = sessionStorage?.loadSession()
+        if (session != null && residence != null) {
+            fetchData(session.token, residence.residenceId, uiState.value.periodFilter, uiState.value.customStartText, uiState.value.customEndText)
+        }
+    }
+
+    private fun loadResidenceAndData(token: String, residenceId: String) {
+        viewModelScope.launch {
+            if (uiState.value.activeResidence == null || uiState.value.activeResidence?.residenceId != residenceId) {
+                fetchResidencesUseCase(token).onSuccess { list ->
+                    val matched = list.firstOrNull { it.residenceId == residenceId }
+                    if (matched != null) {
+                        updateState { it.copy(activeResidence = matched) }
+                    }
+                }
+            }
+            fetchData(token, residenceId, uiState.value.periodFilter, uiState.value.customStartText, uiState.value.customEndText)
         }
     }
 

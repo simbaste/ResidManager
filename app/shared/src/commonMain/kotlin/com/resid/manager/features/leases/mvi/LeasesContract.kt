@@ -1,11 +1,20 @@
 package com.resid.manager.features.leases.mvi
 
+import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.LeaseCreateRequest
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.LeaseStatusDto
+import com.resid.manager.dto.ResidenceContext
+import com.resid.manager.dto.ResidenceMemberSummaryDto
+import com.resid.manager.dto.ResidenceUnitDto
 
 data class LeasesUiState(
     val isLoading: Boolean = false,
+    val activeResidence: ResidenceContext? = null,
+    val isAuthorized: Boolean = false,
+    val currencySymbol: String = AppCurrency.DEFAULT.symbol,
+    val units: List<ResidenceUnitDto> = emptyList(),
+    val members: List<ResidenceMemberSummaryDto> = emptyList(),
     val leases: List<LeaseDto> = emptyList(),
     val selectedLeaseForDetail: LeaseDto? = null,
     val activeFilter: String = "ALL", // "ALL", "ACTIVE", "PENDING"
@@ -15,30 +24,25 @@ data class LeasesUiState(
 )
 
 sealed interface LeasesIntent {
-    data class LoadLeases(val token: String, val residenceId: String) : LeasesIntent
+    data object Refresh : LeasesIntent
+    data class LoadLeases(val residenceId: String) : LeasesIntent
     data class SelectLeaseForDetail(val lease: LeaseDto?) : LeasesIntent
     data class SetFilter(val filter: String) : LeasesIntent
     data class SetShowWizard(val show: Boolean) : LeasesIntent
     data class SetShowTerminateConfirmation(val show: Boolean) : LeasesIntent
 
     data class RecordPayment(
-        val token: String,
-        val residenceId: String,
         val leaseId: String,
         val amount: Double,
         val category: String
     ) : LeasesIntent
 
     data class UpdateStatus(
-        val token: String,
-        val residenceId: String,
         val leaseId: String,
         val status: LeaseStatusDto
     ) : LeasesIntent
 
     data class CreateLease(
-        val token: String,
-        val residenceId: String,
         val residenceUnitId: String,
         val request: LeaseCreateRequest
     ) : LeasesIntent

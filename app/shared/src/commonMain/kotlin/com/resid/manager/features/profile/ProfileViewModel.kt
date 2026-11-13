@@ -1,7 +1,10 @@
 package com.resid.manager.features.profile
 
 import androidx.lifecycle.viewModelScope
+import com.resid.manager.SessionStorage
 import com.resid.manager.base.MviViewModel
+import com.resid.manager.dto.ResidenceContext
+import com.resid.manager.dto.UserRole
 import com.resid.manager.features.profile.mvi.ProfileEffect
 import com.resid.manager.features.profile.mvi.ProfileIntent
 import com.resid.manager.features.profile.mvi.ProfileUiState
@@ -10,6 +13,8 @@ import com.resid.manager.features.profile.usecase.FetchResidenceCategoriesUseCas
 import com.resid.manager.features.profile.usecase.UpdateResidenceCurrencyUseCase
 import com.resid.manager.features.profile.usecase.UpdateTicketCategoryUseCase
 import com.resid.manager.features.profile.usecase.UpdateUserProfileUseCase
+import com.resid.manager.features.residences.usecase.FetchResidencesUseCase
+import com.resid.manager.repository.StorageRepository
 import kotlinx.coroutines.launch
 
 class ProfileViewModel(
@@ -18,26 +23,46 @@ class ProfileViewModel(
     private val addTicketCategoryUseCase: AddTicketCategoryUseCase,
     private val updateTicketCategoryUseCase: UpdateTicketCategoryUseCase,
     private val updateResidenceCurrencyUseCase: UpdateResidenceCurrencyUseCase,
-    private val storageRepository: com.resid.manager.repository.StorageRepository,
-    private val sessionStorage: com.resid.manager.SessionStorage? = null
+    private val fetchResidencesUseCase: FetchResidencesUseCase,
+    private val storageRepository: StorageRepository,
+    private val sessionStorage: SessionStorage? = null
 ) : MviViewModel<ProfileUiState, ProfileIntent, ProfileEffect>(ProfileUiState()) {
+
+    init {
+        sessionStorage?.loadSession()?.let { session ->
+            updateState {
+                it.copy(
+                    firstName = session.firstName,
+                    lastName = session.lastName,
+                    editFirstName = session.firstName,
+                    editLastName = session.lastName,
+                    editAvatarUrl = session.avatarUrl
+                )
+            }
+            val lastResId = sessionStorage.loadLastSelectedResidenceId()
+            if (!lastResId.isNullOrBlank()) {
+                loadResidenceContext(session.token, lastResId)
+            }
+        }
+    }
 
     override fun onIntent(intent: ProfileIntent) {
         when (intent) {
             is ProfileIntent.SetTab -> {
                 updateState { it.copy(activeTab = intent.tab) }
-                if (intent.tab == 1 && intent.residenceId != null) {
-                    loadCategories(intent.token, intent.residenceId)
+                if (intent.tab == 1) {
+                    loadCategories()
                 }
             }
             is ProfileIntent.StartEditingProfile -> {
+                val state = uiState.value
                 updateState {
                     it.copy(
                         isEditingProfile = true,
-                        editFirstName = intent.firstName,
-                        editLastName = intent.lastName,
-                        editPhone = intent.phone,
-                        editAvatarUrl = intent.avatarUrl,
+                        editFirstName = state.firstName,
+                        editLastName = state.lastName,
+                        editPhone = state.phone,
+                        editAvatarUrl = state.user?.avatarUrl ?: state.editAvatarUrl,
                         editAvatarBytes = null,
                         isAvatarRemoved = false,
                         profileError = null
@@ -72,11 +97,11 @@ class ProfileViewModel(
                     profileError = null
                 )
             }
-            is ProfileIntent.SaveProfile -> saveProfile(intent.token)
-            is ProfileIntent.LoadCategories -> loadCategories(intent.token, intent.residenceId)
+            is ProfileIntent.SaveProfile -> saveProfile()
+            is ProfileIntent.LoadCategories -> loadCategories()
             is ProfileIntent.SetCategoryKey -> updateState { it.copy(formCategoryKey = intent.key) }
             is ProfileIntent.SetCategoryLabel -> updateState { it.copy(formCategoryLabel = intent.label) }
-            is ProfileIntent.SubmitCategory -> submitCategory(intent.token, intent.residenceId)
+            is ProfileIntent.SubmitCategory -> submitCategory()
             is ProfileIntent.SetEditingCategory -> {
                 updateState {
                     it.copy(
@@ -87,16 +112,85 @@ class ProfileViewModel(
                 }
             }
             is ProfileIntent.SetEditCategoryLabel -> updateState { it.copy(editCategoryLabel = intent.label) }
-            is ProfileIntent.SaveCategoryEdit -> saveCategoryEdit(intent.token)
+            is ProfileIntent.SaveCategoryEdit -> saveCategoryEdit()
             is ProfileIntent.InitResidenceCurrency -> updateState {
                 it.copy(selectedCurrency = intent.currency.ifBlank { "XOF" }, currencySuccess = false, currencyErrorMsg = null)
             }
             is ProfileIntent.SelectCurrency -> updateState { it.copy(selectedCurrency = intent.currency, currencySuccess = false, currencyErrorMsg = null) }
-            is ProfileIntent.SubmitCurrency -> submitCurrency(intent.token, intent.residenceId)
+            is ProfileIntent.SubmitCurrency -> submitCurrency()
         }
     }
 
-    private fun saveProfile(token: String) {
+    fun updateActiveResidence(residence: ResidenceContext?) {
+        if (residence == null) {
+            updateState {
+                it.copy(
+                    activeResidence = null,
+                    isManagement = false,
+                    categories = emptyList()
+                )
+            }
+            return
+        }
+        val isMgmt = residence.userRoleInResidence == UserRole.OWNER ||
+            residence.userRoleInResidence == UserRole.ADMIN ||
+            residence.userRoleInResidence == UserRole.MANAGER
+        updateState {
+            it.copy(
+                activeResidence = residence,
+                isManagement = isMgmt,
+                selectedCurrency = residence.currencyCode.ifBlank { "XOF" }
+            )
+        }
+        if (uiState.value.activeTab == 1) {
+            loadCategories()
+        }
+    }
+
+    fun updateUser(user: com.resid.manager.dto.UserDto?) {
+        if (user != null) {
+            updateState {
+                it.copy(
+                    user = user,
+                    firstName = user.firstName.orEmpty(),
+                    lastName = user.lastName.orEmpty(),
+                    phone = user.phone.orEmpty(),
+                    editFirstName = user.firstName.orEmpty(),
+                    editLastName = user.lastName.orEmpty(),
+                    editPhone = user.phone.orEmpty(),
+                    editAvatarUrl = user.avatarUrl
+                )
+            }
+        }
+    }
+
+    private fun loadResidenceContext(token: String, residenceId: String) {
+        viewModelScope.launch {
+            if (uiState.value.activeResidence == null || uiState.value.activeResidence?.residenceId != residenceId) {
+                fetchResidencesUseCase(token).onSuccess { list ->
+                    val matched = list.firstOrNull { it.residenceId == residenceId }
+                    if (matched != null) {
+                        val isMgmt = matched.userRoleInResidence == UserRole.OWNER ||
+                            matched.userRoleInResidence == UserRole.ADMIN ||
+                            matched.userRoleInResidence == UserRole.MANAGER
+                        updateState {
+                            it.copy(
+                                activeResidence = matched,
+                                isManagement = isMgmt,
+                                selectedCurrency = matched.currencyCode.ifBlank { "XOF" }
+                            )
+                        }
+                        if (uiState.value.activeTab == 1) {
+                            loadCategories()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun saveProfile() {
+        val session = sessionStorage?.loadSession() ?: return
         val state = uiState.value
         if (state.editFirstName.isBlank() || state.editLastName.isBlank()) {
             updateState { it.copy(profileError = "Le prénom et le nom sont obligatoires.") }
@@ -106,10 +200,6 @@ class ProfileViewModel(
         viewModelScope.launch {
             updateState { it.copy(isSavingProfile = true, profileError = null) }
 
-            // 1. Déterminer l'URL d'avatar final :
-            // - Si une nouvelle image a été sélectionnée : upload vers R2
-            // - Si l'avatar a été explicitement supprimé : "" (chaîne vide pour effacer en base)
-            // - Sinon : conserver editAvatarUrl existant
             var targetAvatarUrl: String? = state.editAvatarUrl
             if (state.editAvatarBytes != null && state.editAvatarBytes.isNotEmpty()) {
                 val uploadResult = storageRepository.uploadAvatarToR2(
@@ -132,21 +222,25 @@ class ProfileViewModel(
             }
 
             updateUserProfileUseCase(
-                token = token,
+                token = session.token,
                 firstName = state.editFirstName,
                 lastName = state.editLastName,
                 phone = state.editPhone,
                 avatarUrl = targetAvatarUrl
             )
                 .onSuccess { updatedUser ->
-                    sessionStorage?.updateAvatarUrl(updatedUser.avatarUrl)
+                    sessionStorage.updateAvatarUrl(updatedUser.avatarUrl)
                     updateState {
                         it.copy(
                             isSavingProfile = false,
                             isEditingProfile = false,
                             editAvatarBytes = null,
                             editAvatarUrl = updatedUser.avatarUrl,
-                            isAvatarRemoved = false
+                            isAvatarRemoved = false,
+                            user = updatedUser,
+                            firstName = updatedUser.firstName.orEmpty(),
+                            lastName = updatedUser.lastName.orEmpty(),
+                            phone = updatedUser.phone.orEmpty()
                         )
                     }
                     emitEffect(ProfileEffect.UserProfileUpdated(updatedUser))
@@ -157,10 +251,13 @@ class ProfileViewModel(
         }
     }
 
-    private fun loadCategories(token: String, residenceId: String) {
+    private fun loadCategories() {
+        val session = sessionStorage?.loadSession() ?: return
+        val residenceId = uiState.value.activeResidence?.residenceId
+            ?: sessionStorage.loadLastSelectedResidenceId() ?: return
         viewModelScope.launch {
             updateState { it.copy(isLoadingCategories = true) }
-            fetchResidenceCategoriesUseCase(token, residenceId)
+            fetchResidenceCategoriesUseCase(session.token, residenceId)
                 .onSuccess { list ->
                     updateState { it.copy(isLoadingCategories = false, categories = list) }
                 }
@@ -170,7 +267,10 @@ class ProfileViewModel(
         }
     }
 
-    private fun submitCategory(token: String, residenceId: String) {
+    private fun submitCategory() {
+        val session = sessionStorage?.loadSession() ?: return
+        val residenceId = uiState.value.activeResidence?.residenceId
+            ?: sessionStorage.loadLastSelectedResidenceId() ?: return
         val state = uiState.value
         if (state.formCategoryKey.isBlank() || state.formCategoryLabel.isBlank()) {
             updateState { it.copy(categoryError = "Veuillez renseigner le code et le libellé.") }
@@ -179,10 +279,10 @@ class ProfileViewModel(
 
         viewModelScope.launch {
             updateState { it.copy(isSubmittingCategory = true, categoryError = null) }
-            addTicketCategoryUseCase(token, residenceId, state.formCategoryKey, state.formCategoryLabel)
+            addTicketCategoryUseCase(session.token, residenceId, state.formCategoryKey, state.formCategoryLabel)
                 .onSuccess {
                     updateState { it.copy(isSubmittingCategory = false, formCategoryKey = "", formCategoryLabel = "") }
-                    loadCategories(token, residenceId)
+                    loadCategories()
                 }
                 .onFailure { error ->
                     updateState { it.copy(isSubmittingCategory = false, categoryError = error.message) }
@@ -190,7 +290,8 @@ class ProfileViewModel(
         }
     }
 
-    private fun saveCategoryEdit(token: String) {
+    private fun saveCategoryEdit() {
+        val session = sessionStorage?.loadSession() ?: return
         val state = uiState.value
         val catId = state.editingCategory?.id ?: return
         if (state.editCategoryLabel.isBlank()) {
@@ -200,13 +301,10 @@ class ProfileViewModel(
 
         viewModelScope.launch {
             updateState { it.copy(isSubmittingEdit = true, editError = null) }
-            updateTicketCategoryUseCase(token, catId, state.editCategoryLabel)
+            updateTicketCategoryUseCase(session.token, catId, state.editCategoryLabel)
                 .onSuccess {
-                    val residenceId = state.editingCategory?.residenceId
                     updateState { it.copy(isSubmittingEdit = false, editingCategory = null) }
-                    if (residenceId != null) {
-                        loadCategories(token, residenceId)
-                    }
+                    loadCategories()
                 }
                 .onFailure { error ->
                     updateState { it.copy(isSubmittingEdit = false, editError = error.message) }
@@ -214,11 +312,14 @@ class ProfileViewModel(
         }
     }
 
-    private fun submitCurrency(token: String, residenceId: String) {
+    private fun submitCurrency() {
+        val session = sessionStorage?.loadSession() ?: return
+        val residenceId = uiState.value.activeResidence?.residenceId
+            ?: sessionStorage.loadLastSelectedResidenceId() ?: return
         val currency = uiState.value.selectedCurrency
         viewModelScope.launch {
             updateState { it.copy(isSubmittingCurrency = true, currencySuccess = false, currencyErrorMsg = null) }
-            updateResidenceCurrencyUseCase(token, residenceId, currency)
+            updateResidenceCurrencyUseCase(session.token, residenceId, currency)
                 .onSuccess {
                     updateState { it.copy(isSubmittingCurrency = false, currencySuccess = true) }
                     emitEffect(ProfileEffect.ResidenceCurrencyUpdated(residenceId, currency))

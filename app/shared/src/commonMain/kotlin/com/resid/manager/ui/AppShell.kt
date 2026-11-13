@@ -10,10 +10,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -24,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
@@ -39,6 +44,7 @@ import com.resid.manager.features.profile.ui.ProfileScreen
 import com.resid.manager.features.residences.ui.ResidencesScreen
 import com.resid.manager.features.tickets.ui.TicketsScreen
 import com.resid.manager.features.units.ui.UnitsScreen
+import com.resid.manager.navigation.AdaptiveModalSceneStrategy
 import com.resid.manager.navigation.AppNavKey
 import com.resid.manager.navigation.PlatformBackHandler
 import com.resid.manager.ui.theme.ResidTheme
@@ -46,6 +52,10 @@ import com.resid.manager.viewmodel.AppScreen
 import com.resid.manager.viewmodel.LoginViewModel
 import org.koin.compose.koinInject
 
+@OptIn(
+    ExperimentalMaterial3WindowSizeClassApi::class,
+    ExperimentalMaterial3Api::class
+)
 @Composable
 fun AppShell(
     viewModel: LoginViewModel = koinInject()
@@ -149,9 +159,19 @@ fun AppShell(
                     }
                 }
 
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                BoxWithConstraints(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    val windowSizeClass = WindowSizeClass.calculateFromSize(
+                        DpSize(maxWidth, maxHeight)
+                    )
+                    val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact || maxWidth < 600.dp
+
                     NavDisplay(
                         backStack = innerBackStack,
+                        sceneStrategies = listOf(
+                            remember(isCompact) {
+                                AdaptiveModalSceneStrategy(isCompact = isCompact)
+                            }
+                        ),
                         onBack = {
                             if (innerBackStack.size > 1) {
                                 innerBackStack.removeLastOrNull()
@@ -162,11 +182,13 @@ fun AppShell(
                                 AppNavKey.Dashboard -> NavEntry(key) {
                                     DashboardScreen(
                                         activeResidence = uiState.selectedResidenceContext,
-                                        firstName = uiState.firstName,
-                                        jwtToken = uiState.jwtToken,
                                         onCreateResidenceClick = { viewModel.setShowCreateResidenceDialog(true) },
                                         onJoinResidenceClick = { viewModel.setShowJoinResidenceDialog(true) },
-                                        onNewUnitClick = { viewModel.setShowCreateUnitDialog(true) },
+                                        onNewUnitClick = {
+                                            if (innerBackStack.lastOrNull() != AppNavKey.CreateUnit) {
+                                                innerBackStack.add(AppNavKey.CreateUnit)
+                                            }
+                                        },
                                         onNewLeaseClick = { viewModel.navigateToAppScreen(AppScreen.LEASES) },
                                         onNewExpenseClick = { viewModel.navigateToAppScreen(AppScreen.FINANCES) },
                                         onViewReportsClick = { viewModel.navigateToAppScreen(AppScreen.FINANCES) }
@@ -174,8 +196,6 @@ fun AppShell(
                                 }
                                 AppNavKey.Residences -> NavEntry(key) {
                                     ResidencesScreen(
-                                        jwtToken = uiState.jwtToken,
-                                        userId = uiState.loggedInUser?.id,
                                         activeResidenceId = uiState.selectedResidenceContext?.residenceId,
                                         onNavigateToDashboard = { residence ->
                                             viewModel.selectResidence(residence)
@@ -194,10 +214,6 @@ fun AppShell(
                                 AppNavKey.Units -> NavEntry(key) {
                                     UnitsScreen(
                                         activeResidence = uiState.selectedResidenceContext,
-                                        jwtToken = uiState.jwtToken,
-                                        leases = uiState.leases,
-                                        members = uiState.members,
-                                        residenceUnits = uiState.residenceUnits,
                                         onAssignTenantClick = { unitId -> unitIdToAssignLease = unitId },
                                         onCreateUnitClick = { viewModel.setShowCreateUnitDialog(true) },
                                         onEditUnitClick = { unitToEdit = it }
@@ -205,57 +221,63 @@ fun AppShell(
                                 }
                                 AppNavKey.Leases -> NavEntry(key) {
                                     LeasesScreen(
-                                        activeResidence = uiState.selectedResidenceContext,
-                                        jwtToken = uiState.jwtToken,
-                                        residenceUnits = uiState.residenceUnits,
-                                        members = uiState.members
+                                        activeResidence = uiState.selectedResidenceContext
                                     )
                                 }
                                 AppNavKey.Members -> NavEntry(key) {
                                     MembersScreen(
                                         activeResidence = uiState.selectedResidenceContext,
-                                        jwtToken = uiState.jwtToken,
                                         onCreateResidenceClick = { viewModel.setShowCreateResidenceDialog(true) }
                                     )
                                 }
                                 AppNavKey.Electricity -> NavEntry(key) {
                                     ElectricityScreen(
-                                        activeResidence = uiState.selectedResidenceContext,
-                                        jwtToken = uiState.jwtToken,
-                                        residenceUnits = uiState.residenceUnits
+                                        activeResidence = uiState.selectedResidenceContext
                                     )
                                 }
                                 AppNavKey.Tickets -> NavEntry(key) {
                                     TicketsScreen(
-                                        activeResidence = uiState.selectedResidenceContext,
-                                        jwtToken = uiState.jwtToken,
-                                        residenceUnits = uiState.residenceUnits
+                                        activeResidence = uiState.selectedResidenceContext
                                     )
                                 }
                                 AppNavKey.Finances -> NavEntry(key) {
                                     FinancesScreen(
-                                        activeResidence = uiState.selectedResidenceContext,
-                                        jwtToken = uiState.jwtToken
+                                        activeResidence = uiState.selectedResidenceContext
                                     )
                                 }
                                 AppNavKey.Profile -> NavEntry(key) {
                                     ProfileScreen(
                                         user = uiState.loggedInUser,
-                                        firstName = uiState.firstName,
-                                        lastName = uiState.lastName,
-                                        phone = uiState.phone,
                                         activeResidence = uiState.selectedResidenceContext,
-                                        jwtToken = uiState.jwtToken,
                                         onLogout = { viewModel.logout() },
                                         onUserUpdated = { viewModel.updateUserProfile(it) },
                                         onResidenceCurrencyUpdated = { resId, curr -> viewModel.onResidenceCurrencyUpdated(resId, curr) }
                                     )
                                 }
+                                AppNavKey.CreateUnit -> NavEntry(
+                                    key = key,
+                                    metadata = com.resid.manager.navigation.adaptiveModal()
+                                ) {
+                                    com.resid.manager.features.units.ui.components.CreateUnitContent(
+                                        currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: "XOF",
+                                        isLoading = uiState.isLoading,
+                                        errorMessage = uiState.errorMessage,
+                                        onDismiss = {
+                                            if (innerBackStack.size > 1) {
+                                                innerBackStack.removeLastOrNull()
+                                            }
+                                        },
+                                        onSubmit = { name, floor, type, rent, charges, initialIndex, equipmentIds ->
+                                            viewModel.createResidenceUnit(name, floor, type, rent, charges, initialIndex, equipmentIds)
+                                            if (innerBackStack.size > 1) {
+                                                innerBackStack.removeLastOrNull()
+                                            }
+                                        }
+                                    )
+                                }
                                 else -> NavEntry(key) {
                                     DashboardScreen(
-                                        activeResidence = uiState.selectedResidenceContext,
-                                        firstName = uiState.firstName,
-                                        jwtToken = uiState.jwtToken
+                                        activeResidence = uiState.selectedResidenceContext
                                     )
                                 }
                             }

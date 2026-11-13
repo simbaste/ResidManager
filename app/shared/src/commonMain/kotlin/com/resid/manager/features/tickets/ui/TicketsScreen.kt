@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.dto.TicketStatusDto
-import com.resid.manager.dto.UserRole
 import com.resid.manager.features.tickets.TicketsViewModel
 import com.resid.manager.features.tickets.mvi.TicketsIntent
 import com.resid.manager.features.tickets.mvi.TicketsUiState
@@ -42,30 +41,24 @@ import org.koin.compose.koinInject
 
 @Composable
 fun TicketsScreen(
-    activeResidence: ResidenceContext?,
-    jwtToken: String?,
-    residenceUnits: List<ResidenceUnitDto>,
+    activeResidence: ResidenceContext? = null,
     viewModel: TicketsViewModel = koinInject()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val token = jwtToken ?: ""
-    val residenceId = activeResidence?.residenceId ?: ""
-    val isAuthorized = activeResidence != null && (
-        activeResidence.userRoleInResidence == UserRole.OWNER ||
-        activeResidence.userRoleInResidence == UserRole.ADMIN ||
-        activeResidence.userRoleInResidence == UserRole.MANAGER
-    )
 
-    LaunchedEffect(token, residenceId) {
-        if (token.isNotBlank() && residenceId.isNotBlank()) {
-            viewModel.onIntent(TicketsIntent.LoadData(token, residenceId))
+    LaunchedEffect(activeResidence?.residenceId) {
+        if (activeResidence != null) {
+            viewModel.updateActiveResidence(activeResidence)
         }
     }
 
+    val currentResidence = uiState.activeResidence ?: activeResidence
+    val effectiveCurrencySymbol = uiState.currencySymbol
+
     TicketsContent(
         uiState = uiState,
-        residenceUnits = residenceUnits,
-        isAuthorized = isAuthorized,
+        residenceUnits = uiState.residenceUnits,
+        isAuthorized = uiState.isAuthorized,
         onOpenTicketClick = { viewModel.onIntent(TicketsIntent.SetShowCreateDialog(true)) },
         onStatusFilterChanged = { viewModel.onIntent(TicketsIntent.SetStatusFilter(it)) },
         onUrgencyFilterChanged = { viewModel.onIntent(TicketsIntent.SetUrgencyFilter(it)) },
@@ -76,13 +69,13 @@ fun TicketsScreen(
 
     if (uiState.showCreateDialog) {
         CreateTicketDialog(
-            residenceUnits = residenceUnits,
+            residenceUnits = uiState.residenceUnits,
             categories = uiState.categories,
             isSubmitting = uiState.isSubmitting,
             errorMessage = uiState.errorMessage,
             onDismiss = { viewModel.onIntent(TicketsIntent.SetShowCreateDialog(false)) },
             onSubmit = { unitId, request ->
-                viewModel.onIntent(TicketsIntent.CreateTicket(token, residenceId, unitId, request))
+                viewModel.onIntent(TicketsIntent.CreateTicket(unitId, request))
             }
         )
     }
@@ -92,13 +85,11 @@ fun TicketsScreen(
         TakeChargeTicketDialog(
             isSubmitting = uiState.isSubmitting,
             errorMessage = uiState.errorMessage,
-            currencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
+            currencySymbol = effectiveCurrencySymbol,
             onDismiss = { viewModel.onIntent(TicketsIntent.SetTakeChargeTicketId(null)) },
             onSubmit = { cost, comment ->
                 viewModel.onIntent(
                     TicketsIntent.UpdateTicketStatus(
-                        token = token,
-                        residenceId = residenceId,
                         ticketId = targetTicketId,
                         status = TicketStatusDto.IN_PROGRESS,
                         interventionCost = cost,
@@ -114,13 +105,11 @@ fun TicketsScreen(
         CloseTicketDialog(
             isSubmitting = uiState.isSubmitting,
             errorMessage = uiState.errorMessage,
-            currencySymbol = activeResidence?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
+            currencySymbol = effectiveCurrencySymbol,
             onDismiss = { viewModel.onIntent(TicketsIntent.SetCloseTicketId(null)) },
             onSubmit = { cost, comment ->
                 viewModel.onIntent(
                     TicketsIntent.UpdateTicketStatus(
-                        token = token,
-                        residenceId = residenceId,
                         ticketId = targetTicketId,
                         status = TicketStatusDto.CLOSED,
                         interventionCost = cost,

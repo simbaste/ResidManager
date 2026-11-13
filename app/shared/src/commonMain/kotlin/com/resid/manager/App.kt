@@ -10,16 +10,16 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.ui.NavDisplay
 import com.resid.manager.features.auth.ui.LoginScreen
 import com.resid.manager.features.auth.ui.RegisterScreen
 import com.resid.manager.navigation.AppNavKey
 import com.resid.manager.navigation.PlatformBackHandler
+import com.resid.manager.navigation.rememberNavigator
 import com.resid.manager.network.AuthEvents
 import com.resid.manager.ui.AppShell
 import com.resid.manager.ui.i18n.EnStrings
@@ -41,29 +41,25 @@ fun App() {
         else -> FrStrings
     }
 
-    // Navigation 3 BackStack
-    val backStack = remember {
-        val initialKey: AppNavKey = when (uiState.currentScreen) {
-            AuthScreen.LOGIN -> AppNavKey.Login
-            AuthScreen.REGISTER -> AppNavKey.Register
-            AuthScreen.MAIN -> AppNavKey.Main
-        }
-        NavBackStack(initialKey)
+    val initialKey: AppNavKey = when (uiState.currentScreen) {
+        AuthScreen.LOGIN -> AppNavKey.Login
+        AuthScreen.REGISTER -> AppNavKey.Register
+        AuthScreen.MAIN -> AppNavKey.Main
     }
+    val navigator = rememberNavigator(startEntry = initialKey)
 
-    // Keep Nav3 backstack synchronized when ViewModel changes currentScreen
+    // Keep Navigator backstack synchronized when ViewModel changes currentScreen
     LaunchedEffect(uiState.currentScreen) {
         val targetKey: AppNavKey = when (uiState.currentScreen) {
             AuthScreen.LOGIN -> AppNavKey.Login
             AuthScreen.REGISTER -> AppNavKey.Register
             AuthScreen.MAIN -> AppNavKey.Main
         }
-        if (backStack.lastOrNull() != targetKey) {
+        if (navigator.current() != targetKey) {
             if (targetKey == AppNavKey.Main) {
-                backStack.clear()
-                backStack.add(AppNavKey.Main)
+                navigator.push(AppNavKey.Main, unique = true)
             } else {
-                backStack.add(targetKey)
+                navigator.push(targetKey)
             }
         }
     }
@@ -72,15 +68,14 @@ fun App() {
     LaunchedEffect(Unit) {
         AuthEvents.onUnauthorized.collect {
             viewModel.logout()
-            backStack.clear()
-            backStack.add(AppNavKey.Login)
+            navigator.push(AppNavKey.Login, unique = true)
         }
     }
 
     // Platform-native back action (handles browser back button on Web / system back on Android)
-    PlatformBackHandler(enabled = backStack.size > 1) {
-        backStack.removeLastOrNull()?.let {
-            when (backStack.lastOrNull()) {
+    PlatformBackHandler(enabled = navigator.backStack().size > 1) {
+        if (navigator.popBack()) {
+            when (navigator.current()) {
                 AppNavKey.Login -> viewModel.navigateToLogin()
                 AppNavKey.Register -> viewModel.navigateToRegister()
                 else -> { /* in main flow */ }
@@ -97,23 +92,20 @@ fun App() {
                     .fillMaxSize()
             ) {
                 NavDisplay(
-                    backStack = backStack,
+                    backStack = navigator.backStack(),
                     onBack = {
-                        if (backStack.size > 1) {
-                            backStack.removeLastOrNull()
-                        }
+                        navigator.popBack()
                     },
-                    entryProvider = { key: AppNavKey ->
+                    entryProvider = { key: NavKey ->
                         when (key) {
                             AppNavKey.Login -> NavEntry(key) {
                                 LoginScreen(
                                     onNavigateToRegister = {
-                                        backStack.add(AppNavKey.Register)
+                                        navigator.push(AppNavKey.Register)
                                         viewModel.navigateToRegister()
                                     },
                                     onNavigateToMain = { token, user ->
-                                        backStack.clear()
-                                        backStack.add(AppNavKey.Main)
+                                        navigator.push(AppNavKey.Main, unique = true)
                                         viewModel.navigateToMain(token = token, user = user)
                                     },
                                     onToggleTheme = viewModel::toggleTheme
@@ -122,12 +114,11 @@ fun App() {
                             AppNavKey.Register -> NavEntry(key) {
                                 RegisterScreen(
                                     onNavigateToLogin = {
-                                        backStack.removeLastOrNull()
+                                        navigator.popBack()
                                         viewModel.navigateToLogin()
                                     },
                                     onNavigateToMain = { token, user ->
-                                        backStack.clear()
-                                        backStack.add(AppNavKey.Main)
+                                        navigator.push(AppNavKey.Main, unique = true)
                                         viewModel.navigateToMain(token = token, user = user)
                                     },
                                     onToggleTheme = viewModel::toggleTheme

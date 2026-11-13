@@ -41,16 +41,17 @@ data class ResidencesUiState(
 )
 
 sealed interface ResidencesIntent {
-    data class LoadResidences(val token: String) : ResidencesIntent
+    data object Refresh : ResidencesIntent
+    data object LoadResidences : ResidencesIntent
     data class SelectResidence(val residence: ResidenceContext) : ResidencesIntent
     data class SelectResidenceForDetail(val residence: ResidenceContext?) : ResidencesIntent
-    data class LoadResidencePhotos(val token: String, val residenceId: String) : ResidencesIntent
-    data class CreateResidence(val token: String, val name: String, val address: String, val defaultCurrency: String, val kWhPrice: Double, val imageBytes: ByteArray? = null) : ResidencesIntent
-    data class UpdateResidence(val token: String, val residenceId: String, val name: String, val address: String, val kWhPrice: Double, val imageBytes: ByteArray? = null) : ResidencesIntent
-    data class UpdateResidencePhotos(val token: String, val residenceId: String, val photos: List<com.resid.manager.features.residences.usecase.PhotoUploadItem>) : ResidencesIntent
-    data class DeleteResidence(val token: String, val residenceId: String) : ResidencesIntent
-    data class SearchResidences(val token: String, val query: String) : ResidencesIntent
-    data class JoinResidence(val token: String, val userId: String, val residenceId: String) : ResidencesIntent
+    data class LoadResidencePhotos(val residenceId: String) : ResidencesIntent
+    data class CreateResidence(val name: String, val address: String, val defaultCurrency: String, val kWhPrice: Double, val imageBytes: ByteArray? = null) : ResidencesIntent
+    data class UpdateResidence(val residenceId: String, val name: String, val address: String, val kWhPrice: Double, val imageBytes: ByteArray? = null) : ResidencesIntent
+    data class UpdateResidencePhotos(val residenceId: String, val photos: List<com.resid.manager.features.residences.usecase.PhotoUploadItem>) : ResidencesIntent
+    data class DeleteResidence(val residenceId: String) : ResidencesIntent
+    data class SearchResidences(val query: String) : ResidencesIntent
+    data class JoinResidence(val residenceId: String) : ResidencesIntent
 
     // Dialog toggles
     data class SetShowCreateDialog(val show: Boolean) : ResidencesIntent
@@ -58,7 +59,7 @@ sealed interface ResidencesIntent {
     data class SetEditingResidence(val residence: ResidenceContext?) : ResidencesIntent
     data class SetDeletingResidence(val residence: ResidenceContext?) : ResidencesIntent
 
-    // View mode and Sorting
+    // View configs
     data class SetViewMode(val mode: ResidenceViewMode) : ResidencesIntent
     data class SetSortOption(val option: ResidenceSortOption) : ResidencesIntent
     data class SetSelectedResidenceId(val residenceId: String?) : ResidencesIntent
@@ -68,5 +69,6 @@ sealed interface ResidencesEffect {
     data class NavigateToDashboard(val residence: ResidenceContext) : ResidencesEffect
     data class NavigateToDetail(val residence: ResidenceContext) : ResidencesEffect
     data class ResidenceCreated(val newResidenceId: String) : ResidencesEffect
+    data class ResidenceActivated(val residence: ResidenceContext) : ResidencesEffect
     data class ShowToast(val message: String) : ResidencesEffect
 }

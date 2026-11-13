@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -30,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,6 +50,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceSummaryItemDto
 import com.resid.manager.dto.ResidenceUnitDto
+import com.resid.manager.features.units.ui.components.CreateUnitContent
 import com.resid.manager.ui.components.AmountTextField
 import com.resid.manager.ui.components.AppTextField
 import com.resid.manager.viewmodel.LoginViewModel
@@ -255,6 +259,7 @@ fun JoinResidenceDialog(
     )
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun CreateUnitDialog(
     viewModel: LoginViewModel,
@@ -262,187 +267,25 @@ fun CreateUnitDialog(
     onSubmit: (String, String, String, Double, Double, Double, List<String>) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var name by remember { mutableStateOf("") }
-    var floor by remember { mutableStateOf("") }
-    var type by remember { mutableStateOf("") }
-    var nominalRent by remember { mutableStateOf("") }
-    var serviceCharges by remember { mutableStateOf("") }
-    var initialElectricityIndex by remember { mutableStateOf("0.0") }
-    var selectedEquipments by remember { mutableStateOf(emptySet<String>()) }
-    var validationError by remember { mutableStateOf<String?>(null) }
+    val currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: "XOF"
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Ajouter une unité") },
-        text = {
-            val scrollState = rememberScrollState()
-            val currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: "XOF"
-            val focusManager = LocalFocusManager.current
-
-            Column(
-                modifier = Modifier
-                    .widthIn(max = 500.dp)
-                    .heightIn(max = 450.dp)
-                    .verticalScroll(scrollState),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                val nameRequester = remember { BringIntoViewRequester() }
-                val floorRequester = remember { BringIntoViewRequester() }
-                val typeRequester = remember { BringIntoViewRequester() }
-                val rentRequester = remember { BringIntoViewRequester() }
-                val chargesRequester = remember { BringIntoViewRequester() }
-                val electricityIndexRequester = remember { BringIntoViewRequester() }
-
-                AppTextField(
-                    value = name,
-                    onValueChange = {
-                        name = it
-                        validationError = null
-                    },
-                    label = "Nom / Numéro d'unité *",
-                    isError = (name.isBlank() && validationError != null),
-                    imeAction = ImeAction.Next,
-                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
-                    bringIntoViewRequester = nameRequester,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                AppTextField(
-                    value = floor,
-                    onValueChange = {
-                        floor = it
-                        validationError = null
-                    },
-                    label = "Étage / Bloc *",
-                    isError = (floor.isBlank() && validationError != null),
-                    imeAction = ImeAction.Next,
-                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
-                    bringIntoViewRequester = floorRequester,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                AppTextField(
-                    value = type,
-                    onValueChange = {
-                        type = it
-                        validationError = null
-                    },
-                    label = "Type d'unité *",
-                    placeholder = "STUDIO",
-                    isError = (type.isBlank() && validationError != null),
-                    imeAction = ImeAction.Next,
-                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
-                    bringIntoViewRequester = typeRequester,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                AmountTextField(
-                    value = nominalRent,
-                    onValueChange = {
-                        nominalRent = it
-                        validationError = null
-                    },
-                    label = "Loyer mensuel nominal *",
-                    currencySymbol = currencySymbol,
-                    placeholder = "0.0",
-                    isError = ((nominalRent.toDoubleOrNull() == null || (nominalRent.toDoubleOrNull() ?: 0.0) < 0.0) && validationError != null),
-                    imeAction = ImeAction.Next,
-                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
-                    bringIntoViewRequester = rentRequester,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                AmountTextField(
-                    value = serviceCharges,
-                    onValueChange = {
-                        serviceCharges = it
-                        validationError = null
-                    },
-                    label = "Charges fixes d'entretien *",
-                    placeholder = "0.0",
-                    isError = ((serviceCharges.toDoubleOrNull() == null || (serviceCharges.toDoubleOrNull() ?: 0.0) < 0.0) && validationError != null),
-                    imeAction = ImeAction.Next,
-                    onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
-                    bringIntoViewRequester = chargesRequester,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                AppTextField(
-                    value = initialElectricityIndex,
-                    onValueChange = {
-                        initialElectricityIndex = it
-                        validationError = null
-                    },
-                    label = "Index Électricité initial (kWh)",
-                    isError = ((initialElectricityIndex.toDoubleOrNull() == null || (initialElectricityIndex.toDoubleOrNull() ?: 0.0) < 0.0) && validationError != null),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    imeAction = ImeAction.Done,
-                    onImeAction = { focusManager.clearFocus() },
-                    bringIntoViewRequester = electricityIndexRequester,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                // Predefined Equipments list picker
-                if (uiState.availableEquipments.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Équipements inclus :", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        uiState.availableEquipments.forEach { eq ->
-                            val isChecked = selectedEquipments.contains(eq.id)
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        selectedEquipments = if (isChecked) selectedEquipments - eq.id else selectedEquipments + eq.id
-                                    }
-                                    .padding(vertical = 4.dp)
-                            ) {
-                                Checkbox(
-                                    checked = isChecked,
-                                    onCheckedChange = { checked ->
-                                        selectedEquipments = if (checked == true) selectedEquipments + eq.id else selectedEquipments - eq.id
-                                    }
-                                )
-                                Text(eq.label, style = MaterialTheme.typography.bodyMedium)
-                            }
-                        }
-                    }
-                }
-
-                val activeError = validationError ?: uiState.errorMessage
-                if (activeError != null) {
-                    Text(
-                        text = activeError,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    validateResidenceUnitInput(
-                        name = name,
-                        floor = floor,
-                        type = type,
-                        nominalRent = nominalRent,
-                        serviceCharges = serviceCharges,
-                        initialElectricityIndex = initialElectricityIndex,
-                        selectedEquipments = selectedEquipments.toList(),
-                        onError = { validationError = it },
-                        onSuccess = { validName, validFloor, validType, rent, charges, index, equipments ->
-                            validationError = null
-                            onSubmit(validName, validFloor, validType, rent, charges, index, equipments)
-                        }
-                    )
-                },
-                enabled = !uiState.isLoading
-            ) {
-                Text(if (uiState.isLoading) "Ajout en cours..." else "Ajouter")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !uiState.isLoading) { Text("Annuler") }
+    BasicAlertDialog(
+        onDismissRequest = onDismiss
+    ) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        ) {
+            CreateUnitContent(
+                currencySymbol = currencySymbol,
+                isLoading = uiState.isLoading,
+                errorMessage = uiState.errorMessage,
+                onDismiss = onDismiss,
+                onSubmit = onSubmit
+            )
         }
-    )
+    }
 }
 
 @Composable

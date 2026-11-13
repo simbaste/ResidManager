@@ -13,14 +13,14 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 
 class JoinResidenceUseCase {
-    suspend operator fun invoke(token: String, userId: String, residenceId: String): Result<Unit> {
-        if (token.isBlank() || userId.isBlank() || residenceId.isBlank()) {
+    suspend operator fun invoke(token: String, residenceId: String): Result<Unit> {
+        if (token.isBlank() || residenceId.isBlank()) {
             return Result.failure(IllegalArgumentException("Paramètres de demande manquants"))
         }
 
         return try {
             val req = ApplicationRequest(role = RoleDto.TENANT)
-            val response = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/applications?residenceId=$residenceId&userId=$userId") {
+            val response = ApiClient.httpClient.post("${ApiClient.BASE_URL}/api/applications?residenceId=$residenceId") {
                 header(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                 header(HttpHeaders.Authorization, "Bearer $token")
                 setBody(req)

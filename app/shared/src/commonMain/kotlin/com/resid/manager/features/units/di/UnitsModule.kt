@@ -1,5 +1,6 @@
 package com.resid.manager.features.units.di
 
+import com.resid.manager.SessionStorage
 import com.resid.manager.features.units.UnitsViewModel
 import com.resid.manager.features.units.usecase.CreateUnitUseCase
 import com.resid.manager.features.units.usecase.DeleteUnitUseCase
@@ -24,7 +25,11 @@ val unitsFeatureModule = module {
             createUnitUseCase = get(),
             updateUnitUseCase = get(),
             updateUnitPhotosUseCase = get(),
-            deleteUnitUseCase = get()
+            deleteUnitUseCase = get(),
+            fetchResidencesUseCase = get(),
+            fetchLeasesUseCase = get(),
+            fetchMembersUseCase = get(),
+            sessionStorage = getOrNull<SessionStorage>()
         )
     }
 }

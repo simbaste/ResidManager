@@ -1,13 +1,21 @@
 package com.resid.manager.features.units.mvi
 
 import com.resid.manager.dto.EquipmentDto
+import com.resid.manager.dto.LeaseDto
+import com.resid.manager.dto.ResidenceContext
+import com.resid.manager.dto.ResidenceMemberSummaryDto
 import com.resid.manager.dto.ResidencePhotoDto
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.features.residences.mvi.ResidenceViewMode
 
 data class UnitsUiState(
     val isLoading: Boolean = false,
+    val activeResidence: ResidenceContext? = null,
+    val isAuthorized: Boolean = false,
+    val currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
     val units: List<ResidenceUnitDto> = emptyList(),
+    val leases: List<LeaseDto> = emptyList(),
+    val members: List<ResidenceMemberSummaryDto> = emptyList(),
     val selectedUnitForDetail: ResidenceUnitDto? = null,
     val editingUnit: ResidenceUnitDto? = null,
     val deletingUnitId: String? = null,
@@ -21,13 +29,12 @@ data class UnitsUiState(
 )
 
 sealed interface UnitsIntent {
-    data class LoadUnits(val token: String, val residenceId: String) : UnitsIntent
+    data object Refresh : UnitsIntent
+    data class LoadUnits(val residenceId: String) : UnitsIntent
     data class SelectUnitForDetail(val unit: ResidenceUnitDto?) : UnitsIntent
     data class SetViewMode(val mode: ResidenceViewMode) : UnitsIntent
-    data class LoadUnitPhotos(val token: String, val residenceId: String, val unitId: String) : UnitsIntent
+    data class LoadUnitPhotos(val unitId: String) : UnitsIntent
     data class UpdateUnitPhotos(
-        val token: String,
-        val residenceId: String,
         val unitId: String,
         val photos: List<com.resid.manager.features.residences.usecase.PhotoUploadItem>
     ) : UnitsIntent
@@ -37,8 +44,6 @@ sealed interface UnitsIntent {
     data class SetShowCreateDialog(val show: Boolean) : UnitsIntent
 
     data class CreateUnit(
-        val token: String,
-        val residenceId: String,
         val name: String,
         val floor: String,
         val type: String,
@@ -49,8 +54,6 @@ sealed interface UnitsIntent {
     ) : UnitsIntent
 
     data class UpdateUnit(
-        val token: String,
-        val residenceId: String,
         val unitId: String,
         val name: String,
         val floor: String,
@@ -62,8 +65,6 @@ sealed interface UnitsIntent {
     ) : UnitsIntent
 
     data class DeleteUnit(
-        val token: String,
-        val residenceId: String,
         val unitId: String
     ) : UnitsIntent
 }
