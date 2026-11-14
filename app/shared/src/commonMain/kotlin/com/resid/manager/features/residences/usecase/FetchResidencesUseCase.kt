@@ -24,6 +24,7 @@ class FetchResidencesUseCase(
                     totalUnits = it.totalUnits,
                     currencySymbol = appCurrency.symbol,
                     currencyCode = appCurrency.code,
+                    kWhPrice = it.kWhPrice,
                     photoUrl = it.photoUrl
                 )
             }
@@ -37,6 +38,7 @@ class FetchResidencesUseCase(
                     totalUnits = it.totalUnits,
                     currencySymbol = appCurrency.symbol,
                     currencyCode = appCurrency.code,
+                    kWhPrice = it.kWhPrice,
                     photoUrl = it.photoUrl
                 )
             }

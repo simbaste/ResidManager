@@ -92,11 +92,15 @@ class ResidencesViewModel(
                 .onSuccess { list ->
                     updateState { currentState ->
                         val currentSelectedId = currentState.selectedResidenceId ?: lastSelectedId
+                        val updatedDetail = currentState.selectedResidenceForDetail?.let { detail ->
+                            list.find { r -> r.residenceId == detail.residenceId } ?: detail
+                        }
                         currentState.copy(
                             isLoading = false,
                             residences = list,
                             selectedResidence = list.find { r -> r.residenceId == currentSelectedId } ?: currentState.selectedResidence ?: list.firstOrNull(),
                             selectedResidenceId = currentSelectedId ?: list.firstOrNull()?.residenceId,
+                            selectedResidenceForDetail = updatedDetail,
                             consultedTimestamps = timestamps,
                             errorMessage = null
                         )
