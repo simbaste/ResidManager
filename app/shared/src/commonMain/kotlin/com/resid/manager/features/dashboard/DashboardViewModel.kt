@@ -11,6 +11,11 @@ import com.resid.manager.features.dashboard.usecase.GetDashboardDataUseCase
 import com.resid.manager.features.residences.usecase.FetchResidencesUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
+import kotlinx.datetime.todayIn
+import kotlin.time.Clock
 
 class DashboardViewModel(
     private val getDashboardDataUseCase: GetDashboardDataUseCase,
@@ -21,6 +26,7 @@ class DashboardViewModel(
     private var loadJob: Job? = null
 
     init {
+        fetchDefaultPeriod()
         sessionStorage?.loadSession()?.let { session ->
             updateState { it.copy(firstName = session.firstName) }
             val lastResId = sessionStorage.loadLastSelectedResidenceId()
@@ -73,6 +79,17 @@ class DashboardViewModel(
                     fetchData(session.token, residenceId, uiState.value.periodFilter, uiState.value.customStartText, intent.endDate)
                 }
             }
+        }
+    }
+
+    private fun fetchDefaultPeriod() {
+        val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
+        val oneMonthAgo = today.minus(1, DateTimeUnit.MONTH)
+        updateState {
+            it.copy(
+                customStartText = oneMonthAgo.toString(), // e.g., "2026-10-15"
+                customEndText = today.toString()          // e.g., "2026-11-15"
+            )
         }
     }
 

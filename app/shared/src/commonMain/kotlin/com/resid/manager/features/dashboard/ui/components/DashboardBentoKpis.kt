@@ -1,10 +1,12 @@
 package com.resid.manager.features.dashboard.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -36,6 +39,7 @@ import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun DashboardBentoKpis(
+    isCompact: Boolean,
     data: DashboardDataDto,
     currencySymbol: String,
     modifier: Modifier = Modifier
@@ -45,6 +49,103 @@ fun DashboardBentoKpis(
     val occupancyVal = (data.occupancyRate * 10.0).toInt() / 10.0
     val delinquencyVal = (data.delinquencyRate * 10.0).toInt() / 10.0
 
+    if (isCompact) {
+        DashboardBentoKpisCompact(
+            modifier = modifier,
+            data = data,
+            currencySymbol = currencySymbol,
+            cashflowVal = cashflowVal,
+            revenuesVal = revenuesVal,
+            occupancyVal = occupancyVal,
+            delinquencyVal = delinquencyVal
+        )
+    } else {
+        DashboardBentoKpisDefault(
+            modifier = modifier,
+            data = data,
+            currencySymbol = currencySymbol,
+            cashflowVal = cashflowVal,
+            revenuesVal = revenuesVal,
+            occupancyVal = occupancyVal,
+            delinquencyVal = delinquencyVal
+        )
+    }
+}
+
+@Composable
+fun DashboardBentoKpisCompact(
+    modifier: Modifier = Modifier,
+    data: DashboardDataDto,
+    currencySymbol: String,
+    cashflowVal: Long,
+    revenuesVal: Long,
+    occupancyVal: Double,
+    delinquencyVal: Double
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+        ,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // KPI 1: Cashflow Net
+        BentoKpiCard(
+            title = "CASHFLOW NET",
+            value = "$cashflowVal $currencySymbol",
+            subValue = "Flux net généré",
+            badgeText = if (data.netCashflow >= 0) "Positif" else "Déficitaire",
+            badgeColor = if (data.netCashflow >= 0) Color(0xFF006948) else Color(0xFFBA1A1A),
+            icon = Icons.Default.Star,
+            iconBg = (if (data.netCashflow >= 0) Color(0xFF006948) else Color(0xFFBA1A1A)).copy(alpha = 0.1f),
+            iconColor = if (data.netCashflow >= 0) Color(0xFF006948) else Color(0xFFBA1A1A),
+        )
+
+        // KPI 2: Revenues collected
+        BentoKpiCard(
+            title = "RECETTES COLLECTÉES",
+            value = "$revenuesVal $currencySymbol",
+            subValue = "Loyer + électricité encaissés",
+            icon = Icons.Default.CheckCircle,
+            iconBg = Color(0xFF006948).copy(alpha = 0.1f),
+            iconColor = Color(0xFF006948),
+        )
+
+        // KPI 3: Occupancy Rate
+        BentoKpiCard(
+            title = "TAUX D'OCCUPATION",
+            value = "$occupancyVal %",
+            subValue = "Unités habitées",
+            progressValue = (data.occupancyRate / 100.0).toFloat(),
+            icon = Icons.Default.Home,
+            iconBg = Color(0xFF1E3A8A).copy(alpha = 0.1f),
+            iconColor = Color(0xFF1E3A8A),
+        )
+
+        // KPI 4: Delinquency Rate
+        BentoKpiCard(
+            title = "TAUX D'IMPAYÉS (DÉLINQUANCE)",
+            value = "$delinquencyVal %",
+            subValue = "Mensualités non soldées",
+            badgeText = if (data.delinquencyRate > 10.0) "CRITIQUE" else "Maîtrisé",
+            badgeColor = if (data.delinquencyRate > 10.0) Color(0xFFBA1A1A) else Color(0xFF006948),
+            icon = Icons.Default.Warning,
+            iconBg = (if (data.delinquencyRate > 10.0) Color(0xFFBA1A1A) else Color(0xFF006948)).copy(alpha = 0.1f),
+            iconColor = if (data.delinquencyRate > 10.0) Color(0xFFBA1A1A) else Color(0xFF006948),
+        )
+    }
+}
+
+@Composable
+fun DashboardBentoKpisDefault(
+    modifier: Modifier = Modifier,
+    data: DashboardDataDto,
+    currencySymbol: String,
+    cashflowVal: Long,
+    revenuesVal: Long,
+    occupancyVal: Double,
+    delinquencyVal: Double
+) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -102,6 +203,7 @@ fun DashboardBentoKpis(
 
 @Composable
 fun BentoKpiCard(
+    modifier: Modifier = Modifier,
     title: String,
     value: String,
     subValue: String,
@@ -111,7 +213,6 @@ fun BentoKpiCard(
     icon: ImageVector,
     iconBg: Color,
     iconColor: Color,
-    modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier.height(150.dp),
@@ -137,6 +238,7 @@ fun BentoKpiCard(
                 }
 
                 if (badgeText != null) {
+                    Spacer(Modifier.width(5.dp))
                     Card(
                         colors = CardDefaults.cardColors(containerColor = badgeColor.copy(alpha = 0.1f)),
                         shape = RoundedCornerShape(4.dp)
@@ -149,6 +251,7 @@ fun BentoKpiCard(
                         )
                     }
                 } else if (progressValue != null) {
+                    Spacer(Modifier.width(5.dp))
                     Box(
                         modifier = Modifier
                             .width(48.dp)
@@ -180,6 +283,7 @@ fun BentoKpiCard(
 fun DashboardBentoKpisPreview() {
     ResidTheme {
         DashboardBentoKpis(
+            isCompact = true,
             data = DashboardDataDto(
                 residenceId = "residence-1",
                 totalRevenuesCollected = 1250000.0,

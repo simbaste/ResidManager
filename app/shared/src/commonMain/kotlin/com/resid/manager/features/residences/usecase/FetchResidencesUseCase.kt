@@ -1,5 +1,6 @@
 package com.resid.manager.features.residences.usecase
 
+import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.UserRole
 import com.resid.manager.dto.toUserRole
@@ -15,7 +16,7 @@ class FetchResidencesUseCase(
 
         return residenceRepository.fetchResidences(token).map { directory ->
             val owned = directory.ownedResidences.map {
-                val appCurrency = com.resid.manager.dto.AppCurrency.fromCode(it.currencyCode.name)
+                val appCurrency = AppCurrency.fromCode(it.currencyCode.name)
                 ResidenceContext(
                     residenceId = it.id,
                     residenceName = it.name,
@@ -29,7 +30,7 @@ class FetchResidencesUseCase(
                 )
             }
             val associated = directory.associatedResidences.map {
-                val appCurrency = com.resid.manager.dto.AppCurrency.fromCode(it.currencyCode.name)
+                val appCurrency = AppCurrency.fromCode(it.currencyCode.name)
                 ResidenceContext(
                     residenceId = it.id,
                     residenceName = it.name,

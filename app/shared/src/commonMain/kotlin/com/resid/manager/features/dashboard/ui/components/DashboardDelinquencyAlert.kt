@@ -18,7 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun DashboardDelinquencyAlert(
@@ -57,5 +59,13 @@ fun DashboardDelinquencyAlert(
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun DashboardDelinquencyAlertPreview() {
+    ResidTheme {
+        DashboardDelinquencyAlert(delinquencyRate = 15.0)
     }
 }
