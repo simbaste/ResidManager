@@ -235,9 +235,10 @@ fun ResidenceDetailScreen(
                         }
 
                         // Right: Actions
-                        Row(
+                        FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalArrangement = Arrangement.spacedBy(5.dp),
+                            itemVerticalAlignment = Alignment.CenterVertically
                         ) {
                             if (!isActive) {
                                 OutlinedButton(
@@ -436,7 +437,7 @@ fun ResidenceDetailScreenPreview() {
                 userRoleInResidence = UserRole.OWNER,
                 totalUnits = 24,
             ),
-            isActive = true,
+            isActive = false,
             onBackClick = {},
             onActivateResidence = {},
             onEditClick = {},
