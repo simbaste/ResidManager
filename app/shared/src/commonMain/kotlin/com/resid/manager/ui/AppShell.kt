@@ -42,11 +42,16 @@ import com.resid.manager.features.leases.ui.components.wizard.LeaseWizardDialog
 import com.resid.manager.features.members.ui.MembersScreen
 import com.resid.manager.features.profile.ui.ProfileScreen
 import com.resid.manager.features.residences.ui.ResidencesScreen
+import com.resid.manager.features.residences.ui.components.CreateResidenceContent
+import com.resid.manager.features.residences.ui.components.JoinResidenceContent
+import com.resid.manager.features.residences.usecase.PhotoUploadItem
 import com.resid.manager.features.tickets.ui.TicketsScreen
 import com.resid.manager.features.units.ui.UnitsScreen
+import com.resid.manager.features.units.ui.components.CreateUnitContent
 import com.resid.manager.navigation.AdaptiveModalSceneStrategy
 import com.resid.manager.navigation.AppNavKey
 import com.resid.manager.navigation.PlatformBackHandler
+import com.resid.manager.navigation.adaptiveModal
 import com.resid.manager.ui.theme.ResidTheme
 import com.resid.manager.viewmodel.AppScreen
 import com.resid.manager.viewmodel.LoginViewModel
@@ -278,9 +283,9 @@ fun AppShell(
                                 }
                                 AppNavKey.CreateUnit -> NavEntry(
                                     key = key,
-                                    metadata = com.resid.manager.navigation.adaptiveModal()
+                                    metadata = adaptiveModal()
                                 ) {
-                                    com.resid.manager.features.units.ui.components.CreateUnitContent(
+                                    CreateUnitContent(
                                         currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: "XOF",
                                         isLoading = uiState.isLoading,
                                         errorMessage = uiState.errorMessage,
@@ -299,9 +304,9 @@ fun AppShell(
                                 }
                                 AppNavKey.CreateResidence -> NavEntry(
                                     key = key,
-                                    metadata = com.resid.manager.navigation.adaptiveModal()
+                                    metadata = adaptiveModal()
                                 ) {
-                                    com.resid.manager.features.residences.ui.components.CreateResidenceContent(
+                                    CreateResidenceContent(
                                         isLoading = uiState.isLoading,
                                         errorMessage = uiState.errorMessage,
                                         onDismiss = {
@@ -311,7 +316,7 @@ fun AppShell(
                                         },
                                         onSubmit = { name, address, defaultCurrency, kWhPrice, photos ->
                                             val uploadItems = photos.map {
-                                                com.resid.manager.features.residences.usecase.PhotoUploadItem(
+                                                PhotoUploadItem(
                                                     url = it.url,
                                                     bytes = it.bytes,
                                                     description = it.description
@@ -326,12 +331,12 @@ fun AppShell(
                                 }
                                 AppNavKey.JoinResidence -> NavEntry(
                                     key = key,
-                                    metadata = com.resid.manager.navigation.adaptiveModal()
+                                    metadata = adaptiveModal()
                                 ) {
                                     val existingResidenceIds = remember(uiState.residences) {
                                         uiState.residences.map { it.residenceId }.toSet()
                                     }
-                                    com.resid.manager.features.residences.ui.components.JoinResidenceContent(
+                                    JoinResidenceContent(
                                         searchQuery = uiState.searchQuery,
                                         searchResults = uiState.searchResults,
                                         isSearching = uiState.isSearching,

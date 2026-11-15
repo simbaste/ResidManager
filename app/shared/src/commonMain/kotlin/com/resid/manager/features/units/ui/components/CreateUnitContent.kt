@@ -12,7 +12,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,18 +29,20 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import com.resid.manager.ui.components.AmountTextField
 import com.resid.manager.ui.components.AppTextField
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun CreateUnitContent(
+    modifier: Modifier = Modifier,
     currencySymbol: String = "XOF",
     isLoading: Boolean = false,
     errorMessage: String? = null,
     onDismiss: () -> Unit,
     onSubmit: (String, String, String, Double, Double, Double, List<String>) -> Unit,
-    modifier: Modifier = Modifier
 ) {
     var name by remember { mutableStateOf("") }
     var floor by remember { mutableStateOf("") }
@@ -103,25 +104,19 @@ fun CreateUnitContent(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                text = "Typologie de logement :",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf("Studio", "2 Pièces (T2)", "3 Pièces (T3)", "Villa").forEach { typ ->
-                    FilterChip(
-                        selected = type == typ,
-                        onClick = { type = typ },
-                        label = { Text(typ) }
-                    )
-                }
-            }
-        }
+        AppTextField(
+            value = type,
+            onValueChange = {
+                type = it
+                validationError = null
+            },
+            label = "Typologie de logement *",
+            placeholder = "Studio...",
+            isError = (type.isBlank() && validationError != null),
+            imeAction = ImeAction.Next,
+            onImeAction = { focusManager.moveFocus(FocusDirection.Down) },
+            modifier = Modifier.fillMaxWidth()
+        )
 
         AmountTextField(
             value = nominalRent,
@@ -198,5 +193,16 @@ fun CreateUnitContent(
                 Text(if (isLoading) "Création..." else "Créer le logement")
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun CreateUnitContentPreview() {
+    ResidTheme {
+        CreateUnitContent(
+            onDismiss = {},
+            onSubmit = { _, _, _, _, _, _, _ -> }
+        )
     }
 }
