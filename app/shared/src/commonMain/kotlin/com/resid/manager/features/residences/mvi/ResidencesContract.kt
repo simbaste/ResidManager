@@ -46,7 +46,13 @@ sealed interface ResidencesIntent {
     data class SelectResidence(val residence: ResidenceContext) : ResidencesIntent
     data class SelectResidenceForDetail(val residence: ResidenceContext?) : ResidencesIntent
     data class LoadResidencePhotos(val residenceId: String) : ResidencesIntent
-    data class CreateResidence(val name: String, val address: String, val defaultCurrency: String, val kWhPrice: Double, val imageBytes: ByteArray? = null) : ResidencesIntent
+    data class CreateResidence(
+        val name: String,
+        val address: String,
+        val defaultCurrency: String,
+        val kWhPrice: Double,
+        val photos: List<com.resid.manager.features.residences.usecase.PhotoUploadItem> = emptyList()
+    ) : ResidencesIntent
     data class UpdateResidence(val residenceId: String, val name: String, val address: String, val kWhPrice: Double, val imageBytes: ByteArray? = null) : ResidencesIntent
     data class UpdateResidencePhotos(val residenceId: String, val photos: List<com.resid.manager.features.residences.usecase.PhotoUploadItem>) : ResidencesIntent
     data class DeleteResidence(val residenceId: String) : ResidencesIntent

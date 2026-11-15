@@ -257,8 +257,15 @@ fun ResidencesScreen(
                                 navigator.popBack()
                                 viewModel.onIntent(ResidencesIntent.SetShowCreateDialog(false))
                             },
-                            onSubmit = { name, address, currency, price, imageBytes ->
-                                viewModel.onIntent(ResidencesIntent.CreateResidence(name, address, currency, price, imageBytes))
+                            onSubmit = { name, address, currency, price, photos ->
+                                val uploadItems = photos.map {
+                                    PhotoUploadItem(
+                                        url = it.url,
+                                        bytes = it.bytes,
+                                        description = it.description
+                                    )
+                                }
+                                viewModel.onIntent(ResidencesIntent.CreateResidence(name, address, currency, price, uploadItems))
                             }
                         )
                     }
@@ -387,11 +394,11 @@ fun ResidencesScreen(
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun ResidencesContent(
+    modifier: Modifier = Modifier,
     uiState: ResidencesUiState,
     onIntent: (ResidencesIntent) -> Unit,
     onResidenceSelected: (ResidenceContext) -> Unit,
     onActivateResidence: (ResidenceContext) -> Unit = {},
-    modifier: Modifier = Modifier
 ) {
     val selectedId = uiState.selectedResidenceId
 

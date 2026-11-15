@@ -69,7 +69,7 @@ class ResidencesViewModel(
             is ResidencesIntent.SetViewMode -> updateState { it.copy(viewMode = intent.mode) }
             is ResidencesIntent.SetSortOption -> updateState { it.copy(sortOption = intent.option) }
             is ResidencesIntent.SetSelectedResidenceId -> updateState { it.copy(selectedResidenceId = intent.residenceId) }
-            is ResidencesIntent.CreateResidence -> createResidence(intent.name, intent.address, intent.defaultCurrency, intent.kWhPrice, intent.imageBytes)
+            is ResidencesIntent.CreateResidence -> createResidence(intent.name, intent.address, intent.defaultCurrency, intent.kWhPrice, intent.photos)
             is ResidencesIntent.UpdateResidence -> updateResidence(intent.residenceId, intent.name, intent.address, intent.kWhPrice, intent.imageBytes)
             is ResidencesIntent.UpdateResidencePhotos -> updateResidencePhotos(intent.residenceId, intent.photos)
             is ResidencesIntent.DeleteResidence -> deleteResidence(intent.residenceId)
@@ -112,14 +112,21 @@ class ResidencesViewModel(
         }
     }
 
-    private fun createResidence(name: String, address: String, defaultCurrency: String, kWhPrice: Double, imageBytes: ByteArray? = null) {
+    private fun createResidence(
+        name: String,
+        address: String,
+        defaultCurrency: String,
+        kWhPrice: Double,
+        photos: List<PhotoUploadItem> = emptyList()
+    ) {
         val session = sessionStorage?.loadSession() ?: return
         viewModelScope.launch {
             updateState { it.copy(isLoading = true, errorMessage = null) }
             createResidenceUseCase(session.token, name, address, defaultCurrency, kWhPrice)
                 .onSuccess { createdDto ->
-                    if (imageBytes != null && imageBytes.isNotEmpty()) {
+                    if (photos.isNotEmpty()) {
                         updateState { it.copy(isUploadingPhoto = true) }
+                        updateResidencePhotosUseCase(session.token, createdDto.id, photos)
                     }
                     updateState { it.copy(isLoading = false, showCreateDialog = false, isUploadingPhoto = false, errorMessage = null) }
                     emitEffect(ResidencesEffect.ResidenceCreated(createdDto.id))
