@@ -68,6 +68,22 @@ fun AppShell(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isDesktop = maxWidth >= 768.dp
 
+        // Central Dynamic Panel Content powered by Navigation 3
+        val innerBackStack = remember {
+            val initialNav: AppNavKey = when (uiState.currentAppScreen) {
+                AppScreen.DASHBOARD -> AppNavKey.Dashboard
+                AppScreen.RESIDENCES -> AppNavKey.Residences
+                AppScreen.UNITS -> AppNavKey.Units
+                AppScreen.LEASES -> AppNavKey.Leases
+                AppScreen.MEMBERS -> AppNavKey.Members
+                AppScreen.ELECTRICITY -> AppNavKey.Electricity
+                AppScreen.TICKETS -> AppNavKey.Tickets
+                AppScreen.FINANCES -> AppNavKey.Finances
+                AppScreen.PROFILE -> AppNavKey.Profile
+            }
+            NavBackStack(initialNav)
+        }
+
         Row(modifier = Modifier.fillMaxSize()) {
             // Left Sidebar (Desktop version, fixed)
             if (isDesktop) {
@@ -76,7 +92,11 @@ fun AppShell(
                     onScreenSelected = { screen ->
                         viewModel.navigateToAppScreen(screen)
                     },
-                    onAddResidenceClick = { viewModel.setShowCreateResidenceDialog(true) },
+                    onAddResidenceClick = {
+                        if (innerBackStack.lastOrNull() != AppNavKey.CreateResidence) {
+                            innerBackStack.add(AppNavKey.CreateResidence)
+                        }
+                    },
                     modifier = Modifier
                         .width(260.dp)
                         .fillMaxHeight()
@@ -84,7 +104,6 @@ fun AppShell(
                 )
                 VerticalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             }
-
             // Central Content Pane (Header + Selected Page Content)
             Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
                 // Top Header Section containing Residence dropdown selector
@@ -98,7 +117,11 @@ fun AppShell(
                     onMenuClick = { isMobileSidebarVisible = !isMobileSidebarVisible },
                     onLogoutClick = { viewModel.logout() },
                     onProfileClick = { viewModel.navigateToAppScreen(AppScreen.PROFILE) },
-                    onAddResidenceClick = { viewModel.setShowCreateResidenceDialog(true) },
+                    onAddResidenceClick = {
+                        if (innerBackStack.lastOrNull() != AppNavKey.CreateResidence) {
+                            innerBackStack.add(AppNavKey.CreateResidence)
+                        }
+                    },
                     onJoinResidenceClick = { viewModel.setShowJoinResidenceDialog(true) },
                     isDarkTheme = uiState.darkMode,
                     onToggleTheme = { viewModel.toggleTheme() },
@@ -106,22 +129,6 @@ fun AppShell(
                 )
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                // Central Dynamic Panel Content powered by Navigation 3
-                val innerBackStack = remember {
-                    val initialNav: AppNavKey = when (uiState.currentAppScreen) {
-                        AppScreen.DASHBOARD -> AppNavKey.Dashboard
-                        AppScreen.RESIDENCES -> AppNavKey.Residences
-                        AppScreen.UNITS -> AppNavKey.Units
-                        AppScreen.LEASES -> AppNavKey.Leases
-                        AppScreen.MEMBERS -> AppNavKey.Members
-                        AppScreen.ELECTRICITY -> AppNavKey.Electricity
-                        AppScreen.TICKETS -> AppNavKey.Tickets
-                        AppScreen.FINANCES -> AppNavKey.Finances
-                        AppScreen.PROFILE -> AppNavKey.Profile
-                    }
-                    NavBackStack(initialNav)
-                }
 
                 // Synchronize innerBackStack when sidebar or header triggers navigation
                 LaunchedEffect(uiState.currentAppScreen) {
@@ -181,7 +188,11 @@ fun AppShell(
                                 AppNavKey.Dashboard -> NavEntry(key) {
                                     DashboardScreen(
                                         activeResidence = uiState.selectedResidenceContext,
-                                        onCreateResidenceClick = { viewModel.setShowCreateResidenceDialog(true) },
+                                        onCreateResidenceClick = {
+                                            if (innerBackStack.lastOrNull() != AppNavKey.CreateResidence) {
+                                                innerBackStack.add(AppNavKey.CreateResidence)
+                                            }
+                                        },
                                         onJoinResidenceClick = { viewModel.setShowJoinResidenceDialog(true) },
                                         onNewUnitClick = {
                                             if (innerBackStack.lastOrNull() != AppNavKey.CreateUnit) {
@@ -274,6 +285,33 @@ fun AppShell(
                                         }
                                     )
                                 }
+                                AppNavKey.CreateResidence -> NavEntry(
+                                    key = key,
+                                    metadata = com.resid.manager.navigation.adaptiveModal()
+                                ) {
+                                    com.resid.manager.features.residences.ui.components.CreateResidenceContent(
+                                        isLoading = uiState.isLoading,
+                                        errorMessage = uiState.errorMessage,
+                                        onDismiss = {
+                                            if (innerBackStack.size > 1) {
+                                                innerBackStack.removeLastOrNull()
+                                            }
+                                        },
+                                        onSubmit = { name, address, defaultCurrency, kWhPrice, photos ->
+                                            val uploadItems = photos.map {
+                                                com.resid.manager.features.residences.usecase.PhotoUploadItem(
+                                                    url = it.url,
+                                                    bytes = it.bytes,
+                                                    description = it.description
+                                                )
+                                            }
+                                            viewModel.createResidence(name, address, defaultCurrency, kWhPrice, uploadItems)
+                                            if (innerBackStack.size > 1) {
+                                                innerBackStack.removeLastOrNull()
+                                            }
+                                        }
+                                    )
+                                }
                                 else -> NavEntry(key) {
                                     DashboardScreen(
                                         activeResidence = uiState.selectedResidenceContext
@@ -310,7 +348,12 @@ fun AppShell(
                         viewModel.navigateToAppScreen(screen)
                         isMobileSidebarVisible = false // Close sidebar on selection
                     },
-                    onAddResidenceClick = { viewModel.setShowCreateResidenceDialog(true) },
+                    onAddResidenceClick = {
+                        isMobileSidebarVisible = false
+                        if (innerBackStack.lastOrNull() != AppNavKey.CreateResidence) {
+                            innerBackStack.add(AppNavKey.CreateResidence)
+                        }
+                    },
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -318,17 +361,6 @@ fun AppShell(
     }
 
     // Modal Dialogs for Onboarding
-    if (uiState.showCreateResidenceDialog) {
-        CreateResidenceDialog(
-            isLoading = uiState.isLoading,
-            errorMessage = uiState.errorMessage,
-            onDismiss = { viewModel.setShowCreateResidenceDialog(false) },
-            onSubmit = { name, address, defaultCurrency, kWhPrice ->
-                viewModel.createResidence(name, address, defaultCurrency, kWhPrice)
-            }
-        )
-    }
-
     if (uiState.showJoinResidenceDialog) {
         JoinResidenceDialog(
             viewModel = viewModel,

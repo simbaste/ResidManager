@@ -44,6 +44,9 @@ sealed interface AppNavKey : NavKey {
 
     @Serializable
     data object CreateUnit : AppNavKey
+
+    @Serializable
+    data object CreateResidence : AppNavKey
 }
 
 /**

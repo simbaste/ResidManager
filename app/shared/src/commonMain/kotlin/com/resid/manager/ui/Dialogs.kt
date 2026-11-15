@@ -26,11 +26,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -54,81 +51,6 @@ import com.resid.manager.features.units.ui.components.CreateUnitContent
 import com.resid.manager.ui.components.AmountTextField
 import com.resid.manager.ui.components.AppTextField
 import com.resid.manager.viewmodel.LoginViewModel
-
-@Composable
-fun CreateResidenceDialog(
-    isLoading: Boolean = false,
-    errorMessage: String? = null,
-    onDismiss: () -> Unit,
-    onSubmit: (String, String, String, Double) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var address by remember { mutableStateOf("") }
-    var defaultCurrency by remember { mutableStateOf(com.resid.manager.dto.AppCurrency.DEFAULT.code) }
-    var kWhPrice by remember { mutableStateOf("150.0") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Créer une résidence") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nom *") })
-                OutlinedTextField(value = address, onValueChange = { address = it }, label = { Text("Adresse *") })
-                OutlinedTextField(value = kWhPrice, onValueChange = { kWhPrice = it }, label = { Text("Prix kWh Électricité *") })
-
-                Text("Devise d'opération * :", style = MaterialTheme.typography.titleSmall)
-                var expandedDropdown by remember { mutableStateOf(false) }
-                val currentCurrency = com.resid.manager.dto.AppCurrency.fromCode(defaultCurrency)
-                val displayLabel = currentCurrency.displayName
-
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(
-                        onClick = { expandedDropdown = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(displayLabel)
-                    }
-                    DropdownMenu(
-                        expanded = expandedDropdown,
-                        onDismissRequest = { expandedDropdown = false }
-                    ) {
-                        com.resid.manager.dto.AppCurrency.entries.forEach { appCurrency ->
-                            DropdownMenuItem(
-                                text = { Text(appCurrency.shortLabel) },
-                                onClick = {
-                                    defaultCurrency = appCurrency.code
-                                    expandedDropdown = false
-                                }
-                            )
-                        }
-                    }
-                }
-
-                if (errorMessage != null) {
-                    Text(
-                        text = errorMessage,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val price = kWhPrice.toDoubleOrNull() ?: 150.0
-                    onSubmit(name, address, defaultCurrency, price)
-                },
-                enabled = name.isNotBlank() && address.isNotBlank() && !isLoading
-            ) {
-                Text(if (isLoading) "Création..." else "Créer")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !isLoading) { Text("Annuler") }
-        }
-    )
-}
 
 @Composable
 fun JoinResidenceDialog(

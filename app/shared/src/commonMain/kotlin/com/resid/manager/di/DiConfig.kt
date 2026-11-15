@@ -96,6 +96,7 @@ val viewModelModule = module {
             get(),
             get(),
             get(),
+            getOrNull<com.resid.manager.features.residences.usecase.UpdateResidencePhotosUseCase>(),
             getOrNull<SessionStorage>()
         )
     }

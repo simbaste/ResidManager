@@ -21,6 +21,8 @@ import com.resid.manager.dto.RoleDto
 import com.resid.manager.dto.UserDto
 import com.resid.manager.dto.UserRole
 import com.resid.manager.dto.toUserRole
+import com.resid.manager.features.residences.usecase.PhotoUploadItem
+import com.resid.manager.features.residences.usecase.UpdateResidencePhotosUseCase
 import com.resid.manager.network.ApiClient
 import com.resid.manager.repository.AuthRepository
 import com.resid.manager.repository.LeaseRepository
@@ -138,6 +140,7 @@ class LoginViewModel(
     private val leaseRepository: LeaseRepository,
     private val memberRepository: MemberRepository,
     private val searchResidencesUseCase: SearchResidencesUseCase,
+    private val updateResidencePhotosUseCase: UpdateResidencePhotosUseCase? = null,
     private val sessionStorage: SessionStorage? = null
 ) : MviViewModel<LoginUiState, LoginIntent, LoginEffect>(LoginUiState()) {
 
@@ -412,7 +415,13 @@ class LoginViewModel(
         updateState { it.copy(currentAppScreen = screen, errorMessage = null) }
     }
 
-    fun createResidence(name: String, address: String, defaultCurrency: String, kWhPrice: Double) {
+    fun createResidence(
+        name: String,
+        address: String,
+        defaultCurrency: String,
+        kWhPrice: Double,
+        photos: List<PhotoUploadItem> = emptyList()
+    ) {
         val token = uiState.value.jwtToken ?: return
         updateState { it.copy(isLoading = true, errorMessage = null) }
 
@@ -421,6 +430,9 @@ class LoginViewModel(
                 residenceRepository.createResidence(token, ResidenceCreateRequest(name, address,
                     CurrencyCodeDto.valueOf(defaultCurrency), kWhPrice))
                     .onSuccess { created ->
+                        if (photos.isNotEmpty() && updateResidencePhotosUseCase != null) {
+                            updateResidencePhotosUseCase(token, created.id, photos)
+                        }
                         fetchResidences(autoSelectResidenceId = created.id)
                         updateState { it.copy(isLoading = false, showCreateResidenceDialog = false, errorMessage = null) }
                     }
