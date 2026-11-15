@@ -23,6 +23,7 @@ import com.resid.manager.dto.UserRole
 import com.resid.manager.dto.toUserRole
 import com.resid.manager.features.residences.usecase.PhotoUploadItem
 import com.resid.manager.features.residences.usecase.UpdateResidencePhotosUseCase
+import com.resid.manager.features.units.usecase.UpdateUnitPhotosUseCase
 import com.resid.manager.network.ApiClient
 import com.resid.manager.repository.AuthRepository
 import com.resid.manager.repository.LeaseRepository
@@ -37,6 +38,7 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class AuthScreen {
     LOGIN,
@@ -141,6 +143,7 @@ class LoginViewModel(
     private val memberRepository: MemberRepository,
     private val searchResidencesUseCase: SearchResidencesUseCase,
     private val updateResidencePhotosUseCase: UpdateResidencePhotosUseCase? = null,
+    private val updateUnitPhotosUseCase: UpdateUnitPhotosUseCase? = null,
     private val sessionStorage: SessionStorage? = null
 ) : MviViewModel<LoginUiState, LoginIntent, LoginEffect>(LoginUiState()) {
 
@@ -215,32 +218,10 @@ class LoginViewModel(
                     val list = response.body<List<EquipmentDto>>()
                     updateState { it.copy(availableEquipments = list) }
                 }
-            } catch (e: Exception) {}
+            } catch (_: Exception) {}
         }
     }
 
-    // Public setters for text fields to fully preserve standard login/register ui bindings
-    fun onEmailChanged(email: String) {
-        updateState { it.copy(email = email, errorMessage = null) }
-    }
-    fun onPasswordChanged(password: String) {
-        updateState { it.copy(passwordPlain = password, errorMessage = null) }
-    }
-    fun onFirstNameChanged(firstName: String) {
-        updateState { it.copy(firstName = firstName, errorMessage = null) }
-    }
-    fun onLastNameChanged(lastName: String) {
-        updateState { it.copy(lastName = lastName, errorMessage = null) }
-    }
-    fun onBirthDateChanged(birthDate: String) {
-        updateState { it.copy(birthDate = birthDate, errorMessage = null) }
-    }
-    fun onPhoneChanged(phone: String) {
-        updateState { it.copy(phone = phone, errorMessage = null) }
-    }
-    fun togglePasswordVisibility() {
-        updateState { it.copy(passwordVisible = !it.passwordVisible) }
-    }
     fun navigateToRegister() {
         updateState { it.copy(currentScreen = AuthScreen.REGISTER, errorMessage = null) }
     }
@@ -554,7 +535,8 @@ class LoginViewModel(
         nominalRent: Double,
         serviceCharges: Double,
         initialElectricityIndex: Double,
-        equipmentIds: List<String> = emptyList()
+        equipmentIds: List<String> = emptyList(),
+        photos: List<PhotoUploadItem> = emptyList()
     ) {
         val token = uiState.value.jwtToken ?: return
         val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
@@ -564,7 +546,10 @@ class LoginViewModel(
             try {
                 val request = ResidenceUnitCreateRequest(name, floor, type, nominalRent, serviceCharges, initialElectricityIndex, equipmentIds)
                 residenceUnitRepository.createResidenceUnit(token, residenceId, request)
-                    .onSuccess {
+                    .onSuccess { createdUnit ->
+                        if (photos.isNotEmpty() && updateUnitPhotosUseCase != null) {
+                            updateUnitPhotosUseCase(token, residenceId, createdUnit.id, photos)
+                        }
                         fetchResidenceUnits()
                         updateState { it.copy(isLoading = false, showCreateUnitDialog = false, errorMessage = null) }
                     }
@@ -709,7 +694,7 @@ class LoginViewModel(
 
         searchJob = viewModelScope.launch {
             try {
-                kotlinx.coroutines.delay(500)
+                kotlinx.coroutines.delay(500.milliseconds)
                 val token = uiState.value.jwtToken ?: return@launch
                 
                 searchResidencesUseCase(token, query)

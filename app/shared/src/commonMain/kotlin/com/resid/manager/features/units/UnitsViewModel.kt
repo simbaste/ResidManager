@@ -213,8 +213,16 @@ class UnitsViewModel(
                 initialElectricityIndex = intent.initialIndex,
                 equipmentIds = intent.equipmentIds
             )
-                .onSuccess {
-                    updateState { it.copy(showCreateDialog = false) }
+                .onSuccess { createdUnit ->
+                    if (intent.photos.isNotEmpty()) {
+                        updateUnitPhotosUseCase(
+                            token = session.token,
+                            residenceId = residenceId,
+                            unitId = createdUnit.id,
+                            photos = intent.photos
+                        )
+                    }
+                    updateState { it.copy(showCreateDialog = false, isLoading = false) }
                     loadUnits(residenceId)
                 }
                 .onFailure { error ->

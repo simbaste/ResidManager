@@ -48,12 +48,14 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.resid.manager.dto.AppCurrency
 import com.resid.manager.ui.components.AmountTextField
 import com.resid.manager.ui.components.AppTextField
 import com.resid.manager.ui.components.GalleryPhotoItem
+import com.resid.manager.ui.theme.ResidTheme
 
 private enum class CreateResidenceStep {
     FORM,
@@ -316,4 +318,15 @@ fun CreateResidenceContent(
             }
     }
 }
+}
+
+@PreviewLightDark
+@Composable
+fun CreateResidenceContentPreview() {
+    ResidTheme {
+        CreateResidenceContent(
+            onDismiss = {},
+            onSubmit = { _, _, _, _, _ -> }
+        )
+    }
 }

@@ -294,8 +294,15 @@ fun AppShell(
                                                 innerBackStack.removeLastOrNull()
                                             }
                                         },
-                                        onSubmit = { name, floor, type, rent, charges, initialIndex, equipmentIds ->
-                                            viewModel.createResidenceUnit(name, floor, type, rent, charges, initialIndex, equipmentIds)
+                                        onSubmit = { name, floor, type, rent, charges, initialIndex, equipmentIds, photos ->
+                                            val uploadItems = photos.map {
+                                                PhotoUploadItem(
+                                                    url = it.url,
+                                                    bytes = it.bytes,
+                                                    description = it.description
+                                                )
+                                            }
+                                            viewModel.createResidenceUnit(name, floor, type, rent, charges, initialIndex, equipmentIds, uploadItems)
                                             if (innerBackStack.size > 1) {
                                                 innerBackStack.removeLastOrNull()
                                             }

@@ -50,7 +50,8 @@ sealed interface UnitsIntent {
         val rent: Double,
         val charges: Double,
         val initialIndex: Double,
-        val equipmentIds: List<String> = emptyList()
+        val equipmentIds: List<String> = emptyList(),
+        val photos: List<com.resid.manager.features.residences.usecase.PhotoUploadItem> = emptyList()
     ) : UnitsIntent
 
     data class UpdateUnit(
