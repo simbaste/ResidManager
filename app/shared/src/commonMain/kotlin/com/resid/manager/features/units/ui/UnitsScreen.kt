@@ -39,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,33 +52,51 @@ import androidx.navigation3.ui.NavDisplay
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.features.residences.mvi.ResidenceViewMode
+import com.resid.manager.features.residences.usecase.PhotoUploadItem
 import com.resid.manager.features.units.UnitsViewModel
 import com.resid.manager.features.units.mvi.UnitsIntent
 import com.resid.manager.features.units.mvi.UnitsUiState
+import com.resid.manager.features.units.ui.components.CreateUnitContent
 import com.resid.manager.features.units.ui.components.ResidenceUnitCard
 import com.resid.manager.features.units.ui.components.ResidenceUnitListRow
 import com.resid.manager.features.units.ui.components.UnitAddCard
 import com.resid.manager.features.units.ui.components.UnitDeleteDialog
 import com.resid.manager.features.units.ui.components.UnitsStatsRow
+import com.resid.manager.navigation.AdaptiveModalSceneStrategy
 import com.resid.manager.navigation.PlatformBackHandler
+import com.resid.manager.navigation.adaptiveModal
 import com.resid.manager.navigation.rememberNavigator
 import com.resid.manager.ui.components.ResidAppBarAction
 import com.resid.manager.ui.components.ResidTopAppBar
 import org.koin.compose.koinInject
 
+@OptIn(
+    ExperimentalMaterial3WindowSizeClassApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class
+)
 @Composable
 fun UnitsScreen(
     activeResidence: ResidenceContext? = null,
     viewModel: UnitsViewModel = koinInject(),
     onAssignTenantClick: (String) -> Unit = {},
-    onCreateUnitClick: () -> Unit = {},
+    onCreateUnitClick: () -> Unit = { viewModel.onIntent(UnitsIntent.SetShowCreateDialog(true)) },
     onEditUnitClick: (ResidenceUnitDto) -> Unit = {},
+    onUnitCreated: (String) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(activeResidence?.residenceId) {
         if (activeResidence != null) {
             viewModel.updateActiveResidence(activeResidence)
+        }
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is com.resid.manager.features.units.mvi.UnitsEffect.UnitCreated -> onUnitCreated(effect.newUnitId)
+                is com.resid.manager.features.units.mvi.UnitsEffect.ShowToast -> {}
+            }
         }
     }
 
@@ -93,9 +112,19 @@ fun UnitsScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val windowSizeClass = WindowSizeClass.calculateFromSize(
+            DpSize(maxWidth, maxHeight)
+        )
+        val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact || maxWidth < 600.dp
+
         NavDisplay(
             backStack = navigator.backStack(),
+            sceneStrategies = listOf(
+                remember(isCompact) {
+                    AdaptiveModalSceneStrategy(isCompact = isCompact)
+                }
+            ),
             onBack = {
                 if (navigator.popBack()) {
                     val currentKey = navigator.current()
@@ -121,6 +150,42 @@ fun UnitsScreen(
                             onEditClick = onEditUnitClick,
                             onViewModeSelected = { mode ->
                                 viewModel.onIntent(UnitsIntent.SetViewMode(mode))
+                            }
+                        )
+                    }
+
+                    UnitsNavKey.Create -> NavEntry(
+                        key = key,
+                        metadata = adaptiveModal()
+                    ) {
+                        CreateUnitContent(
+                            currencySymbol = uiState.currencySymbol,
+                            isLoading = uiState.isLoading,
+                            errorMessage = uiState.errorMessage,
+                            onDismiss = {
+                                navigator.popBack()
+                                viewModel.onIntent(UnitsIntent.SetShowCreateDialog(false))
+                            },
+                            onSubmit = { name, floor, type, rent, charges, initialIndex, equipmentIds, photos ->
+                                val uploadItems = photos.map {
+                                    PhotoUploadItem(
+                                        url = it.url,
+                                        bytes = it.bytes,
+                                        description = it.description
+                                    )
+                                }
+                                viewModel.onIntent(
+                                    UnitsIntent.CreateUnit(
+                                        name = name,
+                                        floor = floor,
+                                        type = type,
+                                        rent = rent,
+                                        charges = charges,
+                                        initialIndex = initialIndex,
+                                        equipmentIds = equipmentIds,
+                                        photos = uploadItems
+                                    )
+                                )
                             }
                         )
                     }
@@ -171,6 +236,19 @@ fun UnitsScreen(
                 }
             }
         )
+    }
+
+    // Synchronisation si le state déclenche l'ouverture de création
+    LaunchedEffect(uiState.showCreateDialog) {
+        if (uiState.showCreateDialog) {
+            if (navigator.current() != UnitsNavKey.Create) {
+                navigator.push(UnitsNavKey.Create)
+            }
+        } else {
+            if (navigator.current() == UnitsNavKey.Create) {
+                navigator.popBack()
+            }
+        }
     }
 
     // Dialogue de confirmation de suppression

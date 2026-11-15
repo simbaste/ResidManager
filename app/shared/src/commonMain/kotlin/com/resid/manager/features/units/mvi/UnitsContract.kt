@@ -72,4 +72,5 @@ sealed interface UnitsIntent {
 
 sealed interface UnitsEffect {
     data class ShowToast(val message: String) : UnitsEffect
+    data class UnitCreated(val newUnitId: String) : UnitsEffect
 }

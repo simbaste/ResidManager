@@ -238,11 +238,6 @@ fun AppShell(
                                     UnitsScreen(
                                         activeResidence = uiState.selectedResidenceContext,
                                         onAssignTenantClick = { unitId -> unitIdToAssignLease = unitId },
-                                        onCreateUnitClick = {
-                                            if (innerBackStack.lastOrNull() != AppNavKey.CreateUnit) {
-                                                innerBackStack.add(AppNavKey.CreateUnit)
-                                            }
-                                        },
                                         onEditUnitClick = { unitToEdit = it }
                                     )
                                 }
@@ -302,10 +297,21 @@ fun AppShell(
                                                     description = it.description
                                                 )
                                             }
-                                            viewModel.createResidenceUnit(name, floor, type, rent, charges, initialIndex, equipmentIds, uploadItems)
-                                            if (innerBackStack.size > 1) {
-                                                innerBackStack.removeLastOrNull()
-                                            }
+                                            viewModel.createResidenceUnit(
+                                                name = name,
+                                                floor = floor,
+                                                type = type,
+                                                nominalRent = rent,
+                                                serviceCharges = charges,
+                                                initialElectricityIndex = initialIndex,
+                                                equipmentIds = equipmentIds,
+                                                photos = uploadItems,
+                                                onSuccess = {
+                                                    if (innerBackStack.size > 1) {
+                                                        innerBackStack.removeLastOrNull()
+                                                    }
+                                                }
+                                            )
                                         }
                                     )
                                 }

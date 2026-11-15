@@ -536,7 +536,8 @@ class LoginViewModel(
         serviceCharges: Double,
         initialElectricityIndex: Double,
         equipmentIds: List<String> = emptyList(),
-        photos: List<PhotoUploadItem> = emptyList()
+        photos: List<PhotoUploadItem> = emptyList(),
+        onSuccess: (String) -> Unit = {}
     ) {
         val token = uiState.value.jwtToken ?: return
         val residenceId = uiState.value.selectedResidenceContext?.residenceId ?: return
@@ -552,6 +553,7 @@ class LoginViewModel(
                         }
                         fetchResidenceUnits()
                         updateState { it.copy(isLoading = false, showCreateUnitDialog = false, errorMessage = null) }
+                        onSuccess(createdUnit.id)
                     }
                     .onFailure { exception ->
                         updateState { it.copy(isLoading = false, errorMessage = exception.message) }
@@ -704,7 +706,7 @@ class LoginViewModel(
                     .onFailure { exception ->
                         updateState { it.copy(errorMessage = exception.message, isSearching = false) }
                     }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Safely handle cancellation
             }
         }

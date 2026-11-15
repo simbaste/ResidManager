@@ -223,6 +223,7 @@ class UnitsViewModel(
                         )
                     }
                     updateState { it.copy(showCreateDialog = false, isLoading = false) }
+                    emitEffect(UnitsEffect.UnitCreated(createdUnit.id))
                     loadUnits(residenceId)
                 }
                 .onFailure { error ->
