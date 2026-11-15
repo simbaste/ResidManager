@@ -27,6 +27,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +37,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.resid.manager.dto.ResidenceContext
@@ -42,6 +46,7 @@ import com.resid.manager.ui.components.ResidenceSplitButton
 import com.resid.manager.ui.components.ThemeToggleButton
 import com.resid.manager.ui.theme.ResidTheme
 
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun HeaderBar(
     title: String,
@@ -50,7 +55,6 @@ fun HeaderBar(
     residences: List<ResidenceContext>,
     selectedResidence: ResidenceContext?,
     onResidenceSelected: (ResidenceContext) -> Unit,
-    isDesktop: Boolean,
     onMenuClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onProfileClick: () -> Unit,
@@ -67,9 +71,12 @@ fun HeaderBar(
             .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 16.dp)
     ) {
-        val showLogout = maxWidth >= 880.dp
-        val showUserInfo = maxWidth >= 750.dp
-        val showTitle = (maxWidth >= 960.dp) && isDesktop
+        val windowSizeClass = WindowSizeClass.calculateFromSize(DpSize(maxWidth, maxHeight))
+        val isMedium = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Medium
+        val isLarge = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
+
+        val isAtLeastMedium = isMedium || isLarge
+        val showTitle = (maxWidth >= 960.dp) && isLarge
 
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -78,7 +85,7 @@ fun HeaderBar(
         ) {
             // Left Side: Navigation Title and Active Residence Badge Capsule
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (!isDesktop) {
+                if (!isLarge) {
                     IconButton(onClick = onMenuClick) {
                         Icon(
                             imageVector = Icons.Default.Menu,
@@ -128,8 +135,7 @@ fun HeaderBar(
                     )
                 }
 
-                // Help Question Mark Icon (using info) - hidden on mobile
-                if (isDesktop) {
+                if (isAtLeastMedium) {
                     IconButton(onClick = { }) {
                         Icon(
                             imageVector = Icons.Default.Info,
@@ -137,68 +143,67 @@ fun HeaderBar(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                }
-
-                // Vertical divider
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .height(24.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant)
-                )
-
-                // User Segment Profile
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier
-                        .clickable { onProfileClick() }
-                        .padding(4.dp)
-                ) {
-                    // Circular Avatar (Image or Initials)
+                    // Vertical divider
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF006948).copy(alpha = 0.1f)),
-                        contentAlignment = Alignment.Center
+                            .width(1.dp)
+                            .height(24.dp)
+                            .background(MaterialTheme.colorScheme.outlineVariant)
+                    )
+                    // User Segment Profile
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier
+                            .clickable { onProfileClick() }
+                            .padding(4.dp)
                     ) {
-                        if (!avatarUrl.isNullOrBlank()) {
-                            AsyncImage(
-                                model = avatarUrl,
-                                contentDescription = "Photo de profil de $userName",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            val initials = if (userName.length >= 2) userName.take(2).uppercase() else "AD"
-                            Text(
-                                text = initials,
-                                style = MaterialTheme.typography.titleSmall,
-                                color = Color(0xFF006948)
-                            )
+                        // Circular Avatar (Image or Initials)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF006948).copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!avatarUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = avatarUrl,
+                                    contentDescription = "Photo de profil de $userName",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                val initials =
+                                    if (userName.length >= 2) userName.take(2).uppercase() else "AD"
+                                Text(
+                                    text = initials,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = Color(0xFF006948)
+                                )
+                            }
                         }
-                    }
 
-                    // Profile Column (Name + Role) - hidden when width < 750dp
-                    if (showUserInfo) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = userName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Rôle: ${userRole ?: "Non spécifié"}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.outline
-                            )
+                        // Profile Column (Name + Role) - hidden when width < 750dp
+                        if (isLarge) {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = userName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Rôle: ${userRole ?: "Non spécifié"}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
                         }
                     }
                 }
 
                 // Logout CTA Button - hidden when width < 880dp
-                if (showLogout) {
+                if (isLarge) {
                     Button(
                         onClick = onLogoutClick,
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
@@ -245,7 +250,6 @@ fun HeaderBarPreview() {
             residences = sampleResidences,
             selectedResidence = sampleResidences.first(),
             onResidenceSelected = {},
-            isDesktop = true,
             onMenuClick = {},
             onLogoutClick = {},
             onProfileClick = {},

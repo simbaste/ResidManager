@@ -61,7 +61,6 @@ fun DashboardScreen(
     ) {
         val windowSizeClass = WindowSizeClass.calculateFromSize(DpSize(maxWidth, maxHeight))
         val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact
-        val isLarge = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
 
         val uiState by viewModel.uiState.collectAsState()
 

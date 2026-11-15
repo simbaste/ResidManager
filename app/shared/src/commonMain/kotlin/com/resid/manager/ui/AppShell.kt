@@ -95,7 +95,6 @@ fun AppShell(
                     residences = uiState.residences,
                     selectedResidence = uiState.selectedResidenceContext,
                     onResidenceSelected = { viewModel.selectResidence(it) },
-                    isDesktop = isDesktop,
                     onMenuClick = { isMobileSidebarVisible = !isMobileSidebarVisible },
                     onLogoutClick = { viewModel.logout() },
                     onProfileClick = { viewModel.navigateToAppScreen(AppScreen.PROFILE) },
