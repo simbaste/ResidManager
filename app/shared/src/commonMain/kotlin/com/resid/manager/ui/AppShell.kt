@@ -122,7 +122,11 @@ fun AppShell(
                             innerBackStack.add(AppNavKey.CreateResidence)
                         }
                     },
-                    onJoinResidenceClick = { viewModel.setShowJoinResidenceDialog(true) },
+                    onJoinResidenceClick = {
+                        if (innerBackStack.lastOrNull() != AppNavKey.JoinResidence) {
+                            innerBackStack.add(AppNavKey.JoinResidence)
+                        }
+                    },
                     isDarkTheme = uiState.darkMode,
                     onToggleTheme = { viewModel.toggleTheme() },
                     avatarUrl = uiState.loggedInUser?.avatarUrl
@@ -193,7 +197,11 @@ fun AppShell(
                                                 innerBackStack.add(AppNavKey.CreateResidence)
                                             }
                                         },
-                                        onJoinResidenceClick = { viewModel.setShowJoinResidenceDialog(true) },
+                                        onJoinResidenceClick = {
+                                            if (innerBackStack.lastOrNull() != AppNavKey.JoinResidence) {
+                                                innerBackStack.add(AppNavKey.JoinResidence)
+                                            }
+                                        },
                                         onNewUnitClick = {
                                             if (innerBackStack.lastOrNull() != AppNavKey.CreateUnit) {
                                                 innerBackStack.add(AppNavKey.CreateUnit)
@@ -312,6 +320,34 @@ fun AppShell(
                                         }
                                     )
                                 }
+                                AppNavKey.JoinResidence -> NavEntry(
+                                    key = key,
+                                    metadata = com.resid.manager.navigation.adaptiveModal()
+                                ) {
+                                    val existingResidenceIds = remember(uiState.residences) {
+                                        uiState.residences.map { it.residenceId }.toSet()
+                                    }
+                                    com.resid.manager.features.residences.ui.components.JoinResidenceContent(
+                                        searchQuery = uiState.searchQuery,
+                                        searchResults = uiState.searchResults,
+                                        isSearching = uiState.isSearching,
+                                        isLoading = uiState.isLoading,
+                                        errorMessage = uiState.errorMessage,
+                                        existingResidenceIds = existingResidenceIds,
+                                        onSearchQueryChanged = { viewModel.onSearchQueryChanged(it) },
+                                        onDismiss = {
+                                            if (innerBackStack.size > 1) {
+                                                innerBackStack.removeLastOrNull()
+                                            }
+                                        },
+                                        onSubmit = { residenceId ->
+                                            viewModel.joinResidence(residenceId)
+                                            if (innerBackStack.size > 1) {
+                                                innerBackStack.removeLastOrNull()
+                                            }
+                                        }
+                                    )
+                                }
                                 else -> NavEntry(key) {
                                     DashboardScreen(
                                         activeResidence = uiState.selectedResidenceContext
@@ -361,16 +397,6 @@ fun AppShell(
     }
 
     // Modal Dialogs for Onboarding
-    if (uiState.showJoinResidenceDialog) {
-        JoinResidenceDialog(
-            viewModel = viewModel,
-            onDismiss = { viewModel.setShowJoinResidenceDialog(false) },
-            onSubmit = { residenceId ->
-                viewModel.joinResidence(residenceId)
-            }
-        )
-    }
-
     if (uiState.showCreateUnitDialog) {
         CreateUnitDialog(
             viewModel = viewModel,

@@ -2,7 +2,6 @@ package com.resid.manager.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,18 +16,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,141 +38,11 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.resid.manager.dto.ResidenceSummaryItemDto
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.features.units.ui.components.CreateUnitContent
 import com.resid.manager.ui.components.AmountTextField
 import com.resid.manager.ui.components.AppTextField
 import com.resid.manager.viewmodel.LoginViewModel
-
-@Composable
-fun JoinResidenceDialog(
-    viewModel: LoginViewModel,
-    onDismiss: () -> Unit,
-    onSubmit: (String) -> Unit
-) {
-    val uiState by viewModel.uiState.collectAsState()
-    var selectedItem by remember { mutableStateOf<ResidenceSummaryItemDto?>(null) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Rejoindre une résidence") },
-        text = {
-            Column(
-                modifier = Modifier.widthIn(max = 450.dp).heightIn(max = 400.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text("Recherchez le nom d'un bâtiment ou d'une résidence pour y souscrire un accès :")
-
-                OutlinedTextField(
-                    value = uiState.searchQuery,
-                    onValueChange = { viewModel.onSearchQueryChanged(it) },
-                    label = { Text("Saisissez le nom...") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                if (uiState.isSearching) {
-                    Box(modifier = Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                    }
-                } else if (uiState.searchResults.isNotEmpty()) {
-                    val existingResidenceIds = remember(uiState.residences) {
-                        uiState.residences.map { it.residenceId }.toSet()
-                    }
-                    Column(
-                        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        uiState.searchResults.forEach { item ->
-                            val isAlreadyMember = existingResidenceIds.contains(item.id)
-                            Card(
-                                onClick = {
-                                    if (!isAlreadyMember) {
-                                        selectedItem = item
-                                    }
-                                },
-                                enabled = !isAlreadyMember,
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = when {
-                                        isAlreadyMember -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                        selectedItem?.id == item.id -> MaterialTheme.colorScheme.primaryContainer
-                                        else -> MaterialTheme.colorScheme.surfaceVariant
-                                    }
-                                )
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = item.name,
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = if (isAlreadyMember) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.primary
-                                        )
-                                        if (isAlreadyMember) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.CheckCircle,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.outline,
-                                                    modifier = Modifier.size(16.dp)
-                                                )
-                                                Text(
-                                                    text = "Déjà membre",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.outline
-                                                )
-                                            }
-                                        }
-                                    }
-                                    Text(text = "Adresse : ${item.address}", style = MaterialTheme.typography.bodyMedium)
-                                    Text(text = "Logements : ${item.totalUnits}", style = MaterialTheme.typography.bodySmall)
-                                }
-                            }
-                        }
-                    }
-                } else if (uiState.searchQuery.isNotBlank() && uiState.searchQuery.length >= 2) {
-                    Text("Aucun résultat ne correspond à votre recherche.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-                }
-
-                if (selectedItem != null) {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
-                    ) {
-                        Text(
-                            text = "Sélectionné : ${selectedItem!!.name}. Cliquez sur Rejoindre ci-dessous pour envoyer votre demande.",
-                            modifier = Modifier.padding(12.dp),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                }
-
-                val err = uiState.errorMessage
-                if (err != null) {
-                    Text(text = err, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { selectedItem?.let { onSubmit(it.id) } },
-                enabled = selectedItem != null && !uiState.isLoading
-            ) {
-                Text("Rejoindre")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Annuler") }
-        }
-    )
-}
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable

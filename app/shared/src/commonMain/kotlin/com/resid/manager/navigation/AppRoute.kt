@@ -28,6 +28,7 @@ val AppSerializersModule = SerializersModule {
         subclass(AppNavKey.Profile::class, AppNavKey.Profile.serializer())
         subclass(AppNavKey.CreateUnit::class, AppNavKey.CreateUnit.serializer())
         subclass(AppNavKey.CreateResidence::class, AppNavKey.CreateResidence.serializer())
+        subclass(AppNavKey.JoinResidence::class, AppNavKey.JoinResidence.serializer())
 
         // Feature sub-routes: Residences
         subclass(ResidencesNavKey.Directory::class, ResidencesNavKey.Directory.serializer())
