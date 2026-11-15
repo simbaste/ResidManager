@@ -13,16 +13,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,39 +36,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceUnitDto
-import com.resid.manager.features.units.ui.components.CreateUnitContent
 import com.resid.manager.ui.components.AmountTextField
 import com.resid.manager.ui.components.AppTextField
 import com.resid.manager.viewmodel.LoginViewModel
-
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-@Composable
-fun CreateUnitDialog(
-    viewModel: LoginViewModel,
-    onDismiss: () -> Unit,
-    onSubmit: (String, String, String, Double, Double, Double, List<String>) -> Unit
-) {
-    val uiState by viewModel.uiState.collectAsState()
-    val currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: "XOF"
-
-    BasicAlertDialog(
-        onDismissRequest = onDismiss
-    ) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            CreateUnitContent(
-                currencySymbol = currencySymbol,
-                isLoading = uiState.isLoading,
-                errorMessage = uiState.errorMessage,
-                onDismiss = onDismiss,
-                onSubmit = onSubmit
-            )
-        }
-    }
-}
 
 @Composable
 fun EditUnitDialog(

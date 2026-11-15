@@ -233,7 +233,11 @@ fun AppShell(
                                     UnitsScreen(
                                         activeResidence = uiState.selectedResidenceContext,
                                         onAssignTenantClick = { unitId -> unitIdToAssignLease = unitId },
-                                        onCreateUnitClick = { viewModel.setShowCreateUnitDialog(true) },
+                                        onCreateUnitClick = {
+                                            if (innerBackStack.lastOrNull() != AppNavKey.CreateUnit) {
+                                                innerBackStack.add(AppNavKey.CreateUnit)
+                                            }
+                                        },
                                         onEditUnitClick = { unitToEdit = it }
                                     )
                                 }
@@ -397,16 +401,6 @@ fun AppShell(
     }
 
     // Modal Dialogs for Onboarding
-    if (uiState.showCreateUnitDialog) {
-        CreateUnitDialog(
-            viewModel = viewModel,
-            onDismiss = { viewModel.setShowCreateUnitDialog(false) },
-            onSubmit = { name, floor, type, rent, charges, initialIndex, equipmentIds ->
-                viewModel.createResidenceUnit(name, floor, type, rent, charges, initialIndex, equipmentIds)
-            }
-        )
-    }
-
     unitToEdit?.let { unit ->
         EditUnitDialog(
             viewModel = viewModel,
