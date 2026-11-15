@@ -109,7 +109,8 @@ fun ResidenceSplitButton(
 
         DropdownMenu(
             expanded = showDropdown,
-            onDismissRequest = { showDropdown = false }
+            onDismissRequest = { showDropdown = false },
+            shape = RoundedCornerShape(16.dp)
         ) {
             if (residences.isEmpty()) {
                 DropdownMenuItem(
