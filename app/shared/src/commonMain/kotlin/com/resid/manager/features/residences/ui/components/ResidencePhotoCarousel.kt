@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,10 +42,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.resid.manager.ui.components.ImageLightboxDialog
 import com.resid.manager.ui.components.LightboxImage
+import com.resid.manager.ui.theme.ResidTheme
 
 /**
  * Gallery / Carousel component aligning with Stitch residence details design.
@@ -67,14 +70,15 @@ fun ResidencePhotoCarousel(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Section Header: Title, photo count badge, and Edit button
-        Row(
+        FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.PhotoLibrary,
@@ -115,7 +119,7 @@ fun ResidencePhotoCarousel(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Modifier les photos",
+                    text = "Modifier",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -320,6 +324,19 @@ fun ResidencePhotoCarousel(
             initialIndex = lightboxInitialIndex,
             isOpen = isLightboxOpen,
             onClose = { isLightboxOpen = false }
+        )
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun ResidencePhotoCarouselPreview() {
+    ResidTheme {
+        ResidencePhotoCarousel(
+            photos = listOf("https://cdn.pixabay.com/photo/2015/04/23/22/00/tree-736885__480.jpg"),
+            residenceName = "Les Jardins d'Ivoire",
+            onEditGalleryClick = {},
+            photoDescriptions = listOf("VUE PRINCIPALE")
         )
     }
 }

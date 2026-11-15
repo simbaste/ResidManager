@@ -11,7 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -24,7 +27,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import com.resid.manager.ui.theme.ResidTheme
 
 /**
  * Metric KPI card for residences directory & detail screens.
@@ -67,6 +72,7 @@ fun ResidenceMetricCard(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(Modifier.widthIn(min = 5.dp))
                 Box(
                     modifier = Modifier
                         .size(36.dp)
@@ -147,5 +153,20 @@ fun ResidenceMetricCard(
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun ResidenceMetricCardPreview() {
+    ResidTheme {
+        ResidenceMetricCard(
+            label = "Total Logements",
+            value = "100",
+            icon = Icons.Default.MeetingRoom,
+            subText = "100% opérationnel",
+            progress = 1.0f,
+            modifier = Modifier.size(width = 200.dp, height = 200.dp)
+        )
     }
 }
