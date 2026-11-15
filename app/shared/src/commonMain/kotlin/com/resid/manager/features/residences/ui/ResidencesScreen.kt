@@ -32,7 +32,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,7 +57,7 @@ import com.resid.manager.features.residences.ui.components.DeleteResidenceDialog
 import com.resid.manager.features.residences.ui.components.EditResidenceDialog
 import com.resid.manager.features.residences.ui.components.JoinResidenceDialog
 import com.resid.manager.features.residences.ui.components.ResidenceFilterBar
-import com.resid.manager.features.residences.ui.components.ResidenceGalleryDialog
+import com.resid.manager.features.residences.ui.components.ResidenceGalleryContent
 import com.resid.manager.features.residences.ui.components.ResidenceGridCard
 import com.resid.manager.features.residences.ui.components.ResidenceListRow
 import com.resid.manager.features.residences.ui.components.ResidenceMetricCard
@@ -85,6 +84,9 @@ sealed interface ResidencesNavKey : NavKey {
 
     @Serializable
     data object Create : ResidencesNavKey
+
+    @Serializable
+    data class Gallery(val residenceId: String) : ResidencesNavKey
 }
 
 @OptIn(
@@ -229,15 +231,8 @@ fun ResidencesScreen(
                                 onEditClick = { viewModel.onIntent(ResidencesIntent.SetEditingResidence(residence)) },
                                 onDeleteClick = { viewModel.onIntent(ResidencesIntent.SetDeletingResidence(residence)) },
                                 onNavigateToUnits = onNavigateToUnits,
-                                onSaveGalleryPhotos = { items ->
-                                    val uploadItems = items.map {
-                                        com.resid.manager.features.residences.usecase.PhotoUploadItem(
-                                            url = it.url,
-                                            bytes = it.bytes,
-                                            description = it.description
-                                        )
-                                    }
-                                    viewModel.onIntent(ResidencesIntent.UpdateResidencePhotos(residence.residenceId, uploadItems))
+                                onEditGalleryClick = {
+                                    navigator.push(ResidencesNavKey.Gallery(residence.residenceId))
                                 }
                             )
                         } else {
@@ -268,6 +263,61 @@ fun ResidencesScreen(
                         )
                     }
 
+                    is ResidencesNavKey.Gallery -> NavEntry(
+                        key = key,
+                        metadata = adaptiveModal()
+                    ) {
+                        val targetResidence = uiState.residences.firstOrNull { it.residenceId == key.residenceId }
+                            ?: uiState.selectedResidenceForDetail
+
+                        LaunchedEffect(key.residenceId) {
+                            viewModel.onIntent(ResidencesIntent.LoadResidencePhotos(key.residenceId))
+                        }
+
+                        val photos = uiState.detailResidencePhotos
+                        val galleryItems = remember(photos, targetResidence) {
+                            if (photos.isNotEmpty()) {
+                                photos.mapIndexed { index, p ->
+                                    GalleryPhotoItem(
+                                        id = "photo_$index",
+                                        url = p.url,
+                                        description = p.description
+                                    )
+                                }
+                            } else if (!targetResidence?.photoUrl.isNullOrBlank()) {
+                                listOf(
+                                    GalleryPhotoItem(
+                                        id = "primary",
+                                        url = targetResidence.photoUrl,
+                                        description = "Photo principale"
+                                    )
+                                )
+                            } else {
+                                emptyList()
+                            }
+                        }
+
+                        ResidenceGalleryContent(
+                            initialPhotos = galleryItems,
+                            isLoading = uiState.isSavingPhotos,
+                            errorMessage = uiState.errorMessage,
+                            onDismiss = {
+                                navigator.popBack()
+                            },
+                            onSave = { items ->
+                                val uploadItems = items.map {
+                                    PhotoUploadItem(
+                                        url = it.url,
+                                        bytes = it.bytes,
+                                        description = it.description
+                                    )
+                                }
+                                viewModel.onIntent(ResidencesIntent.UpdateResidencePhotos(key.residenceId, uploadItems))
+                                navigator.popBack()
+                            }
+                        )
+                    }
+
                     else -> NavEntry(key) {}
                 }
             }
@@ -287,8 +337,6 @@ fun ResidencesScreen(
         }
     }
 
-    var residenceForGalleryEditing by remember { mutableStateOf<ResidenceContext?>(null) }
-
     if (uiState.editingResidence != null) {
         val target = uiState.editingResidence!!
         EditResidenceDialog(
@@ -299,63 +347,9 @@ fun ResidencesScreen(
             },
             onOpenGallery = {
                 viewModel.onIntent(ResidencesIntent.SetEditingResidence(null))
-                residenceForGalleryEditing = target
+                navigator.push(ResidencesNavKey.Gallery(target.residenceId))
             }
         )
-    }
-
-    if (residenceForGalleryEditing != null) {
-        val targetResidence = residenceForGalleryEditing!!
-        var galleryItems by remember(targetResidence.residenceId) {
-            mutableStateOf<List<GalleryPhotoItem>?>(null)
-        }
-
-        LaunchedEffect(targetResidence.residenceId) {
-            viewModel.onIntent(ResidencesIntent.LoadResidencePhotos(targetResidence.residenceId))
-        }
-
-        val photos = uiState.detailResidencePhotos
-        galleryItems = remember(photos, targetResidence) {
-            if (photos.isNotEmpty()) {
-                photos.mapIndexed { index, p ->
-                    GalleryPhotoItem(
-                        id = "photo_$index",
-                        url = p.url,
-                        description = p.description
-                    )
-                }
-            } else if (!targetResidence.photoUrl.isNullOrBlank()) {
-                listOf(
-                    GalleryPhotoItem(
-                        id = "primary",
-                        url = targetResidence.photoUrl,
-                        description = "Photo principale"
-                    )
-                )
-            } else {
-                emptyList()
-            }
-        }
-
-        if (galleryItems != null) {
-            ResidenceGalleryDialog(
-                initialPhotos = galleryItems!!,
-                isLoading = uiState.isSavingPhotos,
-                errorMessage = uiState.errorMessage,
-                onDismiss = { residenceForGalleryEditing = null },
-                onSave = { items ->
-                    val uploadItems = items.map {
-                        PhotoUploadItem(
-                            url = it.url,
-                            bytes = it.bytes,
-                            description = it.description
-                        )
-                    }
-                    viewModel.onIntent(ResidencesIntent.UpdateResidencePhotos(targetResidence.residenceId, uploadItems))
-                    residenceForGalleryEditing = null
-                }
-            )
-        }
     }
 
     if (uiState.deletingResidence != null) {

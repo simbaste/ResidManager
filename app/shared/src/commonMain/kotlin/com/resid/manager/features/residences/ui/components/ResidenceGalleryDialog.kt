@@ -1,27 +1,24 @@
 package com.resid.manager.features.residences.ui.components
 
 import androidx.compose.runtime.Composable
-import com.resid.manager.ui.components.AppGalleryDialog
+import androidx.compose.ui.Modifier
+import com.resid.manager.ui.components.AppGalleryContent
 import com.resid.manager.ui.components.DEFAULT_GALLERY_TAGS
 import com.resid.manager.ui.components.GalleryPhotoItem
 
 /**
- * Typealias conservé pour compatibilité ascendante.
- */
-typealias GalleryPhotoItem = GalleryPhotoItem
-
-/**
- * Modale de galerie pour les résidences, utilisant le composant générique [AppGalleryDialog].
+ * Contenu adaptatif de la galerie photo pour les résidences (utilisable dans NavEntry / adaptiveModal).
  */
 @Composable
-fun ResidenceGalleryDialog(
+fun ResidenceGalleryContent(
     initialPhotos: List<GalleryPhotoItem>,
+    modifier: Modifier = Modifier,
     isLoading: Boolean = false,
     errorMessage: String? = null,
     onDismiss: () -> Unit,
     onSave: (List<GalleryPhotoItem>) -> Unit
 ) {
-    AppGalleryDialog(
+    AppGalleryContent(
         title = "Galerie photo de la résidence",
         initialPhotos = initialPhotos,
         suggestedTags = DEFAULT_GALLERY_TAGS,
@@ -29,6 +26,7 @@ fun ResidenceGalleryDialog(
         isLoading = isLoading,
         errorMessage = errorMessage,
         onDismiss = onDismiss,
-        onSave = onSave
+        onSave = onSave,
+        modifier = modifier
     )
 }

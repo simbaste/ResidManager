@@ -42,11 +42,7 @@ import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSiz
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,12 +53,9 @@ import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidencePhotoDto
 import com.resid.manager.dto.UserRole
-import com.resid.manager.features.residences.ui.components.GalleryPhotoItem
-import com.resid.manager.features.residences.ui.components.ResidenceGalleryDialog
 import com.resid.manager.features.residences.ui.components.ResidenceMetricCard
 import com.resid.manager.features.residences.ui.components.ResidencePhotoCarousel
 import com.resid.manager.ui.theme.ResidTheme
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
@@ -77,7 +70,7 @@ fun ResidenceDetailScreen(
     modifier: Modifier = Modifier,
     galleryPhotos: List<ResidencePhotoDto> = emptyList(),
     isOwnerOrAdmin: Boolean = residence.userRoleInResidence == UserRole.OWNER || residence.userRoleInResidence == UserRole.ADMIN,
-    onSaveGalleryPhotos: (suspend (List<GalleryPhotoItem>) -> Unit)? = null
+    onEditGalleryClick: () -> Unit = {}
 ) {
     BoxWithConstraints(
         modifier = Modifier
@@ -87,12 +80,7 @@ fun ResidenceDetailScreen(
         val windowSizeClass = WindowSizeClass.calculateFromSize(DpSize(maxWidth, maxHeight))
         val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact
 
-
         val scrollState = rememberScrollState()
-        val coroutineScope = rememberCoroutineScope()
-        var showGalleryDialog by remember { mutableStateOf(false) }
-        var isSavingPhotos by remember { mutableStateOf(false) }
-        var galleryErrorMessage by remember { mutableStateOf<String?>(null) }
 
         Column(
             modifier = modifier
@@ -329,7 +317,7 @@ fun ResidenceDetailScreen(
                 photos = photosList,
                 photoDescriptions = photoDescriptionsList,
                 residenceName = residence.residenceName,
-                onEditGalleryClick = { showGalleryDialog = true }
+                onEditGalleryClick = onEditGalleryClick
             )
 
             // 4. Key Performance Indicators (KPI Cards)
@@ -339,62 +327,6 @@ fun ResidenceDetailScreen(
                 IndicatorDefault(residence)
             }
         }
-
-        if (showGalleryDialog) {
-            val initialItems = remember(galleryPhotos, residence.photoUrl) {
-                if (galleryPhotos.isNotEmpty()) {
-                    galleryPhotos.mapIndexed { index, p ->
-                        GalleryPhotoItem(
-                            id = "photo_$index",
-                            url = p.url,
-                            description = p.description
-                        )
-                    }
-                } else if (!residence.photoUrl.isNullOrBlank()) {
-                    listOf(
-                        GalleryPhotoItem(
-                            id = "primary",
-                            url = residence.photoUrl,
-                            description = "Photo principale"
-                        )
-                    )
-                } else {
-                    emptyList()
-                }
-            }
-
-            ResidenceGalleryDialog(
-                initialPhotos = initialItems,
-                isLoading = isSavingPhotos,
-                errorMessage = galleryErrorMessage,
-                onDismiss = {
-                    if (!isSavingPhotos) {
-                        showGalleryDialog = false
-                        galleryErrorMessage = null
-                    }
-                },
-                onSave = { updatedPhotos ->
-                    if (onSaveGalleryPhotos != null) {
-                        coroutineScope.launch {
-                            isSavingPhotos = true
-                            galleryErrorMessage = null
-                            try {
-                                onSaveGalleryPhotos(updatedPhotos)
-                                showGalleryDialog = false
-                            } catch (e: Exception) {
-                                galleryErrorMessage =
-                                    e.message ?: "Erreur lors de l'enregistrement des photos."
-                            } finally {
-                                isSavingPhotos = false
-                            }
-                        }
-                    } else {
-                        showGalleryDialog = false
-                    }
-                }
-            )
-        }
-
     }
 }
 

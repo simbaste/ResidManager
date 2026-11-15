@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -120,7 +119,7 @@ val DEFAULT_GALLERY_TAGS = listOf("Façade", "Salon", "Chambre", "Cuisine", "Sal
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun AppGalleryDialog(
+fun AppGalleryContent(
     title: String = "Galerie photo",
     icon: ImageVector = Icons.Default.PhotoLibrary,
     initialPhotos: List<GalleryPhotoItem>,
@@ -129,7 +128,8 @@ fun AppGalleryDialog(
     isLoading: Boolean = false,
     errorMessage: String? = null,
     onDismiss: () -> Unit,
-    onSave: (List<GalleryPhotoItem>) -> Unit
+    onSave: (List<GalleryPhotoItem>) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val photos = remember {
         mutableStateListOf<GalleryPhotoItem>().apply {
@@ -167,90 +167,75 @@ fun AppGalleryDialog(
         handleIncomingBytes(bytes)
     }
 
-    Dialog(
-        onDismissRequest = { if (!isLoading) onDismiss() },
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+    BoxWithConstraints(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
     ) {
-        BoxWithConstraints(
+        val isCompact = maxWidth < 600.dp
+        val isMedium = maxWidth in 600.dp..900.dp
+        val gridColumns = if (isCompact) 2 else if (isMedium) 3 else 4
+
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(if (isCompact) 16.dp else 24.dp)
         ) {
-            val isCompact = maxWidth < 600.dp
-            val isMedium = maxWidth in 600.dp..900.dp
-            val gridColumns = if (isCompact) 2 else if (isMedium) 3 else 4
-
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth(if (isCompact) 1f else if (isMedium) 0.9f else 0.8f)
-                    .heightIn(max = maxHeight * 0.92f),
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+            // Header de la modale
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(if (isCompact) 16.dp else 24.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Header de la modale
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(MaterialTheme.colorScheme.primaryContainer),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "${photos.size} photo${if (photos.size > 1) "s" else ""} enregistrée${if (photos.size > 1) "s" else ""}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = onDismiss,
-                            enabled = !isLoading
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Fermer",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
+                    Column {
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "${photos.size} photo${if (photos.size > 1) "s" else ""} enregistrée${if (photos.size > 1) "s" else ""}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
 
-                    // Message d'erreur
-                    val displayedError = validationError ?: errorMessage
-                    if (!displayedError.isNullOrBlank()) {
-                        Box(
-                            modifier = Modifier
+                IconButton(
+                    onClick = onDismiss,
+                    enabled = !isLoading
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Fermer",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            // Message d'erreur
+            val displayedError = validationError ?: errorMessage
+            if (!displayedError.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 12.dp)
                                 .clip(RoundedCornerShape(8.dp))
@@ -740,61 +725,101 @@ fun AppGalleryDialog(
                         }
                     }
                 }
-            }
-        }
-    }
 
-    // Dialogue d'édition de description d'une photo
-    if (editingPhotoIndex != null) {
-        val targetIdx = editingPhotoIndex!!
-        if (targetIdx in photos.indices) {
-            AlertDialog(
-                onDismissRequest = { editingPhotoIndex = null },
-                title = { Text("Modifier la description") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
-                            value = editDescriptionText,
-                            onValueChange = { editDescriptionText = it },
-                            label = { Text("Description / Pièce") },
-                            placeholder = { Text("Ex: Salon, Chambre...") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        if (suggestedTags.isNotEmpty()) {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                suggestedTags.forEach { tag ->
-                                    FilterChip(
-                                        selected = editDescriptionText.equals(tag, ignoreCase = true),
-                                        onClick = { editDescriptionText = tag },
-                                        label = { Text(tag, style = MaterialTheme.typography.labelSmall) }
+                // Dialogue d'édition de description d'une photo
+                if (editingPhotoIndex != null) {
+                    val targetIdx = editingPhotoIndex!!
+                    if (targetIdx in photos.indices) {
+                        AlertDialog(
+                            onDismissRequest = { editingPhotoIndex = null },
+                            title = { Text("Modifier la description") },
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    OutlinedTextField(
+                                        value = editDescriptionText,
+                                        onValueChange = { editDescriptionText = it },
+                                        label = { Text("Description / Pièce") },
+                                        placeholder = { Text("Ex: Salon, Chambre...") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
                                     )
+
+                                    if (suggestedTags.isNotEmpty()) {
+                                        FlowRow(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            suggestedTags.forEach { tag ->
+                                                FilterChip(
+                                                    selected = editDescriptionText.equals(tag, ignoreCase = true),
+                                                    onClick = { editDescriptionText = tag },
+                                                    label = { Text(tag, style = MaterialTheme.typography.labelSmall) }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        val currentItem = photos[targetIdx]
+                                        photos[targetIdx] = currentItem.copy(description = editDescriptionText)
+                                        editingPhotoIndex = null
+                                    }
+                                ) {
+                                    Text("Appliquer")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { editingPhotoIndex = null }) {
+                                    Text("Annuler")
                                 }
                             }
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            val currentItem = photos[targetIdx]
-                            photos[targetIdx] = currentItem.copy(description = editDescriptionText)
-                            editingPhotoIndex = null
-                        }
-                    ) {
-                        Text("Appliquer")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { editingPhotoIndex = null }) {
-                        Text("Annuler")
+                        )
                     }
                 }
+            }
+        }
+
+
+/**
+ * Modale de galerie photo basée sur [AppGalleryContent].
+ */
+@Composable
+fun AppGalleryDialog(
+    title: String = "Galerie photo",
+    icon: ImageVector = Icons.Default.PhotoLibrary,
+    initialPhotos: List<GalleryPhotoItem>,
+    suggestedTags: List<String> = DEFAULT_GALLERY_TAGS,
+    defaultDescription: String = "Photo",
+    isLoading: Boolean = false,
+    errorMessage: String? = null,
+    onDismiss: () -> Unit,
+    onSave: (List<GalleryPhotoItem>) -> Unit
+) {
+    Dialog(
+        onDismissRequest = { if (!isLoading) onDismiss() },
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.padding(16.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        ) {
+            AppGalleryContent(
+                title = title,
+                icon = icon,
+                initialPhotos = initialPhotos,
+                suggestedTags = suggestedTags,
+                defaultDescription = defaultDescription,
+                isLoading = isLoading,
+                errorMessage = errorMessage,
+                onDismiss = onDismiss,
+                onSave = onSave
             )
         }
     }
