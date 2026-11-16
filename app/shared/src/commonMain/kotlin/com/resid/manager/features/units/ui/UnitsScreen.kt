@@ -51,6 +51,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.ui.NavDisplay
 import com.resid.manager.dto.AppCurrency
+import com.resid.manager.dto.EquipmentDto
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.dto.UnitStatusDto
@@ -325,7 +326,8 @@ fun UnitsGridContent(
                 Text(
                     text = "${uiState.units.size} Logement(s)",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 if (!isCompact) {
@@ -510,6 +512,23 @@ fun UnitsGridContentPreview() {
                         nominalRent = 500.0,
                         serviceCharges = 100.0,
                         initialElectricityIndex = 0.0,
+                        equipments = listOf(
+                            EquipmentDto(
+                                id = "12",
+                                key = "clim",
+                                label = "Climatisé"
+                            ),
+                            EquipmentDto(
+                                id = "34",
+                                key = "Fibre",
+                                label = "Fibre incluse"
+                            ),
+                            EquipmentDto(
+                                id = "56",
+                                key = "eau",
+                                label = "Eau autonome"
+                            ),
+                        ),
                         status = UnitStatusDto.OCCUPIED
                     ),
                 )
