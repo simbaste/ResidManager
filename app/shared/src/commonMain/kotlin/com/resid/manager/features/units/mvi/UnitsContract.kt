@@ -8,6 +8,19 @@ import com.resid.manager.dto.ResidencePhotoDto
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.features.residences.mvi.ResidenceViewMode
 
+enum class UnitStatusFilter(val label: String) {
+    ALL("Tous"),
+    AVAILABLE("Disponibles"),
+    OCCUPIED("Occupés"),
+    OVERDUE("En retard")
+}
+
+enum class UnitSortOption(val label: String) {
+    NAME_ASC("Nom (A - Z)"),
+    RENT_ASC("Loyer croissant"),
+    RENT_DESC("Loyer décroissant")
+}
+
 data class UnitsUiState(
     val isLoading: Boolean = false,
     val activeResidence: ResidenceContext? = null,
@@ -25,6 +38,9 @@ data class UnitsUiState(
     val detailUnitPhotos: List<ResidencePhotoDto> = emptyList(),
     val isSavingPhotos: Boolean = false,
     val availableEquipments: List<EquipmentDto> = emptyList(),
+    val searchQuery: String = "",
+    val statusFilter: UnitStatusFilter = UnitStatusFilter.ALL,
+    val sortOption: UnitSortOption = UnitSortOption.NAME_ASC,
     val errorMessage: String? = null
 )
 
@@ -42,6 +58,9 @@ sealed interface UnitsIntent {
     data class SetDeletingUnitId(val unitId: String?) : UnitsIntent
     data class SetAssigningLeaseUnitId(val unitId: String?) : UnitsIntent
     data class SetShowCreateDialog(val show: Boolean) : UnitsIntent
+    data class SetSearchQuery(val query: String) : UnitsIntent
+    data class SetStatusFilter(val filter: UnitStatusFilter) : UnitsIntent
+    data class SetSortOption(val option: UnitSortOption) : UnitsIntent
 
     data class CreateUnit(
         val name: String,

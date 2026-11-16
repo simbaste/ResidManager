@@ -21,15 +21,13 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
@@ -42,7 +40,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.DpSize
@@ -58,9 +55,12 @@ import com.resid.manager.dto.UnitStatusDto
 import com.resid.manager.features.residences.mvi.ResidenceViewMode
 import com.resid.manager.features.residences.usecase.PhotoUploadItem
 import com.resid.manager.features.units.UnitsViewModel
+import com.resid.manager.features.units.mvi.UnitSortOption
+import com.resid.manager.features.units.mvi.UnitStatusFilter
 import com.resid.manager.features.units.mvi.UnitsIntent
 import com.resid.manager.features.units.mvi.UnitsUiState
 import com.resid.manager.features.units.ui.components.CreateUnitContent
+import com.resid.manager.features.units.ui.components.EditUnitContent
 import com.resid.manager.features.units.ui.components.ResidenceUnitCard
 import com.resid.manager.features.units.ui.components.ResidenceUnitListRow
 import com.resid.manager.features.units.ui.components.UnitAddCard
@@ -70,14 +70,18 @@ import com.resid.manager.navigation.AdaptiveModalSceneStrategy
 import com.resid.manager.navigation.PlatformBackHandler
 import com.resid.manager.navigation.adaptiveModal
 import com.resid.manager.navigation.rememberNavigator
+import com.resid.manager.ui.components.AppFilterBar
+import com.resid.manager.ui.components.AppTextField
+import com.resid.manager.ui.components.FilterTabItem
 import com.resid.manager.ui.components.ResidAppBarAction
 import com.resid.manager.ui.components.ResidTopAppBar
+import com.resid.manager.ui.components.SortOptionItem
 import com.resid.manager.ui.theme.ResidTheme
 import org.koin.compose.koinInject
 
 @OptIn(
     ExperimentalMaterial3WindowSizeClassApi::class,
-    androidx.compose.material3.ExperimentalMaterial3Api::class
+    ExperimentalMaterial3Api::class
 )
 @Composable
 fun UnitsScreen(
@@ -86,6 +90,7 @@ fun UnitsScreen(
     onAssignTenantClick: (String) -> Unit = {},
     onCreateUnitClick: () -> Unit = { viewModel.onIntent(UnitsIntent.SetShowCreateDialog(true)) },
     onEditUnitClick: (ResidenceUnitDto) -> Unit = {},
+    onNavigateToLease: (String) -> Unit = {},
     onUnitCreated: (String) -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -152,7 +157,34 @@ fun UnitsScreen(
                                 viewModel.onIntent(UnitsIntent.SelectUnitForDetail(unit))
                                 navigator.push(UnitsNavKey.Detail(unit.id))
                             },
-                            onEditClick = onEditUnitClick,
+                            onPrimaryActionClick = { unit ->
+                                if (unit.status == UnitStatusDto.AVAILABLE) {
+                                    onAssignTenantClick(unit.id)
+                                } else {
+                                    val matchedLease = uiState.leases.firstOrNull { it.residenceUnitId == unit.id }
+                                    if (matchedLease != null) {
+                                        onNavigateToLease(matchedLease.id)
+                                    } else {
+                                        viewModel.onIntent(UnitsIntent.SelectUnitForDetail(unit))
+                                        navigator.push(UnitsNavKey.Detail(unit.id))
+                                    }
+                                }
+                            },
+                            onEditClick = { unit ->
+                                viewModel.onIntent(UnitsIntent.SetEditingUnit(unit))
+                            },
+                            onDeleteClick = { unit ->
+                                viewModel.onIntent(UnitsIntent.SetDeletingUnitId(unit.id))
+                            },
+                            onSearchQueryChanged = { query ->
+                                viewModel.onIntent(UnitsIntent.SetSearchQuery(query))
+                            },
+                            onStatusFilterSelected = { filter ->
+                                viewModel.onIntent(UnitsIntent.SetStatusFilter(filter))
+                            },
+                            onSortOptionSelected = { sort ->
+                                viewModel.onIntent(UnitsIntent.SetSortOption(sort))
+                            },
                             onViewModeSelected = { mode ->
                                 viewModel.onIntent(UnitsIntent.SetViewMode(mode))
                             }
@@ -237,6 +269,45 @@ fun UnitsScreen(
                         }
                     }
 
+                    is UnitsNavKey.Edit -> NavEntry(
+                        key = key,
+                        metadata = adaptiveModal()
+                    ) {
+                        val targetUnit = uiState.units.firstOrNull { it.id == key.unitId } ?: uiState.editingUnit
+                        if (targetUnit != null) {
+                            EditUnitContent(
+                                residenceUnit = targetUnit,
+                                availableEquipments = uiState.availableEquipments,
+                                currencySymbol = uiState.currencySymbol,
+                                isLoading = uiState.isLoading,
+                                errorMessage = uiState.errorMessage,
+                                onDismiss = {
+                                    navigator.popBack()
+                                    viewModel.onIntent(UnitsIntent.SetEditingUnit(null))
+                                },
+                                onSubmit = { name, floor, type, rent, charges, initialIndex, equipmentIds ->
+                                    viewModel.onIntent(
+                                        UnitsIntent.UpdateUnit(
+                                            unitId = targetUnit.id,
+                                            name = name,
+                                            floor = floor,
+                                            type = type,
+                                            rent = rent,
+                                            charges = charges,
+                                            initialIndex = initialIndex,
+                                            equipmentIds = equipmentIds
+                                        )
+                                    )
+                                    navigator.popBack()
+                                }
+                            )
+                        } else {
+                            LaunchedEffect(key.unitId) {
+                                navigator.popBack()
+                            }
+                        }
+                    }
+
                     else -> NavEntry(key) {}
                 }
             }
@@ -251,6 +322,21 @@ fun UnitsScreen(
             }
         } else {
             if (navigator.current() == UnitsNavKey.Create) {
+                navigator.popBack()
+            }
+        }
+    }
+
+    // Synchronisation si le state déclenche l'ouverture d'édition
+    LaunchedEffect(uiState.editingUnit) {
+        val editing = uiState.editingUnit
+        if (editing != null) {
+            val targetKey = UnitsNavKey.Edit(editing.id)
+            if (navigator.current() != targetKey) {
+                navigator.push(targetKey)
+            }
+        } else {
+            if (navigator.current() is UnitsNavKey.Edit) {
                 navigator.popBack()
             }
         }
@@ -281,7 +367,12 @@ fun UnitsGridContent(
     currencySymbol: String = AppCurrency.DEFAULT.symbol,
     onAddUnitClick: () -> Unit,
     onDetailClick: (ResidenceUnitDto) -> Unit,
+    onPrimaryActionClick: (ResidenceUnitDto) -> Unit = {},
     onEditClick: (ResidenceUnitDto) -> Unit,
+    onDeleteClick: (ResidenceUnitDto) -> Unit = {},
+    onSearchQueryChanged: (String) -> Unit = {},
+    onStatusFilterSelected: (UnitStatusFilter) -> Unit = {},
+    onSortOptionSelected: (UnitSortOption) -> Unit = {},
     onViewModeSelected: (ResidenceViewMode) -> Unit = {},
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
@@ -291,6 +382,49 @@ fun UnitsGridContent(
         val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact
         val isMedium = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Medium
         val viewMode = uiState.viewMode
+
+        // 1. Filtered & Sorted units
+        val availableCount = remember(uiState.units) {
+            uiState.units.count { it.status == UnitStatusDto.AVAILABLE }
+        }
+        val occupiedCount = remember(uiState.units) {
+            uiState.units.count { it.status == UnitStatusDto.OCCUPIED }
+        }
+
+        val filteredUnits = remember(
+            uiState.units,
+            uiState.searchQuery,
+            uiState.statusFilter,
+            uiState.sortOption
+        ) {
+            var result = uiState.units
+
+            // Filter by search query
+            if (uiState.searchQuery.isNotBlank()) {
+                val q = uiState.searchQuery.trim().lowercase()
+                result = result.filter { unit ->
+                    unit.name.lowercase().contains(q) ||
+                        unit.type.lowercase().contains(q) ||
+                        unit.floor.lowercase().contains(q) ||
+                        unit.equipments.any { it.label.lowercase().contains(q) }
+                }
+            }
+
+            // Filter by status
+            result = when (uiState.statusFilter) {
+                UnitStatusFilter.ALL -> result
+                UnitStatusFilter.AVAILABLE -> result.filter { it.status == UnitStatusDto.AVAILABLE }
+                UnitStatusFilter.OCCUPIED -> result.filter { it.status == UnitStatusDto.OCCUPIED }
+                UnitStatusFilter.OVERDUE -> result.filter { it.status == UnitStatusDto.OCCUPIED } // placeholder for late payment if applicable
+            }
+
+            // Sort
+            when (uiState.sortOption) {
+                UnitSortOption.NAME_ASC -> result.sortedBy { it.name.lowercase() }
+                UnitSortOption.RENT_ASC -> result.sortedBy { it.nominalRent }
+                UnitSortOption.RENT_DESC -> result.sortedByDescending { it.nominalRent }
+            }
+        }
 
         // Header TopAppBar
         val topBarItem: @Composable () -> Unit = {
@@ -316,50 +450,84 @@ fun UnitsGridContent(
             )
         }
 
-        // View Mode Switcher
-        val viewModeSwitcherItem: @Composable () -> Unit = {
+        // Search & Filter Bar
+        val filterBarItem: @Composable () -> Unit = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Search field
+                AppTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = onSearchQueryChanged,
+                    label = if (isCompact) "Rechercher une unité (A1, Studio)..." else "Rechercher une unité (ex: A1, Studio, Étage 1)...",
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                // Shared AppFilterBar with Tabs, Dropdown & View Mode Switcher
+                val filterTabs = listOf(
+                    FilterTabItem(
+                        label = "Tous",
+                        count = uiState.units.size,
+                        shortLabel = "Tous"
+                    ),
+                    FilterTabItem(
+                        label = "Disponibles",
+                        count = availableCount,
+                        shortLabel = "Dispo."
+                    ),
+                    FilterTabItem(
+                        label = "Occupés",
+                        count = occupiedCount,
+                        shortLabel = "Occupés"
+                    )
+                )
+
+                val selectedFilterIndex = when (uiState.statusFilter) {
+                    UnitStatusFilter.ALL -> 0
+                    UnitStatusFilter.AVAILABLE -> 1
+                    UnitStatusFilter.OCCUPIED -> 2
+                    UnitStatusFilter.OVERDUE -> 0
+                }
+
+                val sortOptionItems = UnitSortOption.entries.map {
+                    SortOptionItem(value = it, label = it.label)
+                }
+
+                AppFilterBar(
+                    tabs = filterTabs,
+                    selectedTabIndex = selectedFilterIndex,
+                    onTabSelected = { idx ->
+                        val selectedFilter = when (idx) {
+                            1 -> UnitStatusFilter.AVAILABLE
+                            2 -> UnitStatusFilter.OCCUPIED
+                            else -> UnitStatusFilter.ALL
+                        }
+                        onStatusFilterSelected(selectedFilter)
+                    },
+                    sortOptions = sortOptionItems,
+                    selectedSortOption = uiState.sortOption,
+                    onSortOptionSelected = onSortOptionSelected,
+                    viewMode = viewMode,
+                    onViewModeSelected = onViewModeSelected,
+                    isCompact = isCompact
+                )
+            }
+        }
+
+        // Unit count row
+        val unitCountItem: @Composable () -> Unit = {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${uiState.units.size} Logement(s)",
+                    text = "${filteredUnits.size} Logement(s)",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-
-                if (!isCompact) {
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .padding(2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        IconButton(
-                            onClick = { onViewModeSelected(ResidenceViewMode.GRID) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.GridView,
-                                contentDescription = "Vue Grille",
-                                tint = if (viewMode == ResidenceViewMode.GRID) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { onViewModeSelected(ResidenceViewMode.LIST) },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ViewList,
-                                contentDescription = "Vue Liste",
-                                tint = if (viewMode == ResidenceViewMode.LIST) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                            )
-                        }
-                    }
-                }
             }
         }
 
@@ -372,7 +540,8 @@ fun UnitsGridContent(
             ) {
                 topBarItem()
                 statsRowItem()
-                viewModeSwitcherItem()
+                filterBarItem()
+                unitCountItem()
                 Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
@@ -384,7 +553,6 @@ fun UnitsGridContent(
             ) {
                 topBarItem()
                 statsRowItem()
-                viewModeSwitcherItem()
                 Box(
                     modifier = Modifier.fillMaxWidth().height(260.dp),
                     contentAlignment = Alignment.Center
@@ -437,17 +605,35 @@ fun UnitsGridContent(
                 item(key = "stats_row") {
                     statsRowItem()
                 }
-                item(key = "view_mode_switcher") {
-                    viewModeSwitcherItem()
+                item(key = "filter_bar") {
+                    filterBarItem()
                 }
-                items(uiState.units, key = { it.id }) { unit ->
-                    ResidenceUnitListRow(
-                        residenceUnit = unit,
-                        isAuthorized = isAuthorized,
-                        currencySymbol = currencySymbol,
-                        onDetailClick = { onDetailClick(unit) },
-                        onEditClick = { onEditClick(unit) }
-                    )
+                item(key = "unit_count") {
+                    unitCountItem()
+                }
+                if (filteredUnits.isEmpty()) {
+                    item(key = "empty_filter") {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Aucun logement ne correspond aux filtres sélectionnés.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
+                } else {
+                    items(filteredUnits, key = { it.id }) { unit ->
+                        ResidenceUnitListRow(
+                            residenceUnit = unit,
+                            isAuthorized = isAuthorized,
+                            currencySymbol = currencySymbol,
+                            onDetailClick = { onDetailClick(unit) },
+                            onEditClick = { onEditClick(unit) }
+                        )
+                    }
                 }
             }
         } else {
@@ -470,25 +656,53 @@ fun UnitsGridContent(
                 item(span = { GridItemSpan(maxLineSpan) }, key = "stats_row") {
                     statsRowItem()
                 }
-                item(span = { GridItemSpan(maxLineSpan) }, key = "view_mode_switcher") {
-                    viewModeSwitcherItem()
+                item(span = { GridItemSpan(maxLineSpan) }, key = "filter_bar") {
+                    filterBarItem()
                 }
-                items(uiState.units, key = { it.id }) { unit ->
-                    ResidenceUnitCard(
-                        residenceUnit = unit,
-                        isAuthorized = isAuthorized,
-                        currencySymbol = currencySymbol,
-                        onDetailClick = { onDetailClick(unit) },
-                        onEditClick = { onEditClick(unit) }
-                    )
+                item(span = { GridItemSpan(maxLineSpan) }, key = "unit_count") {
+                    unitCountItem()
                 }
 
-                if (isAuthorized) {
-                    item(span = { GridItemSpan(1) }, key = "add_unit_card") {
-                        UnitAddCard(
-                            onClick = onAddUnitClick,
-                            modifier = Modifier.height(280.dp)
+                if (filteredUnits.isEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "empty_filter") {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Aucun logement ne correspond aux filtres sélectionnés.",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    }
+                } else {
+                    items(filteredUnits, key = { it.id }) { unit ->
+                        val matchedLease = uiState.leases.firstOrNull { it.residenceUnitId == unit.id }
+                        val tenant = matchedLease?.let { lease ->
+                            uiState.members.firstOrNull { it.userId == lease.tenantId }
+                        }
+                        val tenantDisplayName = tenant?.let { "${it.firstName} ${it.lastName}".trim() }
+
+                        ResidenceUnitCard(
+                            residenceUnit = unit,
+                            isAuthorized = isAuthorized,
+                            currencySymbol = currencySymbol,
+                            tenantName = tenantDisplayName,
+                            onCardClick = { onDetailClick(unit) },
+                            onPrimaryActionClick = { onPrimaryActionClick(unit) },
+                            onEditClick = { onEditClick(unit) },
+                            onDeleteClick = { onDeleteClick(unit) }
                         )
+                    }
+
+                    if (isAuthorized) {
+                        item(span = { GridItemSpan(1) }, key = "add_unit_card") {
+                            UnitAddCard(
+                                onClick = onAddUnitClick,
+                                modifier = Modifier.height(280.dp)
+                            )
+                        }
                     }
                 }
             }

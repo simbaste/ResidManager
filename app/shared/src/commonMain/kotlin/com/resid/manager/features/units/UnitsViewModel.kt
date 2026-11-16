@@ -3,6 +3,7 @@ package com.resid.manager.features.units
 import androidx.lifecycle.viewModelScope
 import com.resid.manager.SessionStorage
 import com.resid.manager.base.MviViewModel
+import com.resid.manager.dto.EquipmentDto
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.UserRole
 import com.resid.manager.features.leases.usecase.FetchLeasesUseCase
@@ -18,6 +19,9 @@ import com.resid.manager.features.units.usecase.FetchUnitPhotosUseCase
 import com.resid.manager.features.units.usecase.FetchUnitsUseCase
 import com.resid.manager.features.units.usecase.UpdateUnitPhotosUseCase
 import com.resid.manager.features.units.usecase.UpdateUnitUseCase
+import com.resid.manager.network.ApiClient
+import io.ktor.client.call.body
+import io.ktor.client.request.get
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -36,9 +40,22 @@ class UnitsViewModel(
 ) : MviViewModel<UnitsUiState, UnitsIntent, UnitsEffect>(UnitsUiState()) {
 
     init {
+        fetchEquipments()
         val lastSelectedId = sessionStorage?.loadLastSelectedResidenceId()
         if (!lastSelectedId.isNullOrBlank()) {
             loadResidenceAndUnits(lastSelectedId)
+        }
+    }
+
+    private fun fetchEquipments() {
+        viewModelScope.launch {
+            try {
+                val response = ApiClient.httpClient.get("${com.resid.manager.network.ApiClient.BASE_URL}/api/equipements")
+                if (response.status == io.ktor.http.HttpStatusCode.OK) {
+                    val list = response.body<List<EquipmentDto>>()
+                    updateState { it.copy(availableEquipments = list) }
+                }
+            } catch (_: Exception) {}
         }
     }
 
@@ -60,6 +77,9 @@ class UnitsViewModel(
             is UnitsIntent.SetDeletingUnitId -> updateState { it.copy(deletingUnitId = intent.unitId) }
             is UnitsIntent.SetAssigningLeaseUnitId -> updateState { it.copy(assigningLeaseUnitId = intent.unitId) }
             is UnitsIntent.SetShowCreateDialog -> updateState { it.copy(showCreateDialog = intent.show, errorMessage = null) }
+            is UnitsIntent.SetSearchQuery -> updateState { it.copy(searchQuery = intent.query) }
+            is UnitsIntent.SetStatusFilter -> updateState { it.copy(statusFilter = intent.filter) }
+            is UnitsIntent.SetSortOption -> updateState { it.copy(sortOption = intent.option) }
             is UnitsIntent.CreateUnit -> createUnit(intent)
             is UnitsIntent.UpdateUnit -> updateUnit(intent)
             is UnitsIntent.DeleteUnit -> deleteUnit(intent.unitId)

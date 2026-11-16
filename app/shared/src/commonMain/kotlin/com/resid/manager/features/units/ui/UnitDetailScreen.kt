@@ -14,12 +14,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import com.resid.manager.dto.EquipmentDto
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceMemberSummaryDto
 import com.resid.manager.dto.ResidencePhotoDto
 import com.resid.manager.dto.ResidenceUnitDto
+import com.resid.manager.dto.UnitStatusDto
+import com.resid.manager.dto.UserRole
 import com.resid.manager.features.residences.usecase.PhotoUploadItem
 import com.resid.manager.features.units.ui.components.UnitDetailHeader
 import com.resid.manager.features.units.ui.components.UnitDetailTechSpecs
@@ -27,9 +31,11 @@ import com.resid.manager.features.units.ui.components.UnitDetailTenantAndStats
 import com.resid.manager.features.units.ui.components.UnitPhotoCarousel
 import com.resid.manager.ui.components.AppGalleryDialog
 import com.resid.manager.ui.components.GalleryPhotoItem
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun UnitDetailScreen(
+    modifier: Modifier = Modifier,
     residenceUnit: ResidenceUnitDto,
     activeResidence: ResidenceContext?,
     isAuthorized: Boolean,
@@ -43,7 +49,6 @@ fun UnitDetailScreen(
     onEditClick: (ResidenceUnitDto) -> Unit,
     onDeleteClick: (String) -> Unit,
     onSavePhotos: (List<PhotoUploadItem>) -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     val activeLease = leases.firstOrNull { it.residenceUnitId == residenceUnit.id }
     val activeTenant = activeLease?.let { lease -> members.firstOrNull { it.userId == lease.tenantId } }
@@ -160,6 +165,59 @@ fun UnitDetailScreen(
                 onSavePhotos(uploadItems)
                 showGalleryDialog = false
             }
+        )
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun UnitDetailScreenPreview() {
+    ResidTheme {
+        UnitDetailScreen(
+            residenceUnit = ResidenceUnitDto(
+                id = "123",
+                residenceId = "12345",
+                name = "Logement 1",
+                floor = "1",
+                type = "Appartement",
+                nominalRent = 500.0,
+                serviceCharges = 100.0,
+                initialElectricityIndex = 0.0,
+                equipments = listOf(
+                    EquipmentDto(
+                        id = "12",
+                        key = "clim",
+                        label = "Climatisé"
+                    ),
+                    EquipmentDto(
+                        id = "34",
+                        key = "Fibre",
+                        label = "Fibre incluse"
+                    ),
+                    EquipmentDto(
+                        id = "56",
+                        key = "eau",
+                        label = "Eau autonome"
+                    ),
+                ),
+                status = UnitStatusDto.OCCUPIED
+            ),
+            activeResidence = ResidenceContext(
+                residenceId = "12345",
+                residenceName = "Residence A",
+                currencySymbol = "€",
+                userRoleInResidence = UserRole.OWNER,
+                residenceAddress = "1 reu du test"
+            ),
+            isAuthorized = true,
+            leases = emptyList(),
+            members = emptyList(),
+            photos = emptyList(),
+            onBackClick = { },
+            onAssignTenantClick = {  },
+            onEditClick = { },
+            onDeleteClick = { },
+            onSavePhotos = { }
         )
     }
 }

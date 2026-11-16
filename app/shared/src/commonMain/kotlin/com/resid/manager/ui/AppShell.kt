@@ -238,6 +238,9 @@ fun AppShell(
                                     UnitsScreen(
                                         activeResidence = uiState.selectedResidenceContext,
                                         onAssignTenantClick = { unitId -> unitIdToAssignLease = unitId },
+                                        onNavigateToLease = { _ ->
+                                            viewModel.navigateToAppScreen(AppScreen.LEASES)
+                                        },
                                         onEditUnitClick = { unitToEdit = it }
                                     )
                                 }
@@ -421,8 +424,11 @@ fun AppShell(
     // Modal Dialogs for Onboarding
     unitToEdit?.let { unit ->
         EditUnitDialog(
-            viewModel = viewModel,
             residenceUnit = unit,
+            availableEquipments = uiState.availableEquipments,
+            currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: "XOF",
+            isLoading = uiState.isLoading,
+            errorMessage = uiState.errorMessage,
             onDismiss = { unitToEdit = null },
             onSubmit = { name, floor, type, rent, charges, initialIndex, equipmentIds ->
                 viewModel.updateResidenceUnit(unit.id, name, floor, type, rent, charges, initialIndex, equipmentIds)

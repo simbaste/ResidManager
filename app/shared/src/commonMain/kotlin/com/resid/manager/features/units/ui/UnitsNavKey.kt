@@ -13,4 +13,7 @@ sealed interface UnitsNavKey : NavKey {
 
     @Serializable
     data object Create : UnitsNavKey
+
+    @Serializable
+    data class Edit(val unitId: String) : UnitsNavKey
 }
