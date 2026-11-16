@@ -44,13 +44,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.ui.NavDisplay
+import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceUnitDto
+import com.resid.manager.dto.UnitStatusDto
 import com.resid.manager.features.residences.mvi.ResidenceViewMode
 import com.resid.manager.features.residences.usecase.PhotoUploadItem
 import com.resid.manager.features.units.UnitsViewModel
@@ -68,6 +71,7 @@ import com.resid.manager.navigation.adaptiveModal
 import com.resid.manager.navigation.rememberNavigator
 import com.resid.manager.ui.components.ResidAppBarAction
 import com.resid.manager.ui.components.ResidTopAppBar
+import com.resid.manager.ui.theme.ResidTheme
 import org.koin.compose.koinInject
 
 @OptIn(
@@ -270,14 +274,14 @@ fun UnitsScreen(
 @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun UnitsGridContent(
+    modifier: Modifier = Modifier,
     uiState: UnitsUiState,
     isAuthorized: Boolean,
-    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
+    currencySymbol: String = AppCurrency.DEFAULT.symbol,
     onAddUnitClick: () -> Unit,
     onDetailClick: (ResidenceUnitDto) -> Unit,
     onEditClick: (ResidenceUnitDto) -> Unit,
     onViewModeSelected: (ResidenceViewMode) -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val windowSizeClass = WindowSizeClass.calculateFromSize(
@@ -306,6 +310,7 @@ fun UnitsGridContent(
         // Stats Row
         val statsRowItem: @Composable () -> Unit = {
             UnitsStatsRow(
+                isCompact = isCompact,
                 units = uiState.units
             )
         }
@@ -358,19 +363,26 @@ fun UnitsGridContent(
 
         val padding = if (isCompact) 16.dp else 24.dp
 
-        Column(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            topBarItem()
-            statsRowItem()
-            viewModeSwitcherItem()
-
-            if (uiState.isLoading) {
+        if (uiState.isLoading) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                topBarItem()
+                statsRowItem()
+                viewModeSwitcherItem()
                 Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
-            } else if (uiState.units.isEmpty()) {
+            }
+        } else if (uiState.units.isEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                topBarItem()
+                statsRowItem()
+                viewModeSwitcherItem()
                 Box(
                     modifier = Modifier.fillMaxWidth().height(260.dp),
                     contentAlignment = Alignment.Center
@@ -410,56 +422,103 @@ fun UnitsGridContent(
                         }
                     }
                 }
-            } else if (viewMode == ResidenceViewMode.LIST && !isCompact) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    contentPadding = PaddingValues(bottom = 32.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(uiState.units, key = { it.id }) { unit ->
-                        ResidenceUnitListRow(
-                            residenceUnit = unit,
-                            isAuthorized = isAuthorized,
-                            currencySymbol = currencySymbol,
-                            onDetailClick = { onDetailClick(unit) },
-                            onEditClick = { onEditClick(unit) }
-                        )
-                    }
+            }
+        } else if (viewMode == ResidenceViewMode.LIST && !isCompact) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = padding, top = padding, end = padding, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item(key = "top_bar") {
+                    topBarItem()
                 }
-            } else {
-                val gridColumns = when {
-                    isCompact -> GridCells.Fixed(1)
-                    isMedium -> GridCells.Fixed(2)
-                    else -> GridCells.Adaptive(minSize = 320.dp)
+                item(key = "stats_row") {
+                    statsRowItem()
+                }
+                item(key = "view_mode_switcher") {
+                    viewModeSwitcherItem()
+                }
+                items(uiState.units, key = { it.id }) { unit ->
+                    ResidenceUnitListRow(
+                        residenceUnit = unit,
+                        isAuthorized = isAuthorized,
+                        currencySymbol = currencySymbol,
+                        onDetailClick = { onDetailClick(unit) },
+                        onEditClick = { onEditClick(unit) }
+                    )
+                }
+            }
+        } else {
+            val gridColumns = when {
+                isCompact -> GridCells.Fixed(1)
+                isMedium -> GridCells.Fixed(2)
+                else -> GridCells.Adaptive(minSize = 320.dp)
+            }
+
+            LazyVerticalGrid(
+                columns = gridColumns,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = padding, top = padding, end = padding, bottom = 32.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item(span = { GridItemSpan(maxLineSpan) }, key = "top_bar") {
+                    topBarItem()
+                }
+                item(span = { GridItemSpan(maxLineSpan) }, key = "stats_row") {
+                    statsRowItem()
+                }
+                item(span = { GridItemSpan(maxLineSpan) }, key = "view_mode_switcher") {
+                    viewModeSwitcherItem()
+                }
+                items(uiState.units, key = { it.id }) { unit ->
+                    ResidenceUnitCard(
+                        residenceUnit = unit,
+                        isAuthorized = isAuthorized,
+                        currencySymbol = currencySymbol,
+                        onDetailClick = { onDetailClick(unit) },
+                        onEditClick = { onEditClick(unit) }
+                    )
                 }
 
-                LazyVerticalGrid(
-                    columns = gridColumns,
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    contentPadding = PaddingValues(bottom = 32.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(uiState.units, key = { it.id }) { unit ->
-                        ResidenceUnitCard(
-                            residenceUnit = unit,
-                            isAuthorized = isAuthorized,
-                            currencySymbol = currencySymbol,
-                            onDetailClick = { onDetailClick(unit) },
-                            onEditClick = { onEditClick(unit) }
+                if (isAuthorized) {
+                    item(span = { GridItemSpan(1) }, key = "add_unit_card") {
+                        UnitAddCard(
+                            onClick = onAddUnitClick,
+                            modifier = Modifier.height(280.dp)
                         )
-                    }
-
-                    if (isAuthorized) {
-                        item(span = { GridItemSpan(1) }) {
-                            UnitAddCard(
-                                onClick = onAddUnitClick,
-                                modifier = Modifier.height(280.dp)
-                            )
-                        }
                     }
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun UnitsGridContentPreview() {
+    ResidTheme {
+        UnitsGridContent(
+            uiState = UnitsUiState(
+                units = listOf(
+                    ResidenceUnitDto(
+                        id = "123",
+                        residenceId = "12345",
+                        name = "Logement 1",
+                        floor = "1",
+                        type = "Appartement",
+                        nominalRent = 500.0,
+                        serviceCharges = 100.0,
+                        initialElectricityIndex = 0.0,
+                        status = UnitStatusDto.OCCUPIED
+                    ),
+                )
+            ),
+            isAuthorized = true,
+            currencySymbol = AppCurrency.DEFAULT.symbol,
+            onAddUnitClick = {},
+            onDetailClick = {},
+            onEditClick = {}
+        )
     }
 }
