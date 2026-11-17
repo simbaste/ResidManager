@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,6 +38,8 @@ fun TransactionsLedger(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         if (isLoading) {
@@ -59,7 +59,7 @@ fun TransactionsLedger(
                 Text(
                     text = "Grand Livre Chronologique des Flux",
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color(0xFF006948)
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -78,7 +78,7 @@ fun TransactionsLedger(
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                Column(modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     transactions.forEach { tx ->
                         val isIncome = tx.type == TransactionTypeDto.INCOME
 
@@ -113,7 +113,7 @@ fun TransactionsLedger(
 
                                 if (tx.relatedEntityType != null && tx.relatedEntityId != null) {
                                     Card(
-                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE0E7FF)),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
                                         shape = RoundedCornerShape(4.dp),
                                         modifier = Modifier.clickable {
                                             onTraceabilityClick(tx.relatedEntityType.name to tx.relatedEntityId)
@@ -122,7 +122,7 @@ fun TransactionsLedger(
                                         Text(
                                             text = "Lien ${tx.relatedEntityType}",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFF1E3A8A),
+                                            color = MaterialTheme.colorScheme.onTertiaryContainer,
                                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                         )
                                     }
@@ -131,7 +131,7 @@ fun TransactionsLedger(
                             Text(
                                 text = if (isIncome) "+ ${tx.amount} $currencySymbol" else "- ${tx.amount} $currencySymbol",
                                 style = MaterialTheme.typography.titleMedium,
-                                color = if (isIncome) Color(0xFF006948) else Color(0xFFBA1A1A),
+                                color = if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                                 modifier = Modifier.weight(1.2f)
                             )
                         }

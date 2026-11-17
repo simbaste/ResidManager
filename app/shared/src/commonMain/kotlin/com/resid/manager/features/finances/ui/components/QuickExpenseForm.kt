@@ -5,16 +5,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
@@ -36,7 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.resid.manager.ui.components.AmountTextField
 import com.resid.manager.ui.components.AppDatePickerField
@@ -70,29 +67,31 @@ fun QuickExpenseForm(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.width(360.dp).fillMaxHeight(),
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)),
+        shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
         Column(
-            modifier = Modifier.padding(24.dp).verticalScroll(rememberScrollState()),
+            modifier = Modifier.padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "Saisie de Dépense Opérationnelle",
+                text = "Saisie d'Opération",
                 style = MaterialTheme.typography.titleLarge,
-                color = Color(0xFF006948)
+                color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "Enregistrez manuellement une charge opérationnelle payée directement.",
+                text = "Enregistrez manuellement une opération financière.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
             if (isAuthorized) {
                 // Category selector dropdown
-                Text("Catégorie de la Dépense * :", style = MaterialTheme.typography.titleSmall)
+                Text("Catégorie * :", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 var expandedDropdown by remember { mutableStateOf(false) }
                 val selectedLabel = validExpenseCategories.firstOrNull { it.first == formCategory }?.second ?: formCategory
 
@@ -154,31 +153,32 @@ fun QuickExpenseForm(
 
                 if (formSuccess) {
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE6F7F0)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF006948))
-                            Text("Dépense enregistrée avec succès !", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF006948))
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Text("Opération enregistrée avec succès !", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                     }
                 }
 
                 Button(
                     onClick = onSubmit,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948)),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
                     enabled = !isSubmittingExpense
                 ) {
                     if (isSubmittingExpense) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp))
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
                     } else {
-                        Text("Enregistrer la dépense")
+                        Text("Enregistrer", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
                     }
                 }
             } else {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Accès réservé aux administrateurs.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                    Text("Accès réservé aux administrateurs.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
