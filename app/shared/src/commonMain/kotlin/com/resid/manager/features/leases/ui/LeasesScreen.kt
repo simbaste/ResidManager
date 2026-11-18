@@ -36,6 +36,7 @@ import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.features.leases.LeasesViewModel
 import com.resid.manager.features.leases.mvi.LeasesIntent
 import com.resid.manager.features.leases.mvi.LeasesUiState
+import com.resid.manager.features.leases.ui.components.LeaseAddFolderCard
 import com.resid.manager.features.leases.ui.components.LeaseCard
 import com.resid.manager.features.leases.ui.components.LeaseTerminateDialog
 import com.resid.manager.features.leases.ui.components.LeasesFilterCapsuleBar
@@ -241,6 +242,14 @@ fun LeasesGridContent(
                         currencySymbol = currencySymbol,
                         onClick = { onLeaseClick(lease) }
                     )
+                }
+
+                if (isAuthorized) {
+                    item(key = "add_lease_folder_card") {
+                        LeaseAddFolderCard(
+                            onClick = onNewLeaseClick
+                        )
+                    }
                 }
             }
         }
