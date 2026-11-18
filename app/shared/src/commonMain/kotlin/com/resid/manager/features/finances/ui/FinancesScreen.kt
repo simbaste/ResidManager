@@ -28,7 +28,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.features.finances.FinancesViewModel
 import com.resid.manager.features.finances.mvi.FinancesIntent
@@ -39,6 +41,7 @@ import com.resid.manager.features.finances.ui.components.QuickExpenseForm
 import com.resid.manager.features.finances.ui.components.TraceabilityDialog
 import com.resid.manager.features.finances.ui.components.TransactionsLedger
 import com.resid.manager.ui.components.ResidTopAppBar
+import com.resid.manager.ui.theme.ResidTheme
 import org.koin.compose.koinInject
 
 @Composable
@@ -81,9 +84,10 @@ fun FinancesScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FinancesContent(
+    modifier: Modifier = Modifier,
     uiState: FinancesUiState,
     isAuthorized: Boolean,
-    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
+    currencySymbol: String = AppCurrency.DEFAULT.symbol,
     onCategoryChanged: (String) -> Unit,
     onAmountChanged: (String) -> Unit,
     onDescriptionChanged: (String) -> Unit,
@@ -92,7 +96,6 @@ fun FinancesContent(
     onFilterTypeChanged: (String) -> Unit,
     onFilterQueryChanged: (String) -> Unit,
     onTraceabilityClick: (Pair<String, String>) -> Unit,
-    modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val isSmallScreen = maxWidth < 900.dp
@@ -250,5 +253,25 @@ fun FinancesContent(
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun FinancesContentPreview() {
+    ResidTheme {
+        FinancesContent(
+            uiState = FinancesUiState(),
+            isAuthorized = true,
+            currencySymbol = AppCurrency.DEFAULT.symbol,
+            onCategoryChanged = {},
+            onAmountChanged = {},
+            onDescriptionChanged = {},
+            onDateChanged = {},
+            onSubmitExpense = {},
+            onFilterTypeChanged = {},
+            onFilterQueryChanged = {},
+            onTraceabilityClick = {}
+        )
     }
 }
