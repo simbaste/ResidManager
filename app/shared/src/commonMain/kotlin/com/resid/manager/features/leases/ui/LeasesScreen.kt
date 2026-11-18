@@ -3,7 +3,6 @@ package com.resid.manager.features.leases.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -11,11 +10,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,11 +21,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.ui.NavDisplay
 import com.resid.manager.SessionStorage
+import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.LeaseStatusDto
 import com.resid.manager.dto.ResidenceContext
@@ -39,9 +37,6 @@ import com.resid.manager.features.leases.LeasesViewModel
 import com.resid.manager.features.leases.mvi.LeasesIntent
 import com.resid.manager.features.leases.mvi.LeasesUiState
 import com.resid.manager.features.leases.ui.components.LeaseCard
-import com.resid.manager.features.leases.ui.components.LeaseDetailAdminActions
-import com.resid.manager.features.leases.ui.components.LeaseDetailHeader
-import com.resid.manager.features.leases.ui.components.LeaseDetailInfoAndLedger
 import com.resid.manager.features.leases.ui.components.LeaseTerminateDialog
 import com.resid.manager.features.leases.ui.components.LeasesFilterCapsuleBar
 import com.resid.manager.features.leases.ui.components.wizard.LeaseWizardDialog
@@ -49,6 +44,7 @@ import com.resid.manager.navigation.PlatformBackHandler
 import com.resid.manager.navigation.rememberNavigator
 import com.resid.manager.ui.components.ResidAppBarAction
 import com.resid.manager.ui.components.ResidTopAppBar
+import com.resid.manager.ui.theme.ResidTheme
 import org.koin.compose.koinInject
 
 @Composable
@@ -108,64 +104,24 @@ fun LeasesScreen(
                     }
 
                     is LeasesNavKey.Detail -> NavEntry(key) {
-                        val lease = uiState.leases.firstOrNull { it.id == key.leaseId }
-                            ?: uiState.selectedLeaseForDetail
-
-                        if (lease != null) {
-                            val matchedUnit = uiState.units.firstOrNull { it.id == lease.residenceUnitId }
-                            val matchedTenant = uiState.members.firstOrNull { it.userId == lease.tenantId }
-
-                            Column(
-                                modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(20.dp)
-                            ) {
-                                LeaseDetailHeader(
-                                    lease = lease,
-                                    onBackClick = {
-                                        viewModel.onIntent(LeasesIntent.SelectLeaseForDetail(null))
-                                        navigator.popBack()
-                                    }
-                                )
-
-                                HorizontalDivider()
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(24.dp)
-                                ) {
-                                    val currentCurrencySymbol = uiState.currencySymbol
-
-                                    LeaseDetailInfoAndLedger(
-                                        lease = lease,
-                                        matchedUnit = matchedUnit,
-                                        matchedTenant = matchedTenant,
-                                        currencySymbol = currentCurrencySymbol,
-                                        modifier = Modifier.weight(1.2f)
-                                    )
-
-                                    LeaseDetailAdminActions(
-                                        lease = lease,
-                                        matchedUnit = matchedUnit,
-                                        currencySymbol = currentCurrencySymbol,
-                                        onRecordPayment = { amount, category ->
-                                            viewModel.onIntent(LeasesIntent.RecordPayment(lease.id, amount, category))
-                                        },
-                                        onSignContract = {
-                                            viewModel.onIntent(LeasesIntent.UpdateStatus(lease.id, LeaseStatusDto.SIGNED_ACTIVE))
-                                        },
-                                        onTerminateClick = {
-                                            viewModel.onIntent(LeasesIntent.SetShowTerminateConfirmation(true))
-                                        },
-                                        errorMessage = uiState.errorMessage,
-                                        modifier = Modifier.weight(0.8f)
-                                    )
-                                }
-                            }
-                        } else {
-                            LaunchedEffect(key.leaseId) {
+                        LeaseDetailScreen(
+                            uiState,
+                            key,
+                            onRecordPayment = { amount, leaseId, category ->
+                                viewModel.onIntent(LeasesIntent.RecordPayment(leaseId, amount, category))
+                            },
+                            onSignContract = { leaseId, status ->
+                                viewModel.onIntent(LeasesIntent.UpdateStatus(leaseId, status))
+                            },
+                            onTerminateClick = {
+                                viewModel.onIntent(LeasesIntent.SetShowTerminateConfirmation(true))
+                            },
+                            goBack = { navigator.popBack() },
+                            onBackClick = {
+                                viewModel.onIntent(LeasesIntent.SelectLeaseForDetail(null))
                                 navigator.popBack()
                             }
-                        }
+                        )
                     }
 
                     else -> NavEntry(key) {}
@@ -203,15 +159,15 @@ fun LeasesScreen(
 
 @Composable
 fun LeasesGridContent(
+    modifier: Modifier = Modifier,
     uiState: LeasesUiState,
     residenceUnits: List<ResidenceUnitDto>,
     members: List<ResidenceMemberSummaryDto>,
     isAuthorized: Boolean,
-    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
+    currencySymbol: String = AppCurrency.DEFAULT.symbol,
     onNewLeaseClick: () -> Unit,
     onFilterSelected: (String) -> Unit,
     onLeaseClick: (LeaseDto) -> Unit,
-    modifier: Modifier = Modifier
 ) {
     val filteredLeases = remember(uiState.leases, uiState.activeFilter) {
         val list = uiState.leases
@@ -288,5 +244,38 @@ fun LeasesGridContent(
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun LeasesGridContentPreview() {
+    ResidTheme {
+        LeasesGridContent(
+            uiState = LeasesUiState(
+                leases = listOf(
+                    LeaseDto(
+                        id = "1",
+                        residenceUnitId = "1",
+                        tenantId = "1",
+                        startDate = "2023-01-01",
+                        endDate = "2023-12-31",
+                        monthlyRentAtSign = 1000.0,
+                        depositAmount = 500.0,
+                        status = LeaseStatusDto.SIGNED_ACTIVE,
+                        payments = emptyList(),
+                        guarantor = null,
+                        createdAt = "2023-01-01",
+                        updatedAt = "2023-01-01"
+                    )
+                )
+            ),
+            residenceUnits = emptyList(),
+            members = emptyList(),
+            onNewLeaseClick = { },
+            onFilterSelected = { },
+            onLeaseClick = { },
+            isAuthorized = true,
+        )
     }
 }

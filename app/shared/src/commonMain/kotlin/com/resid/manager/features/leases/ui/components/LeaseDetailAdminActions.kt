@@ -30,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.LeaseCategory
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.LeaseStatusDto
@@ -38,14 +39,14 @@ import com.resid.manager.dto.ResidenceUnitDto
 
 @Composable
 fun LeaseDetailAdminActions(
+    modifier: Modifier = Modifier,
     lease: LeaseDto,
     matchedUnit: ResidenceUnitDto?,
-    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
+    currencySymbol: String = AppCurrency.DEFAULT.symbol,
     onRecordPayment: (Double, String) -> Unit,
     onSignContract: () -> Unit,
     onTerminateClick: () -> Unit,
     errorMessage: String? = null,
-    modifier: Modifier = Modifier
 ) {
     val isAnnual = lease.paymentFrequencyDto == PaymentFrequencyDto.ANNUAL
     val rentMonthsRequired = if (isAnnual) 12 else lease.advanceMonths

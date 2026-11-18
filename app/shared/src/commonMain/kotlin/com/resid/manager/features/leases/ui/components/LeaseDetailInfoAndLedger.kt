@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.LeaseCategory
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.ResidenceMemberSummaryDto
@@ -23,11 +24,11 @@ import com.resid.manager.dto.ResidenceUnitDto
 
 @Composable
 fun LeaseDetailInfoAndLedger(
+    modifier: Modifier = Modifier,
     lease: LeaseDto,
     matchedUnit: ResidenceUnitDto?,
     matchedTenant: ResidenceMemberSummaryDto?,
-    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
-    modifier: Modifier = Modifier
+    currencySymbol: String = AppCurrency.DEFAULT.symbol,
 ) {
     val matchedResidenceUnitName = matchedUnit?.name ?: "Logement ${lease.residenceUnitId.take(5)}"
 
