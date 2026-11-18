@@ -17,20 +17,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import com.resid.manager.dto.AppCurrency
+import com.resid.manager.dto.InvitationStatusDto
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.LeaseStatusDto
 import com.resid.manager.dto.ResidenceMemberSummaryDto
 import com.resid.manager.dto.ResidenceUnitDto
+import com.resid.manager.dto.RoleDto
+import com.resid.manager.dto.UnitStatusDto
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun LeaseCard(
+    modifier: Modifier = Modifier,
     lease: LeaseDto,
     matchedUnit: ResidenceUnitDto?,
     matchedTenant: ResidenceMemberSummaryDto?,
-    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
+    currencySymbol: String = AppCurrency.DEFAULT.symbol,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
 ) {
     val matchedResidenceUnit = matchedUnit?.name ?: "Logement ${lease.residenceUnitId.take(5)}"
     val tenantName = matchedTenant?.let { "${it.firstName} ${it.lastName}" } ?: "Inconnu"
@@ -118,3 +124,46 @@ fun LeaseInfoRow(
         )
     }
 }
+
+@PreviewLightDark
+@Composable
+fun LeaseCardPreview() {
+    ResidTheme {
+        LeaseCard(
+            lease = LeaseDto(
+                id = "1",
+                residenceUnitId = "unit-1",
+                tenantId = "tenant-1",
+                startDate = "2023-01-01",
+                endDate = "2023-12-31",
+                monthlyRentAtSign = 1000.0,
+                depositAmount = 500.0,
+                status = LeaseStatusDto.SIGNED_ACTIVE,
+                createdAt = "2023-01-01",
+                updatedAt = "2023-01-01"
+            ),
+            matchedUnit = ResidenceUnitDto(
+                id = "unit-1",
+                residenceId = "res-1",
+                name = "Appartement 101",
+                floor = "1",
+                type = "T2",
+                nominalRent = 1000.0,
+                serviceCharges = 50.0,
+                initialElectricityIndex = 0.0,
+                status = UnitStatusDto.OCCUPIED
+            ),
+            matchedTenant = ResidenceMemberSummaryDto(
+                userId = "tenant-1",
+                firstName = "Jean",
+                lastName = "Dupont",
+                email = "jean.dupont@example.com",
+                phone = "+33612345678",
+                roleDto = RoleDto.TENANT,
+                status = InvitationStatusDto.ACCEPTED
+            ),
+            onClick = {}
+        )
+    }
+}
+
