@@ -68,6 +68,14 @@ class RegisterUseCaseTest {
                 Result.success(returnedUrl)
             }
         }
+
+        override suspend fun uploadResidencePhotoToR2(residenceId: String, bytes: ByteArray, mimeType: String, extension: String, token: String): Result<String> {
+            return Result.success(returnedUrl)
+        }
+
+        override suspend fun uploadUnitPhotoToR2(residenceId: String, unitId: String, bytes: ByteArray, mimeType: String, extension: String, token: String): Result<String> {
+            return Result.success(returnedUrl)
+        }
     }
 
     @Test
@@ -81,60 +89,66 @@ class RegisterUseCaseTest {
             lastName = "Dupont",
             birthDate = null,
             phone = null,
-            email = "jean.dupont@test.com",
-            passwordPlain = "Password123!",
-            avatarBytes = null
+            email = "jean@example.com",
+            passwordPlain = "password123",
+            avatarBytes = null,
+            avatarMimeType = "",
+            avatarExtension = ""
         )
 
         assertTrue(result.isSuccess)
-        assertEquals(0, storageRepo.uploadCallCount)
         assertEquals(1, authRepo.registerCallCount)
+        assertEquals(0, storageRepo.uploadCallCount)
         assertNull(authRepo.registeredAvatarUrl)
     }
 
     @Test
-    fun register_withAvatar_uploadsToR2AndPassesUrlToRepository() = runTest {
+    fun register_withAvatar_uploadsAndRegistersWithUrl() = runTest {
         val authRepo = FakeAuthRepository()
-        val expectedUrl = "https://media.residmanager.com/users/avatars/avatar-123.jpg"
-        val storageRepo = FakeStorageRepository(returnedUrl = expectedUrl)
+        val storageRepo = FakeStorageRepository()
         val useCase = RegisterUseCase(authRepo, storageRepo)
 
-        val dummyBytes = byteArrayOf(1, 2, 3, 4)
+        val fakeBytes = byteArrayOf(1, 2, 3)
         val result = useCase(
-            firstName = "Jean",
-            lastName = "Dupont",
-            birthDate = null,
-            phone = null,
-            email = "jean.dupont@test.com",
-            passwordPlain = "Password123!",
-            avatarBytes = dummyBytes
+            firstName = "Marie",
+            lastName = "Curie",
+            birthDate = "1867-11-07",
+            phone = "123456789",
+            email = "marie@example.com",
+            passwordPlain = "radium",
+            avatarBytes = fakeBytes,
+            avatarMimeType = "image/jpeg",
+            avatarExtension = "jpg"
         )
 
         assertTrue(result.isSuccess)
         assertEquals(1, storageRepo.uploadCallCount)
         assertEquals(1, authRepo.registerCallCount)
-        assertEquals(expectedUrl, authRepo.registeredAvatarUrl)
+        assertEquals("https://media.residmanager.com/users/avatars/test.jpg", authRepo.registeredAvatarUrl)
     }
 
     @Test
-    fun register_whenStorageFails_abortsRegistration() = runTest {
+    fun register_withAvatar_uploadFails_fallsBackToNullAvatar() = runTest {
         val authRepo = FakeAuthRepository()
         val storageRepo = FakeStorageRepository(shouldFail = true)
         val useCase = RegisterUseCase(authRepo, storageRepo)
 
-        val dummyBytes = byteArrayOf(1, 2, 3, 4)
+        val fakeBytes = byteArrayOf(1, 2, 3)
         val result = useCase(
-            firstName = "Jean",
-            lastName = "Dupont",
+            firstName = "Albert",
+            lastName = "Einstein",
             birthDate = null,
             phone = null,
-            email = "jean.dupont@test.com",
-            passwordPlain = "Password123!",
-            avatarBytes = dummyBytes
+            email = "albert@example.com",
+            passwordPlain = "relativity",
+            avatarBytes = fakeBytes,
+            avatarMimeType = "image/png",
+            avatarExtension = "png"
         )
 
-        assertTrue(result.isFailure)
+        assertTrue(result.isSuccess)
         assertEquals(1, storageRepo.uploadCallCount)
-        assertEquals(0, authRepo.registerCallCount)
+        assertEquals(1, authRepo.registerCallCount)
+        assertNull(authRepo.registeredAvatarUrl)
     }
 }
