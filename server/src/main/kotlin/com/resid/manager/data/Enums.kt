@@ -130,11 +130,12 @@ enum class DepositStatus {
 }
 
 enum class LeaseStatus {
-    PENDING_PAYMENT, DOWN_PAYMENT_PAID, PARTIALLY_PAID, PENDING_SIGNATURE, SIGNED_ACTIVE, TERMINATED
+    DRAFT, PENDING_PAYMENT, DOWN_PAYMENT_PAID, PARTIALLY_PAID, PENDING_SIGNATURE, SIGNED_ACTIVE, TERMINATED
 }
 
 fun LeaseStatus.convert(): LeaseStatusDto {
     return when (this) {
+        LeaseStatus.DRAFT -> LeaseStatusDto.DRAFT
         LeaseStatus.PENDING_PAYMENT -> LeaseStatusDto.PENDING_PAYMENT
         LeaseStatus.DOWN_PAYMENT_PAID -> LeaseStatusDto.DOWN_PAYMENT_PAID
         LeaseStatus.PARTIALLY_PAID -> LeaseStatusDto.PARTIALLY_PAID
@@ -146,6 +147,7 @@ fun LeaseStatus.convert(): LeaseStatusDto {
 
 fun LeaseStatusDto.convert(): LeaseStatus {
     return when (this) {
+        LeaseStatusDto.DRAFT -> LeaseStatus.DRAFT
         LeaseStatusDto.PENDING_PAYMENT -> LeaseStatus.PENDING_PAYMENT
         LeaseStatusDto.DOWN_PAYMENT_PAID -> LeaseStatus.DOWN_PAYMENT_PAID
         LeaseStatusDto.PARTIALLY_PAID -> LeaseStatus.PARTIALLY_PAID

@@ -209,8 +209,9 @@ object UnitService {
         val activeLeasesMap: Map<UUID, String> = if (unitIds.isNotEmpty()) {
             Lease.find {
                 (Leases.residenceUnitId inList unitIds) and (Leases.status eq LeaseStatus.SIGNED_ACTIVE)
-            }.associate {
-                it.residenceUnit.id.value to "${it.tenant.firstName ?: ""} ${it.tenant.lastName ?: ""}".trim()
+            }.associate { lease ->
+                val tenantName = lease.tenant?.let { "${it.firstName} ${it.lastName}".trim() } ?: ""
+                lease.residenceUnit.id.value to tenantName
             }
         } else {
             emptyMap()
@@ -277,8 +278,9 @@ object UnitService {
         val activeLeasesMap: Map<UUID, String> = if (unitIds.isNotEmpty()) {
             Lease.find {
                 (Leases.residenceUnitId inList unitIds) and (Leases.status eq LeaseStatus.SIGNED_ACTIVE)
-            }.associate {
-                it.residenceUnit.id.value to "${it.tenant.firstName ?: ""} ${it.tenant.lastName ?: ""}".trim()
+            }.associate { lease ->
+                val tenantName = lease.tenant?.let { "${it.firstName} ${it.lastName}".trim() } ?: ""
+                lease.residenceUnit.id.value to tenantName
             }
         } else {
             emptyMap()

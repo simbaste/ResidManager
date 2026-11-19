@@ -485,8 +485,8 @@ object ResidenceService {
                 Leases.residenceUnitId eq log.id
             }.firstOrNull()
 
-            val tenantName = activeLease?.let { lease ->
-                "${lease.tenant.firstName} ${lease.tenant.lastName}".trim()
+            val tenantName = activeLease?.tenant?.let { tenant ->
+                "${tenant.firstName} ${tenant.lastName}".trim()
             }
 
             val dto = ElectricityStatementDto(

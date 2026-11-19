@@ -4,6 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class LeaseStatusDto {
+    DRAFT,
     PENDING_PAYMENT,
     DOWN_PAYMENT_PAID,
     PARTIALLY_PAID,
@@ -36,16 +37,16 @@ enum class PaymentFrequencyDto {
 data class LeaseDto(
     val id: String,
     val residenceUnitId: String,
-    val tenantId: String,
-    val startDate: String, // ISO-8601 Date
-    val endDate: String,   // ISO-8601 Date
-    val depositAmount: Double,
-    val monthlyRentAtSign: Double,
+    val tenantId: String?,
+    val startDate: String?, // ISO-8601 Date
+    val endDate: String?,   // ISO-8601 Date
+    val depositAmount: Double?,
+    val monthlyRentAtSign: Double?,
     val status: LeaseStatusDto,
     val createdAt: String,
     val updatedAt: String,
-    val paymentFrequencyDto: PaymentFrequencyDto = PaymentFrequencyDto.MONTHLY,
-    val advanceMonths: Int = 1,
+    val paymentFrequencyDto: PaymentFrequencyDto? = PaymentFrequencyDto.MONTHLY,
+    val advanceMonths: Int? = 1,
     val payments: List<LeasePaymentDto> = emptyList(),
     val guarantor: GuarantorDto? = null
 )

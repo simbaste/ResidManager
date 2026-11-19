@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
@@ -78,6 +79,17 @@ private fun getLeaseStatusVisual(status: LeaseStatusDto): LeaseStatusVisual {
     val slate = MaterialTheme.colorScheme.secondary
 
     return when (status) {
+        LeaseStatusDto.DRAFT -> LeaseStatusVisual(
+            accentColor = amber,
+            tabBorderColor = amber.copy(alpha = 0.4f),
+            tabIcon = Icons.Default.Edit,
+            badgeBg = amber.copy(alpha = 0.12f),
+            badgeBorder = amber.copy(alpha = 0.35f),
+            badgeText = "BROUILLON",
+            actionButtonText = "Reprendre",
+            actionButtonIcon = Icons.Default.Edit,
+            isPrimaryAction = true
+        )
         LeaseStatusDto.SIGNED_ACTIVE -> LeaseStatusVisual(
             accentColor = emerald,
             tabBorderColor = emerald.copy(alpha = 0.4f),
@@ -380,7 +392,7 @@ fun LeaseCard(
                             )
                             Spacer(modifier = Modifier.height(3.dp))
                             Text(
-                                text = lease.monthlyRentAtSign.toFormattedAmount(currencySymbol),
+                                text = (lease.monthlyRentAtSign ?: 0.0).toFormattedAmount(currencySymbol),
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 17.sp
@@ -401,7 +413,7 @@ fun LeaseCard(
                             )
                             Spacer(modifier = Modifier.height(3.dp))
                             Text(
-                                text = lease.depositAmount.toFormattedAmount(currencySymbol),
+                                text = (lease.depositAmount ?: 0.0).toFormattedAmount(currencySymbol),
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 17.sp

@@ -30,6 +30,7 @@ fun LeaseDetailHeader(
     modifier: Modifier = Modifier
 ) {
     val (badgeBg, badgeColor, badgeText) = when (lease.status) {
+        LeaseStatusDto.DRAFT -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "BROUILLON")
         LeaseStatusDto.SIGNED_ACTIVE -> Triple(Color(0xFFE6F7F0), Color(0xFF006948), "ACTIF / LOGEMENT OCCUPÉ")
         LeaseStatusDto.PENDING_SIGNATURE -> Triple(Color(0xFFE0E7FF), Color(0xFF1E3A8A), "ATTENTE SIGNATURE")
         LeaseStatusDto.DOWN_PAYMENT_PAID, LeaseStatusDto.PARTIALLY_PAID -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "ACOMPTE ENREGISTRÉ (PARTIAL)")

@@ -114,17 +114,17 @@ object Guarantors : UUIDTable("guarantors") {
 
 object Leases : UUIDTable("leases") {
     val residenceUnitId = reference("residence_unit_id", ResidenceUnits, onDelete = ReferenceOption.RESTRICT)
-    val tenantId = reference("tenant_id", Users, onDelete = ReferenceOption.RESTRICT)
+    val tenantId = reference("tenant_id", Users, onDelete = ReferenceOption.RESTRICT).nullable()
     val guarantorId = reference("guarantor_id", Guarantors, onDelete = ReferenceOption.SET_NULL).nullable()
-    val durationMonths = integer("duration_months")
-    val paymentFrequencyDto = enumerationByName("payment_frequency", ENUM_NAME_COLUMN_LENGTH, PaymentFrequency::class)
-    val depositAmount = double("deposit_amount")
-    val depositStatusDto = enumerationByName("deposit_status", ENUM_NAME_COLUMN_LENGTH, DepositStatus::class).default(DepositStatus.PENDING)
-    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, LeaseStatus::class).default(LeaseStatus.PENDING_PAYMENT) // PENDING_PAYMENT, PARTIALLY_PAID, PENDING_SIGNATURE, ACTIVE, TERMINATED
-    val startDate = date("start_date")
-    val endDate = date("end_date")
-    val advanceMonths = integer("advance_months").default(1)
-    val advancePaymentAmount = double("advance_payment_amount").default(0.0)
+    val durationMonths = integer("duration_months").nullable()
+    val paymentFrequencyDto = enumerationByName("payment_frequency", ENUM_NAME_COLUMN_LENGTH, PaymentFrequency::class).nullable()
+    val depositAmount = double("deposit_amount").nullable()
+    val depositStatusDto = enumerationByName("deposit_status", ENUM_NAME_COLUMN_LENGTH, DepositStatus::class).default(DepositStatus.PENDING).nullable()
+    val status = enumerationByName("status", ENUM_NAME_COLUMN_LENGTH, LeaseStatus::class).default(LeaseStatus.DRAFT) // DRAFT, PENDING_PAYMENT, PARTIALLY_PAID, PENDING_SIGNATURE, ACTIVE, TERMINATED
+    val startDate = date("start_date").nullable()
+    val endDate = date("end_date").nullable()
+    val advanceMonths = integer("advance_months").default(1).nullable()
+    val advancePaymentAmount = double("advance_payment_amount").default(0.0).nullable()
     val createdAt = datetime("created_at")
     val updatedAt = datetime("updated_at")
 }
@@ -355,7 +355,7 @@ class Lease(id: EntityID<UUID>) : UUIDEntity(id) {
     companion object : UUIDEntityClass<Lease>(Leases)
 
     var residenceUnit by ResidenceUnit referencedOn Leases.residenceUnitId
-    var tenant by User referencedOn Leases.tenantId
+    var tenant by User optionalReferencedOn Leases.tenantId
     var guarantor by Guarantor optionalReferencedOn Leases.guarantorId
     var durationMonths by Leases.durationMonths
     var paymentFrequency by Leases.paymentFrequencyDto

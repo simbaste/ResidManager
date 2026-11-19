@@ -2,6 +2,8 @@ package com.resid.manager.routes
 
 import com.resid.manager.data.HttpError
 import com.resid.manager.dto.LeaseCreateRequest
+import com.resid.manager.dto.LeaseDraftInitRequest
+import com.resid.manager.dto.LeaseDraftStepUpdateRequest
 import com.resid.manager.dto.LeasePaymentRequest
 import com.resid.manager.dto.LeaseUpdateRequest
 import com.resid.manager.service.LeaseService
@@ -21,6 +23,34 @@ import io.ktor.server.routing.route
 fun Route.leasesRoutes() {
     route("/api/leases") {
         authenticate("auth-jwt") {
+            // POST /api/leases/draft : Create an initial draft lease
+            post("draft") {
+                call.executeRequest(HttpStatusCode.Created) {
+                    val requesterId = call.getRequesterUuid()
+                    val request = call.receive<LeaseDraftInitRequest>()
+                    LeaseService.createDraftLease(requesterId, request)
+                }
+            }
+
+            // PUT /api/leases/{leaseId}/draft/step : Update a draft step
+            put("{leaseId}/draft/step") {
+                call.executeRequest(HttpStatusCode.OK) {
+                    val requesterId = call.getRequesterUuid()
+                    val leaseId = call.getPathUuid("leaseId")
+                    val request = call.receive<LeaseDraftStepUpdateRequest>()
+                    LeaseService.updateDraftLeaseStep(requesterId, leaseId, request)
+                }
+            }
+
+            // POST /api/leases/{leaseId}/activate : Finalize draft and make ACTIVE
+            post("{leaseId}/activate") {
+                call.executeRequest(HttpStatusCode.OK) {
+                    val requesterId = call.getRequesterUuid()
+                    val leaseId = call.getPathUuid("leaseId")
+                    LeaseService.activateDraftLease(requesterId, leaseId)
+                }
+            }
+
             // POST /api/leases?unitId=... : Create a lease for a unit (Manager only)
             post {
                 call.executeRequest(HttpStatusCode.Created) {

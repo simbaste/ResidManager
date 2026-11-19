@@ -25,9 +25,12 @@ import com.resid.manager.data.User
 import com.resid.manager.data.Users
 import com.resid.manager.data.convert
 import com.resid.manager.data.isManager
+import com.resid.manager.dto.GuarantorDto
 import com.resid.manager.dto.LeaseCategory
 import com.resid.manager.dto.LeaseCreateRequest
 import com.resid.manager.dto.LeaseDto
+import com.resid.manager.dto.LeaseDraftInitRequest
+import com.resid.manager.dto.LeaseDraftStepUpdateRequest
 import com.resid.manager.dto.LeasePaymentDto
 import com.resid.manager.dto.LeasePaymentRequest
 import com.resid.manager.dto.LeaseStatusDto
@@ -53,6 +56,190 @@ object LeaseService {
                 (ResidenceMembers.residenceId eq residenceId) and
                 (ResidenceMembers.status eq InvitationStatus.ACCEPTED)
             }.any { it[ResidenceMembers.role].isManager() }
+    }
+
+    suspend fun createDraftLease(requesterId: UUID, request: LeaseDraftInitRequest): LeaseDto = dbQuery {
+        val unitId = UUID.fromString(request.residenceUnitId)
+        val dbResidenceUnit = ResidenceUnit.findById(unitId)
+            ?: throw HttpError(HttpStatusCode.NotFound, "Logement introuvable.")
+
+        val residenceId = dbResidenceUnit.residence.id.value
+        if (!isResidenceManager(requesterId, residenceId)) {
+            throw HttpError(
+                HttpStatusCode.Forbidden,
+                "Accès interdit : Seuls les administrateurs et gestionnaires peuvent créer des contrats de bail."
+            )
+        }
+
+        val now = LocalDateTime.now()
+        val newDraft = Lease.new {
+            this.residenceUnit = dbResidenceUnit
+            this.status = LeaseStatus.DRAFT
+            this.createdAt = now
+            this.updatedAt = now
+        }
+        
+        newDraft.flush()
+        newDraft.toDto()
+    }
+
+    suspend fun updateDraftLeaseStep(
+        requesterId: UUID,
+        leaseId: UUID,
+        request: LeaseDraftStepUpdateRequest
+    ): LeaseDto = dbQuery {
+        val dbLease = Lease.findById(leaseId)
+            ?: throw HttpError(HttpStatusCode.NotFound, "Contrat de bail introuvable.")
+
+        val residenceId = dbLease.residenceUnit.residence.id.value
+        if (!isResidenceManager(requesterId, residenceId)) {
+            throw HttpError(
+                HttpStatusCode.Forbidden,
+                "Accès interdit : Seuls les administrateurs et gestionnaires peuvent modifier un contrat de bail."
+            )
+        }
+
+        if (dbLease.status != LeaseStatus.DRAFT) {
+            throw HttpError(HttpStatusCode.BadRequest, "Seul un brouillon peut être mis à jour par étape.")
+        }
+
+        val now = LocalDateTime.now()
+        
+        when (request.step) {
+            "TENANT" -> {
+                val dbTenant = if (request.tenantId != null) {
+                    User.findById(UUID.fromString(request.tenantId))
+                        ?: throw HttpError(HttpStatusCode.NotFound, "Locataire introuvable.")
+                } else if (request.inlineTenant != null) {
+                    val hashedPwd = String(BCrypt.withDefaults().hash(12, "password".toCharArray()))
+                    val t = request.inlineTenant
+                    User.new {
+                        this.firstName = t.firstName
+                        this.lastName = t.lastName
+                        this.email = t.email
+                        this.phone = t.phone
+                        this.passwordHash = hashedPwd
+                        this.createdAt = now
+                    }
+                } else {
+                    throw HttpError(HttpStatusCode.BadRequest, "Veuillez spécifier un locataire.")
+                }
+                
+                // Assure residence membership for tenant
+                val existingMember = ResidenceMembers.select(ResidenceMembers.role)
+                    .where { (ResidenceMembers.residenceId eq residenceId) and (ResidenceMembers.userId eq dbTenant.id) }
+                    .singleOrNull()
+                
+                if (existingMember == null) {
+                    ResidenceMembers.insert {
+                        it[this.userId] = dbTenant.id
+                        it[this.residenceId] = residenceId
+                        it[role] = Role.TENANT
+                        it[status] = InvitationStatus.ACCEPTED
+                    }
+                }
+                dbLease.tenant = dbTenant
+            }
+            "GUARANTOR" -> {
+                if (request.guarantorId != null) {
+                    val dbGuarantor = Guarantor.findById(UUID.fromString(request.guarantorId))
+                        ?: throw HttpError(HttpStatusCode.NotFound, "Garant introuvable.")
+                    dbLease.guarantor = dbGuarantor
+                } else if (request.guarantor != null) {
+                    val g = request.guarantor
+                    val dbGuarantor = Guarantor.new {
+                        this.tenant = dbLease.tenant ?: throw HttpError(HttpStatusCode.BadRequest, "Locataire non défini sur le brouillon")
+                        this.firstName = g.firstName
+                        this.lastName = g.lastName
+                        this.phone = g.phone
+                        this.monthlySalary = g.monthlySalary
+                        this.relationship = g.relationship
+                        this.jobTitle = g.jobTitle
+                        this.employer = g.employer
+                        this.createdAt = now
+                        this.updatedAt = now
+                    }
+                    dbLease.guarantor = dbGuarantor
+                }
+            }
+            "FINANCIALS" -> {
+                if (request.depositAmount != null) dbLease.depositAmount = request.depositAmount
+                if (request.paymentFrequency != null) {
+                    dbLease.paymentFrequency = try {
+                        PaymentFrequency.valueOf(request.paymentFrequency)
+                    } catch (e: Exception) {
+                        PaymentFrequency.MONTHLY
+                    }
+                }
+                if (request.advanceMonths != null) dbLease.advanceMonths = request.advanceMonths
+                if (request.advancePaymentAmount != null) dbLease.advancePaymentAmount = request.advancePaymentAmount
+            }
+            "TIMELINE" -> {
+                if (request.startDate != null) dbLease.startDate = LocalDate.parse(request.startDate)
+                if (request.endDate != null) dbLease.endDate = LocalDate.parse(request.endDate)
+            }
+        }
+        
+        dbLease.updatedAt = now
+        dbLease.flush()
+        dbLease.toDto()
+    }
+
+    suspend fun activateDraftLease(requesterId: UUID, leaseId: UUID): LeaseDto = dbQuery {
+        val dbLease = Lease.findById(leaseId)
+            ?: throw HttpError(HttpStatusCode.NotFound, "Contrat de bail introuvable.")
+
+        val residenceId = dbLease.residenceUnit.residence.id.value
+        if (!isResidenceManager(requesterId, residenceId)) {
+            throw HttpError(
+                HttpStatusCode.Forbidden,
+                "Accès interdit : Seuls les administrateurs et gestionnaires peuvent modifier un contrat de bail."
+            )
+        }
+
+        if (dbLease.status != LeaseStatus.DRAFT) {
+            throw HttpError(HttpStatusCode.BadRequest, "Le contrat n'est pas un brouillon.")
+        }
+        
+        // Ensure all required fields are set before activating
+        if (dbLease.tenant == null || dbLease.startDate == null || dbLease.endDate == null || dbLease.depositAmount == null || dbLease.paymentFrequency == null) {
+            throw HttpError(HttpStatusCode.BadRequest, "Veuillez remplir toutes les informations obligatoires (Locataire, Dates, Montants, Fréquence).")
+        }
+
+        val now = LocalDateTime.now()
+        
+        dbLease.depositStatus = if ((dbLease.advancePaymentAmount ?: 0.0) >= (dbLease.depositAmount ?: 0.0)) DepositStatus.PAID else DepositStatus.PENDING
+        
+        val totalExpectedInitialPayment = (dbLease.depositAmount ?: 0.0) + (dbLease.residenceUnit.nominalRent * (dbLease.advanceMonths ?: 1))
+        
+        dbLease.status = when {
+            (dbLease.advancePaymentAmount ?: 0.0) >= totalExpectedInitialPayment -> LeaseStatus.PENDING_SIGNATURE
+            (dbLease.advancePaymentAmount ?: 0.0) > 0.0 -> LeaseStatus.PARTIALLY_PAID
+            else -> LeaseStatus.PENDING_PAYMENT
+        }
+
+        dbLease.updatedAt = now
+        dbLease.flush()
+        
+        // Update unit status
+        dbLease.residenceUnit.status = UnitStatus.OCCUPIED
+        dbLease.residenceUnit.flush()
+
+        // Optionally, record initial payment transaction if > 0
+        if ((dbLease.advancePaymentAmount ?: 0.0) > 0.0) {
+            FinancialTransaction.new {
+                this.residence = dbLease.residenceUnit.residence
+                this.type = TransactionType.INCOME
+                this.category = TransactionCategory.LEASE_PAYMENT
+                this.amount = dbLease.advancePaymentAmount ?: 0.0
+                this.description = "Paiement initial (caution + loyer d'avance) pour le bail ${dbLease.id.value}"
+                this.relatedEntityType = EntityType.BAIL
+                this.relatedEntityId = leaseId
+                this.transactionDate = now.toLocalDate()
+            }
+        }
+        
+        dbLease.toDto()
     }
 
     suspend fun createLease(
@@ -287,15 +474,15 @@ object LeaseService {
         LeaseDto(
             id = newLease.id.value.toString(),
             residenceUnitId = newLease.residenceUnit.id.value.toString(),
-            tenantId = newLease.tenant.id.value.toString(),
-            startDate = newLease.startDate.toString(),
-            endDate = newLease.endDate.toString(),
+            tenantId = newLease.tenant?.id?.value?.toString(),
+            startDate = newLease.startDate?.toString(),
+            endDate = newLease.endDate?.toString(),
             depositAmount = newLease.depositAmount,
             monthlyRentAtSign = request.monthlyRentAtSign,
             status = initialStatus.convert(),
             createdAt = newLease.createdAt.toString(),
             updatedAt = newLease.updatedAt.toString(),
-            paymentFrequencyDto = newLease.paymentFrequency.convert(),
+            paymentFrequencyDto = newLease.paymentFrequency?.convert(),
             advanceMonths = newLease.advanceMonths,
             payments = payments,
             guarantor = guarantorDto
@@ -346,13 +533,17 @@ object LeaseService {
             }
         }
 
-        if (newEnd.isBefore(newStart) || newEnd.isEqual(newStart)) {
-            throw HttpError(HttpStatusCode.BadRequest, "La date de fin doit être strictement postérieure à la date de début.")
+        if (newEnd != null && newStart != null) {
+            if (newEnd.isBefore(newStart) || newEnd.isEqual(newStart)) {
+                throw HttpError(HttpStatusCode.BadRequest, "La date de fin doit être strictement postérieure à la date de début.")
+            }
         }
 
         dbLease.startDate = newStart
         dbLease.endDate = newEnd
-        dbLease.durationMonths = java.time.temporal.ChronoUnit.MONTHS.between(newStart, newEnd).toInt().coerceAtLeast(1)
+        if (newStart != null && newEnd != null) {
+            dbLease.durationMonths = java.time.temporal.ChronoUnit.MONTHS.between(newStart, newEnd).toInt().coerceAtLeast(1)
+        }
 
         // 2. Update financial parameters
         request.depositAmount?.let {
@@ -389,8 +580,8 @@ object LeaseService {
                 ((FinancialTransactions.category eq TransactionCategory.RENT) or (FinancialTransactions.category eq TransactionCategory.LEASE_PAYMENT))
             }.sumOf { it.amount }
 
-            val requiredCaution = dbLease.depositAmount
-            val requiredRent = dbLease.advanceMonths * (dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges)
+            val requiredCaution = dbLease.depositAmount ?: 0.0
+            val requiredRent = (dbLease.advanceMonths ?: 1) * (dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges)
 
             dbLease.status = if (totalPaidCaution >= requiredCaution && totalPaidRent >= requiredRent) {
                 LeaseStatus.PENDING_SIGNATURE
@@ -422,15 +613,15 @@ object LeaseService {
         LeaseDto(
             id = dbLease.id.value.toString(),
             residenceUnitId = dbLease.residenceUnit.id.value.toString(),
-            tenantId = dbLease.tenant.id.value.toString(),
-            startDate = dbLease.startDate.toString(),
-            endDate = dbLease.endDate.toString(),
+            tenantId = dbLease.tenant?.id?.value?.toString(),
+            startDate = dbLease.startDate?.toString(),
+            endDate = dbLease.endDate?.toString(),
             depositAmount = dbLease.depositAmount,
             monthlyRentAtSign = dbLease.residenceUnit.nominalRent,
             status = dbLease.status.convert(),
             createdAt = dbLease.createdAt.toString(),
             updatedAt = dbLease.updatedAt.toString(),
-            paymentFrequencyDto = dbLease.paymentFrequency.convert(),
+            paymentFrequencyDto = dbLease.paymentFrequency?.convert(),
             advanceMonths = dbLease.advanceMonths,
             payments = previousPayments
         )
@@ -481,15 +672,15 @@ object LeaseService {
                 LeaseDto(
                     id = lease.id.value.toString(),
                     residenceUnitId = lease.residenceUnit.id.value.toString(),
-                    tenantId = lease.tenant.id.value.toString(),
-                    startDate = lease.startDate.toString(),
-                    endDate = lease.endDate.toString(),
+                    tenantId = lease.tenant?.id?.value?.toString(),
+                    startDate = lease.startDate?.toString(),
+                    endDate = lease.endDate?.toString(),
                     depositAmount = lease.depositAmount,
                     monthlyRentAtSign = lease.residenceUnit.nominalRent,
                     status = lease.status.convert(),
                     createdAt = lease.createdAt.toString(),
                     updatedAt = lease.updatedAt.toString(),
-                    paymentFrequencyDto = lease.paymentFrequency.convert(),
+                    paymentFrequencyDto = lease.paymentFrequency?.convert(),
                     advanceMonths = lease.advanceMonths,
                     payments = previousPayments,
                     guarantor = guarantorDto
@@ -557,8 +748,8 @@ object LeaseService {
             ((FinancialTransactions.category eq TransactionCategory.RENT) or (FinancialTransactions.category eq TransactionCategory.LEASE_PAYMENT))
         }.sumOf { it.amount }
 
-        val requiredCaution = dbLease.depositAmount
-        val requiredRent = dbLease.advanceMonths * (dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges)
+        val requiredCaution = dbLease.depositAmount ?: 0.0
+        val requiredRent = (dbLease.advanceMonths ?: 1) * (dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges)
 
         if (request.category == TransactionCategoryDto.DEPOSIT) {
             val remainingCaution = maxOf(0.0, requiredCaution - previousPaidCaution)
@@ -630,15 +821,15 @@ object LeaseService {
         LeaseDto(
             id = dbLease.id.value.toString(),
             residenceUnitId = dbLease.residenceUnit.id.value.toString(),
-            tenantId = dbLease.tenant.id.value.toString(),
-            startDate = dbLease.startDate.toString(),
-            endDate = dbLease.endDate.toString(),
+            tenantId = dbLease.tenant?.id?.value?.toString(),
+            startDate = dbLease.startDate?.toString(),
+            endDate = dbLease.endDate?.toString(),
             depositAmount = dbLease.depositAmount,
             monthlyRentAtSign = dbLease.residenceUnit.nominalRent,
             status = newStatus.convert(),
             createdAt = dbLease.createdAt.toString(),
             updatedAt = dbLease.updatedAt.toString(),
-            paymentFrequencyDto = dbLease.paymentFrequency.convert(),
+            paymentFrequencyDto = dbLease.paymentFrequency?.convert(),
             advanceMonths = dbLease.advanceMonths,
             payments = previousPayments
         )
@@ -678,6 +869,12 @@ object LeaseService {
         }
 
         when (newStatus) {
+            LeaseStatusDto.DRAFT -> {
+                throw HttpError(
+                    HttpStatusCode.BadRequest,
+                    "Transition impossible : un contrat existant ne peut pas redevenir un brouillon (DRAFT)."
+                )
+            }
             LeaseStatusDto.SIGNED_ACTIVE -> {
                 // To activate/sign the lease, payments must be satisfied (PENDING_SIGNATURE)
                 // Or transitioning from an earlier payment step if manager explicitly validates full manual payment
@@ -742,6 +939,20 @@ object LeaseService {
         dbLease.toDto()
     }
 
+    private fun Guarantor.toDto(): GuarantorDto {
+        return GuarantorDto(
+            id = this.id.value.toString(),
+            tenantId = this.tenant.id.value.toString(),
+            lastName = this.lastName,
+            firstName = this.firstName,
+            phone = this.phone,
+            monthlySalary = this.monthlySalary,
+            relationship = this.relationship,
+            jobTitle = this.jobTitle,
+            employer = this.employer
+        )
+    }
+
     private fun Lease.toDto(): LeaseDto {
         val leaseEntityId = this.id.value
         val previousPayments = FinancialTransaction.find {
@@ -760,17 +971,18 @@ object LeaseService {
         return LeaseDto(
             id = this.id.value.toString(),
             residenceUnitId = this.residenceUnit.id.value.toString(),
-            tenantId = this.tenant.id.value.toString(),
-            startDate = this.startDate.toString(),
-            endDate = this.endDate.toString(),
+            tenantId = this.tenant?.id?.value?.toString(),
+            startDate = this.startDate?.toString(),
+            endDate = this.endDate?.toString(),
             depositAmount = this.depositAmount,
             monthlyRentAtSign = this.residenceUnit.nominalRent,
             status = this.status.convert(),
             createdAt = this.createdAt.toString(),
             updatedAt = this.updatedAt.toString(),
-            paymentFrequencyDto = this.paymentFrequency.convert(),
+            paymentFrequencyDto = this.paymentFrequency?.convert(),
             advanceMonths = this.advanceMonths,
-            payments = previousPayments
+            payments = previousPayments,
+            guarantor = this.guarantor?.toDto()
         )
     }
 }

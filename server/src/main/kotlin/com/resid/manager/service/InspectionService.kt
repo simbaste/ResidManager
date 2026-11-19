@@ -226,7 +226,7 @@ object InspectionService {
             ?: throw HttpError(HttpStatusCode.NotFound, "Contrat de bail introuvable.")
 
         val residenceId = dbLease.residenceUnit.residence.id.value
-        val isTenant = dbLease.tenant.id.value == requesterId
+        val isTenant = dbLease.tenant?.id?.value == requesterId
 
         if (!isTenant && !isResidenceMember(requesterId, residenceId)) {
             throw HttpError(
@@ -253,7 +253,7 @@ object InspectionService {
 
         val dbLease = dbReport.lease
         val residenceId = dbLease.residenceUnit.residence.id.value
-        val isTenant = dbLease.tenant.id.value == requesterId
+        val isTenant = dbLease.tenant?.id?.value == requesterId
 
         if (!isTenant && !isResidenceMember(requesterId, residenceId)) {
             throw HttpError(

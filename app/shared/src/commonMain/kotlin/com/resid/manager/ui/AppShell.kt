@@ -38,7 +38,7 @@ import com.resid.manager.features.dashboard.ui.DashboardScreen
 import com.resid.manager.features.electricity.ui.ElectricityScreen
 import com.resid.manager.features.finances.ui.FinancesScreen
 import com.resid.manager.features.leases.ui.LeasesScreen
-import com.resid.manager.features.leases.ui.components.wizard.LeaseWizardDialog
+import com.resid.manager.features.leases.ui.components.wizard.LeaseWizardScreen
 import com.resid.manager.features.members.ui.MembersScreen
 import com.resid.manager.features.profile.ui.ProfileScreen
 import com.resid.manager.features.residences.ui.ResidencesScreen
@@ -438,18 +438,21 @@ fun AppShell(
     }
 
     unitIdToAssignLease?.let { targetUnitId ->
-        LeaseWizardDialog(
+        // the app shell is not handling draft ID for now, let's keep it simple
+        LeaseWizardScreen(
             jwtToken = uiState.jwtToken,
             residenceUnits = uiState.residenceUnits,
             isLoading = uiState.isLoading,
             errorMessage = uiState.errorMessage,
             currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
             initialResidenceUnitId = targetUnitId,
-            onDismiss = { unitIdToAssignLease = null },
-            onSubmit = { unitId, request ->
-                viewModel.createLease(unitId, request) {
-                    unitIdToAssignLease = null
-                }
+            draftLeaseId = null,
+            onNavigateBack = { unitIdToAssignLease = null },
+            onSaveDraftStep = { request ->
+                // Draft save logic from appshell
+            },
+            onFinalizeSignature = { leaseId ->
+                // Finalize logic
             }
         )
     }

@@ -49,14 +49,14 @@ fun LeaseDetailAdminActions(
     errorMessage: String? = null,
 ) {
     val isAnnual = lease.paymentFrequencyDto == PaymentFrequencyDto.ANNUAL
-    val rentMonthsRequired = if (isAnnual) 12 else lease.advanceMonths
+    val rentMonthsRequired = if (isAnnual) 12 else (lease.advanceMonths ?: 1)
     val monthlyCharges = matchedUnit?.serviceCharges ?: 0.0
-    val totalRequiredRent = rentMonthsRequired * (lease.monthlyRentAtSign + monthlyCharges)
+    val totalRequiredRent = rentMonthsRequired * ((lease.monthlyRentAtSign ?: 0.0) + monthlyCharges)
 
     val totalPaidCaution = lease.payments.filter { it.category == LeaseCategory.DEPOSIT }.sumOf { it.amount }
     val totalPaidRent = lease.payments.filter { it.category == LeaseCategory.RENT }.sumOf { it.amount }
 
-    val remainingCaution = maxOf(0.0, lease.depositAmount - totalPaidCaution)
+    val remainingCaution = maxOf(0.0, (lease.depositAmount ?: 0.0) - totalPaidCaution)
     val remainingRent = maxOf(0.0, totalRequiredRent - totalPaidRent)
     val isCautionFullyPaid = remainingCaution <= 0.0
     val totalRemaining = remainingCaution + remainingRent
