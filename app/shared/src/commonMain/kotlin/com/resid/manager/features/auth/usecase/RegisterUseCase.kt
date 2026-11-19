@@ -19,8 +19,8 @@ class RegisterUseCase(
         email: String,
         passwordPlain: String,
         avatarBytes: ByteArray? = null,
-        avatarMimeType: String = "image/jpeg",
-        avatarExtension: String = "jpg"
+        avatarMimeType: String? = null,
+        avatarExtension: String? = null
     ): Result<AuthResponse> {
         val validation = AuthValidator.validateRegister(firstName, lastName, email, passwordPlain)
         if (validation.isFailure) {
@@ -31,11 +31,13 @@ class RegisterUseCase(
 
         // Upload préalable si une image a été sélectionnée
         if (avatarBytes != null && avatarBytes.isNotEmpty()) {
-            val uploadResult = storageRepository.uploadAvatarToR2(avatarBytes, avatarMimeType, avatarExtension)
-            if (uploadResult.isFailure) {
-                return Result.failure(uploadResult.exceptionOrNull() ?: Exception("Erreur lors de l'envoi de la photo de profil"))
+            if (avatarMimeType != null && avatarExtension != null) {
+                val uploadResult = storageRepository.uploadAvatarToR2(avatarBytes, avatarMimeType, avatarExtension)
+                if (uploadResult.isFailure) {
+                    return Result.failure(uploadResult.exceptionOrNull() ?: Exception("Erreur lors de l'envoi de la photo de profil"))
+                }
+                publicAvatarUrl = uploadResult.getOrNull()
             }
-            publicAvatarUrl = uploadResult.getOrNull()
         }
 
         val result = authRepository.register(

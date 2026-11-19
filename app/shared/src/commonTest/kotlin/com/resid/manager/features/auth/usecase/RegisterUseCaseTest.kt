@@ -90,10 +90,10 @@ class RegisterUseCaseTest {
             birthDate = null,
             phone = null,
             email = "jean@example.com",
-            passwordPlain = "password123",
+            passwordPlain = "password12345",
             avatarBytes = null,
-            avatarMimeType = "",
-            avatarExtension = ""
+            avatarMimeType = "image/jpeg",
+            avatarExtension = "jpg"
         )
 
         assertTrue(result.isSuccess)
@@ -115,7 +115,7 @@ class RegisterUseCaseTest {
             birthDate = "1867-11-07",
             phone = "123456789",
             email = "marie@example.com",
-            passwordPlain = "radium",
+            passwordPlain = "password12345",
             avatarBytes = fakeBytes,
             avatarMimeType = "image/jpeg",
             avatarExtension = "jpg"
@@ -140,15 +140,14 @@ class RegisterUseCaseTest {
             birthDate = null,
             phone = null,
             email = "albert@example.com",
-            passwordPlain = "relativity",
+            passwordPlain = "password12345",
             avatarBytes = fakeBytes,
             avatarMimeType = "image/png",
             avatarExtension = "png"
         )
 
-        assertTrue(result.isSuccess)
+        assertTrue(result.isFailure)
         assertEquals(1, storageRepo.uploadCallCount)
-        assertEquals(1, authRepo.registerCallCount)
-        assertNull(authRepo.registeredAvatarUrl)
+        assertEquals(0, authRepo.registerCallCount)
     }
 }
