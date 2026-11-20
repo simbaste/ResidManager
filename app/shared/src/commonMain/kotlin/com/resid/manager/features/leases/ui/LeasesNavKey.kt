@@ -10,4 +10,7 @@ sealed interface LeasesNavKey : NavKey {
 
     @Serializable
     data class Detail(val leaseId: String) : LeasesNavKey
+
+    @Serializable
+    data class CreateLease(val unitId: String) : LeasesNavKey
 }

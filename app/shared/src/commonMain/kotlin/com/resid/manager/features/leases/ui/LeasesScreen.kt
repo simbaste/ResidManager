@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -22,7 +20,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
@@ -46,7 +43,6 @@ import com.resid.manager.navigation.PlatformBackHandler
 import com.resid.manager.navigation.rememberNavigator
 import com.resid.manager.ui.components.ResidAppBarAction
 import com.resid.manager.ui.components.ResidTopAppBar
-import com.resid.manager.ui.theme.ResidTheme
 import org.koin.compose.koinInject
 
 @Composable
@@ -96,7 +92,7 @@ fun LeasesScreen(
                             members = uiState.members,
                             isAuthorized = uiState.isAuthorized,
                             currencySymbol = uiState.currencySymbol,
-                            onNewLeaseClick = { viewModel.onIntent(LeasesIntent.SetShowWizard(true)) },
+                            onNewLeaseClick = { navigator.push(LeasesNavKey.CreateLease("")) },
                             onFilterSelected = { filter -> viewModel.onIntent(LeasesIntent.SetFilter(filter)) },
                             onLeaseClick = { lease ->
                                 viewModel.onIntent(LeasesIntent.SelectLeaseForDetail(lease))
@@ -126,6 +122,34 @@ fun LeasesScreen(
                         )
                     }
 
+                    is LeasesNavKey.CreateLease -> NavEntry(key) {
+                        val session = koinInject<SessionStorage>().loadSession()
+                        LeaseWizardScreen(
+                            jwtToken = session?.token,
+                            residenceUnits = uiState.units,
+                            isLoading = uiState.isLoading,
+                            errorMessage = uiState.errorMessage,
+                            currencySymbol = uiState.currencySymbol,
+                            draftLeaseId = uiState.draftLeaseId,
+                            onNavigateBack = { navigator.popBack() },
+                            onSaveDraftStep = { request ->
+                                if (uiState.draftLeaseId == null) {
+                                    // For the first step, init the draft first if it's not done yet, or maybe handle it via intent directly?
+                                    // Actually, the new Tenant step will do SaveDraftStep which expects a leaseId, but wait, tenant step creates it?
+                                    // Wait, the spec says "init draft". If it's unit-first, we init on unit. If it's tenant-first, we need an init draft that takes tenant.
+                                    // For now, let's just trigger InitDraft then SaveDraftStep. The UI logic is complex. We'll refine this later.
+                                    // Usually, you initialize a draft with a residenceId or unitId first.
+                                } else {
+                                    val leaseId = uiState.draftLeaseId ?: return@LeaseWizardScreen
+                                    viewModel.onIntent(LeasesIntent.SaveDraftStep(leaseId, request))
+                                }
+                            },
+                            onFinalizeSignature = { leaseId ->
+                                viewModel.onIntent(LeasesIntent.FinalizeDraft(leaseId))
+                            }
+                        )
+                    }
+
                     else -> NavEntry(key) {}
                 }
             }
@@ -139,34 +163,6 @@ fun LeasesScreen(
             onDismiss = { viewModel.onIntent(LeasesIntent.SetShowTerminateConfirmation(false)) },
             onConfirm = {
                 viewModel.onIntent(LeasesIntent.UpdateStatus(lease.id, LeaseStatusDto.TERMINATED))
-            }
-        )
-    }
-
-    if (uiState.showWizard) {
-        val session = org.koin.compose.koinInject<SessionStorage>().loadSession()
-        LeaseWizardScreen(
-            jwtToken = session?.token,
-            residenceUnits = uiState.units,
-            isLoading = uiState.isLoading,
-            errorMessage = uiState.errorMessage,
-            currencySymbol = uiState.currencySymbol,
-            draftLeaseId = uiState.draftLeaseId,
-            onNavigateBack = { viewModel.onIntent(LeasesIntent.SetShowWizard(false)) },
-            onSaveDraftStep = { request ->
-                if (uiState.draftLeaseId == null) {
-                    // For the first step, init the draft first if it's not done yet, or maybe handle it via intent directly?
-                    // Actually, the new Tenant step will do SaveDraftStep which expects a leaseId, but wait, tenant step creates it?
-                    // Wait, the spec says "init draft". If it's unit-first, we init on unit. If it's tenant-first, we need an init draft that takes tenant.
-                    // For now, let's just trigger InitDraft then SaveDraftStep. The UI logic is complex. We'll refine this later.
-                    // Usually, you initialize a draft with a residenceId or unitId first.
-                } else {
-                    val leaseId = uiState.draftLeaseId ?: return@LeaseWizardScreen
-                    viewModel.onIntent(LeasesIntent.SaveDraftStep(leaseId, request))
-                }
-            },
-            onFinalizeSignature = { leaseId ->
-                viewModel.onIntent(LeasesIntent.FinalizeDraft(leaseId))
             }
         )
     }
@@ -222,44 +218,39 @@ fun LeasesGridContent(
         )
 
         if (uiState.isLoading) {
-            Box(
-                modifier = Modifier.fillMaxWidth().height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
             }
         } else if (filteredLeases.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxWidth().height(200.dp),
-                contentAlignment = Alignment.Center
-            ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "Aucun contrat trouvé",
+                    text = "Aucun bail trouvé",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 340.dp),
-                modifier = Modifier.fillMaxWidth(),
+                columns = GridCells.Adaptive(minSize = 300.dp),
+                modifier = Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(filteredLeases, key = { it.id }) { lease ->
-                    val matchedUnit = residenceUnits.firstOrNull { it.id == lease.residenceUnitId }
-                    val matchedTenant = members.firstOrNull { it.userId == lease.tenantId }
+                items(filteredLeases) { lease ->
+                    val unit = residenceUnits.firstOrNull { it.id == lease.residenceUnitId }
+                    val tenants = members.filter { it.userId == lease.tenantId }
                     LeaseCard(
                         lease = lease,
-                        matchedUnit = matchedUnit,
-                        matchedTenant = matchedTenant,
+                        matchedUnit = unit,
+                        matchedTenant = tenants.firstOrNull(),
                         currencySymbol = currencySymbol,
                         onClick = { onLeaseClick(lease) }
                     )
                 }
 
+                // Add Folder Card
                 if (isAuthorized) {
-                    item(key = "add_lease_folder_card") {
+                    item {
                         LeaseAddFolderCard(
                             onClick = onNewLeaseClick
                         )
@@ -267,38 +258,5 @@ fun LeasesGridContent(
                 }
             }
         }
-    }
-}
-
-@PreviewLightDark
-@Composable
-fun LeasesGridContentPreview() {
-    ResidTheme {
-        LeasesGridContent(
-            uiState = LeasesUiState(
-                leases = listOf(
-                    LeaseDto(
-                        id = "1",
-                        residenceUnitId = "1",
-                        tenantId = "1",
-                        startDate = "2023-01-01",
-                        endDate = "2023-12-31",
-                        monthlyRentAtSign = 1000.0,
-                        depositAmount = 500.0,
-                        status = LeaseStatusDto.SIGNED_ACTIVE,
-                        payments = emptyList(),
-                        guarantor = null,
-                        createdAt = "2023-01-01",
-                        updatedAt = "2023-01-01"
-                    )
-                )
-            ),
-            residenceUnits = emptyList(),
-            members = emptyList(),
-            onNewLeaseClick = { },
-            onFilterSelected = { },
-            onLeaseClick = { },
-            isAuthorized = true,
-        )
     }
 }

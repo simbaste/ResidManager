@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.features.dashboard.ui.DashboardScreen
 import com.resid.manager.features.electricity.ui.ElectricityScreen
@@ -444,7 +445,7 @@ fun AppShell(
             residenceUnits = uiState.residenceUnits,
             isLoading = uiState.isLoading,
             errorMessage = uiState.errorMessage,
-            currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
+            currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: AppCurrency.DEFAULT.symbol,
             initialResidenceUnitId = targetUnitId,
             draftLeaseId = null,
             onNavigateBack = { unitIdToAssignLease = null },
