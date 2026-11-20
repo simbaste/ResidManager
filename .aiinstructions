@@ -54,3 +54,7 @@ Pour toute tâche, vous **DEVEZ** consulter et respecter les documents spéciali
    - Ne jamais laisser de bloc `catch` vide.
    - Côté serveur : lever des `HttpError(HttpStatusCode, "message explicite")`.
    - Côté client : encapsuler les retours réseau dans des `Result<T>` et exposer des messages compréhensibles dans `UiState.errorMessage`.
+
+6. **Workflow & Versioning :**
+   - Vous NE DEVEZ PAS invoquer de commande `git commit` ou `git push` de manière autonome pendant l'exécution d'un plan ou la modification de code.
+   - Les commits et pushs doivent être explicitement demandés par l'utilisateur une fois qu'il a validé manuellement les changements.

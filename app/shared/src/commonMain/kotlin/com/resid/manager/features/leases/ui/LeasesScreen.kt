@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
@@ -258,5 +259,38 @@ fun LeasesGridContent(
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun LeasesGridContentPreview() {
+    ResidTheme {
+        LeasesGridContent(
+            uiState = LeasesUiState(
+                leases = listOf(
+                    LeaseDto(
+                        id = "1",
+                        residenceUnitId = "1",
+                        tenantId = "1",
+                        startDate = "2023-01-01",
+                        endDate = "2023-12-31",
+                        monthlyRentAtSign = 1000.0,
+                        depositAmount = 500.0,
+                        status = LeaseStatusDto.SIGNED_ACTIVE,
+                        payments = emptyList(),
+                        guarantor = null,
+                        createdAt = "2023-01-01",
+                        updatedAt = "2023-01-01"
+                    )
+                )
+            ),
+            residenceUnits = emptyList(),
+            members = emptyList(),
+            onNewLeaseClick = { },
+            onFilterSelected = { },
+            onLeaseClick = { },
+            isAuthorized = true,
+        )
     }
 }
