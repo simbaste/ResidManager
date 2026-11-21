@@ -211,6 +211,10 @@ fun CreateStatementDialog(
                         localError = "Veuillez saisir un tarif kWh valide."
                         return@Button
                     }
+                    if (formStatementDate.isBlank()) {
+                        localError = "Veuillez sélectionner la date du relevé."
+                        return@Button
+                    }
 
                     localError = null
                     onSubmit(selectedResidenceUnitId, oldIdx, newIdx, price, formStatementDate)

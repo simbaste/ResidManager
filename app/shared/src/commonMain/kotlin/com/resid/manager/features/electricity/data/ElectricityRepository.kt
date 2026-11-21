@@ -4,7 +4,6 @@ import com.resid.manager.dto.ElectricityStatementCreateRequest
 import com.resid.manager.dto.ElectricityStatementDto
 import com.resid.manager.dto.ElectricityStatusDto
 import com.resid.manager.dto.ElectricityStatusUpdateRequest
-import com.resid.manager.dto.ErrorResponse
 import com.resid.manager.network.ApiClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -35,8 +34,8 @@ class ElectricityRepositoryImpl : ElectricityRepository {
             if (response.status == HttpStatusCode.OK) {
                 Result.success(response.body())
             } else {
-                val err = response.body<ErrorResponse>()
-                Result.failure(Exception(err.message))
+                val message = ApiClient.parseErrorMessage(response, "Erreur lors de la récupération des relevés")
+                Result.failure(Exception(message))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -53,7 +52,8 @@ class ElectricityRepositoryImpl : ElectricityRepository {
                 val body = response.body<Map<String, Double>>()
                 Result.success(body["previousIndex"] ?: 0.0)
             } else {
-                Result.failure(Exception("Impossible de récupérer le dernier index"))
+                val message = ApiClient.parseErrorMessage(response, "Impossible de récupérer le dernier index")
+                Result.failure(Exception(message))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -74,8 +74,8 @@ class ElectricityRepositoryImpl : ElectricityRepository {
             if (response.status == HttpStatusCode.Created || response.status == HttpStatusCode.OK) {
                 Result.success(response.body())
             } else {
-                val err = response.body<ErrorResponse>()
-                Result.failure(Exception(err.message))
+                val message = ApiClient.parseErrorMessage(response, "Erreur lors de la création du relevé")
+                Result.failure(Exception(message))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -92,8 +92,8 @@ class ElectricityRepositoryImpl : ElectricityRepository {
             if (response.status == HttpStatusCode.OK) {
                 Result.success(response.body())
             } else {
-                val err = response.body<ErrorResponse>()
-                Result.failure(Exception(err.message))
+                val message = ApiClient.parseErrorMessage(response, "Erreur lors de la mise à jour du statut")
+                Result.failure(Exception(message))
             }
         } catch (e: Exception) {
             Result.failure(e)
