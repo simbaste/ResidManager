@@ -52,7 +52,7 @@ import com.resid.manager.dto.EquipmentDto
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.dto.UnitStatusDto
-import com.resid.manager.features.leases.ui.components.wizard.LeaseWizardScreen
+import com.resid.manager.features.leases.ui.LeaseWizardScreen
 import com.resid.manager.features.residences.mvi.ResidenceViewMode
 import com.resid.manager.features.residences.usecase.PhotoUploadItem
 import com.resid.manager.features.units.UnitsViewModel

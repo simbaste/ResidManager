@@ -1,4 +1,4 @@
-package com.resid.manager.features.leases.wizard
+package com.resid.manager.features.leases
 
 import androidx.lifecycle.viewModelScope
 import com.resid.manager.SessionStorage
@@ -6,6 +6,10 @@ import com.resid.manager.base.MviViewModel
 import com.resid.manager.dto.GuarantorDto
 import com.resid.manager.dto.InlineTenantCreateRequest
 import com.resid.manager.dto.LeaseDraftStepUpdateRequest
+import com.resid.manager.features.leases.mvi.LeaseWizardEffect
+import com.resid.manager.features.leases.mvi.LeaseWizardIntent
+import com.resid.manager.features.leases.mvi.LeaseWizardUiState
+import com.resid.manager.features.leases.mvi.WizardStepStatus
 import com.resid.manager.features.leases.ui.components.wizard.WizardStep
 import com.resid.manager.features.leases.usecase.FetchTenantGuarantorsUseCase
 import com.resid.manager.features.leases.usecase.FinalizeLeaseUseCase

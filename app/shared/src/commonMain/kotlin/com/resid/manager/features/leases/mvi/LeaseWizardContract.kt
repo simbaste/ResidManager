@@ -1,4 +1,4 @@
-package com.resid.manager.features.leases.wizard
+package com.resid.manager.features.leases.mvi
 
 import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.GuarantorDto

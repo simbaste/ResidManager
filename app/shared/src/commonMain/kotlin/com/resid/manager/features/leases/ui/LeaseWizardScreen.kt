@@ -1,4 +1,4 @@
-package com.resid.manager.features.leases.ui.components.wizard
+package com.resid.manager.features.leases.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -26,7 +26,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -41,13 +40,24 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
-import com.resid.manager.features.leases.wizard.LeaseWizardEffect
-import com.resid.manager.features.leases.wizard.LeaseWizardIntent
-import com.resid.manager.features.leases.wizard.LeaseWizardScreenViewModel
-import com.resid.manager.features.leases.wizard.LeaseWizardUiState
-import com.resid.manager.features.leases.wizard.WizardStepStatus
+import com.resid.manager.features.leases.LeaseWizardScreenViewModel
+import com.resid.manager.features.leases.mvi.LeaseWizardEffect
+import com.resid.manager.features.leases.mvi.LeaseWizardIntent
+import com.resid.manager.features.leases.mvi.LeaseWizardUiState
+import com.resid.manager.features.leases.mvi.WizardStepStatus
+import com.resid.manager.features.leases.ui.components.wizard.WizardFinancialsStep
+import com.resid.manager.features.leases.ui.components.wizard.WizardGuarantorStep
+import com.resid.manager.features.leases.ui.components.wizard.WizardInventoryStep
+import com.resid.manager.features.leases.ui.components.wizard.WizardSignatureStep
+import com.resid.manager.features.leases.ui.components.wizard.WizardStep
+import com.resid.manager.features.leases.ui.components.wizard.WizardTenantStep
+import com.resid.manager.features.leases.ui.components.wizard.WizardTimelineStep
+import com.resid.manager.features.leases.ui.components.wizard.WizardUnitStep
+import com.resid.manager.ui.theme.ResidTheme
 import org.koin.compose.koinInject
 
 @Composable
@@ -91,7 +101,6 @@ fun LeaseWizardScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LeaseWizardContent(
     uiState: LeaseWizardUiState,
@@ -103,7 +112,11 @@ fun LeaseWizardContent(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Création de contrat de bail")
+                        Text(
+                            "Création de contrat de bail",
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                         if (uiState.completionPercentage > 0) {
                             Text(
                                 text = "Progression : ${uiState.completionPercentage}%",
@@ -115,7 +128,11 @@ fun LeaseWizardContent(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Retour")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Retour",
+                            tint = Color(0xFF006948)
+                        )
                     }
                 }
             )
@@ -251,13 +268,55 @@ fun LeaseWizardContent(
                                             isSearchingUsers = uiState.isSearchingUsers,
                                             draftTenantId = uiState.draftTenantId,
                                             draftTenantName = uiState.draftTenantName,
-                                            onInlineFirstNameChanged = { onIntent(LeaseWizardIntent.SetInlineFirstName(it)) },
-                                            onInlineLastNameChanged = { onIntent(LeaseWizardIntent.SetInlineLastName(it)) },
-                                            onInlineEmailChanged = { onIntent(LeaseWizardIntent.SetInlineEmail(it)) },
-                                            onInlinePhoneChanged = { onIntent(LeaseWizardIntent.SetInlinePhone(it)) },
-                                            onToggleInlineTenant = { onIntent(LeaseWizardIntent.ToggleInlineTenant(it)) },
-                                            onUserQueryChanged = { onIntent(LeaseWizardIntent.SetUserQuery(it)) },
-                                            onUserSelected = { onIntent(LeaseWizardIntent.SelectUser(it)) }
+                                            onInlineFirstNameChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetInlineFirstName(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onInlineLastNameChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetInlineLastName(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onInlineEmailChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetInlineEmail(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onInlinePhoneChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetInlinePhone(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onToggleInlineTenant = {
+                                                onIntent(
+                                                    LeaseWizardIntent.ToggleInlineTenant(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onUserQueryChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetUserQuery(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onUserSelected = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SelectUser(
+                                                        it
+                                                    )
+                                                )
+                                            }
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Button(
@@ -288,15 +347,57 @@ fun LeaseWizardContent(
                                             guarantorJobTitle = uiState.guarantorJobTitle,
                                             guarantorEmployer = uiState.guarantorEmployer,
                                             currencySymbol = uiState.currencySymbol,
-                                            onSelectExistingGuarantor = { onIntent(LeaseWizardIntent.SelectExistingGuarantor(it)) },
-                                            onToggleReuseGuarantor = { onIntent(LeaseWizardIntent.ToggleReuseGuarantor(it)) },
-                                            onGuarantorLastNameChanged = { onIntent(LeaseWizardIntent.SetGuarantorLastName(it)) },
-                                            onGuarantorFirstNameChanged = { onIntent(LeaseWizardIntent.SetGuarantorFirstName(it)) },
-                                            onGuarantorPhoneChanged = { onIntent(LeaseWizardIntent.SetGuarantorPhone(it)) },
-                                            onGuarantorMonthlySalaryChanged = { onIntent(LeaseWizardIntent.SetGuarantorMonthlySalary(it)) },
-                                            onGuarantorRelationshipChanged = { onIntent(LeaseWizardIntent.SetGuarantorRelationship(it)) },
-                                            onGuarantorJobTitleChanged = { onIntent(LeaseWizardIntent.SetGuarantorJobTitle(it)) },
-                                            onGuarantorEmployerChanged = { onIntent(LeaseWizardIntent.SetGuarantorEmployer(it)) },
+                                            onSelectExistingGuarantor = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SelectExistingGuarantor(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onToggleReuseGuarantor = {
+                                                onIntent(
+                                                    LeaseWizardIntent.ToggleReuseGuarantor(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onGuarantorLastNameChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetGuarantorLastName(it)
+                                                )
+                                            },
+                                            onGuarantorFirstNameChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetGuarantorFirstName(it)
+                                                )
+                                            },
+                                            onGuarantorPhoneChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetGuarantorPhone(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onGuarantorMonthlySalaryChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetGuarantorMonthlySalary(it)
+                                                )
+                                            },
+                                            onGuarantorRelationshipChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetGuarantorRelationship(it)
+                                                )
+                                            },
+                                            onGuarantorJobTitleChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetGuarantorJobTitle(it)
+                                                )
+                                            },
+                                            onGuarantorEmployerChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetGuarantorEmployer(it)
+                                                )
+                                            },
                                             onSkip = { onIntent(LeaseWizardIntent.SkipGuarantorStep) }
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
@@ -320,7 +421,13 @@ fun LeaseWizardContent(
                                             residenceUnits = uiState.availableUnits,
                                             draftResidenceUnitId = uiState.draftResidenceUnitId,
                                             currencySymbol = uiState.currencySymbol,
-                                            onUnitSelected = { onIntent(LeaseWizardIntent.SelectUnit(it)) }
+                                            onUnitSelected = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SelectUnit(
+                                                        it
+                                                    )
+                                                )
+                                            }
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Button(
@@ -347,11 +454,39 @@ fun LeaseWizardContent(
                                             draftAdvancePaymentAmount = uiState.draftAdvancePaymentAmount,
                                             draftPaymentMethod = uiState.draftPaymentMethod,
                                             currencySymbol = uiState.currencySymbol,
-                                            onDepositAmountChanged = { onIntent(LeaseWizardIntent.SetDepositAmount(it)) },
-                                            onPaymentFrequencyChanged = { onIntent(LeaseWizardIntent.SetPaymentFrequency(it)) },
-                                            onAdvanceMonthsChanged = { onIntent(LeaseWizardIntent.SetAdvanceMonths(it)) },
-                                            onAdvancePaymentAmountChanged = { onIntent(LeaseWizardIntent.SetAdvancePaymentAmount(it)) },
-                                            onPaymentMethodChanged = { onIntent(LeaseWizardIntent.SetPaymentMethod(it)) }
+                                            onDepositAmountChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetDepositAmount(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onPaymentFrequencyChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetPaymentFrequency(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onAdvanceMonthsChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetAdvanceMonths(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onAdvancePaymentAmountChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetAdvancePaymentAmount(it)
+                                                )
+                                            },
+                                            onPaymentMethodChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetPaymentMethod(
+                                                        it
+                                                    )
+                                                )
+                                            }
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Button(
@@ -373,8 +508,20 @@ fun LeaseWizardContent(
                                         WizardTimelineStep(
                                             draftStartDate = uiState.draftStartDate,
                                             draftEndDate = uiState.draftEndDate,
-                                            onStartDateChanged = { onIntent(LeaseWizardIntent.SetStartDate(it)) },
-                                            onEndDateChanged = { onIntent(LeaseWizardIntent.SetEndDate(it)) }
+                                            onStartDateChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetStartDate(
+                                                        it
+                                                    )
+                                                )
+                                            },
+                                            onEndDateChanged = {
+                                                onIntent(
+                                                    LeaseWizardIntent.SetEndDate(
+                                                        it
+                                                    )
+                                                )
+                                            }
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Button(
@@ -424,5 +571,17 @@ fun LeaseWizardContent(
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun LeaseWizardContentPreview() {
+    ResidTheme {
+        LeaseWizardContent(
+            uiState = LeaseWizardUiState(),
+            onIntent = {},
+            onNavigateBack = {}
+        )
     }
 }

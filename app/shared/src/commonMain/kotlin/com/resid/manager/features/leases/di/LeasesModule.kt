@@ -1,6 +1,7 @@
 package com.resid.manager.features.leases.di
 
 import com.resid.manager.SessionStorage
+import com.resid.manager.features.leases.LeaseWizardScreenViewModel
 import com.resid.manager.features.leases.LeasesViewModel
 import com.resid.manager.features.leases.usecase.CreateLeaseUseCase
 import com.resid.manager.features.leases.usecase.DraftLeaseUseCases
@@ -14,7 +15,6 @@ import com.resid.manager.features.leases.usecase.RecordLeasePaymentUseCase
 import com.resid.manager.features.leases.usecase.SaveLeaseStepUseCase
 import com.resid.manager.features.leases.usecase.SearchUsersUseCase
 import com.resid.manager.features.leases.usecase.UpdateLeaseStatusUseCase
-import com.resid.manager.features.leases.wizard.LeaseWizardScreenViewModel
 import org.koin.dsl.module
 
 val leasesFeatureModule = module {
