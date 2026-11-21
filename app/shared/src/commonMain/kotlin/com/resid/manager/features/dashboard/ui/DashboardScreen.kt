@@ -23,7 +23,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.DashboardDataDto
@@ -181,7 +181,7 @@ fun DashboardContent(
     }
 }
 
-@Preview(showBackground = true)
+@PreviewLightDark
 @Composable
 fun DashboardContentPreview() {
     val sampleResidence = ResidenceContext(

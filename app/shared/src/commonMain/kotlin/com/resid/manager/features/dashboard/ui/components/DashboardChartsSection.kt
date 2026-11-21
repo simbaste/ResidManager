@@ -68,7 +68,7 @@ fun DashboardChartSectionCompact(
         modifier = modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(24.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         // Card 1: Analyse des flux mensuels
         Card(
