@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,16 +26,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.dto.UnitStatusDto
+import com.resid.manager.helpers.PreviewResidenceUnits
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun UnitDetailHeader(
+    modifier: Modifier = Modifier,
     residenceUnit: ResidenceUnitDto,
     residenceName: String?,
     onBackClick: () -> Unit,
-    modifier: Modifier = Modifier
 ) {
     val isAvailable = residenceUnit.status == UnitStatusDto.AVAILABLE
 
@@ -68,9 +72,10 @@ fun UnitDetailHeader(
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
         ) {
-            Row(
+            FlowRow(
                 modifier = Modifier.padding(24.dp).fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -117,7 +122,7 @@ fun UnitDetailHeader(
                                 .background(if (isAvailable) Color(0xFF006948) else Color(0xFFBA1A1A))
                         )
                         Text(
-                            text = if (isAvailable) "AVAILABLE" else "OCCUPIED",
+                            text = if (isAvailable) "DISPONIBLE" else "OCCUPÉ",
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (isAvailable) Color(0xFF006948) else Color(0xFFBA1A1A)
                         )
@@ -125,5 +130,17 @@ fun UnitDetailHeader(
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun UnitDetailHeaderPreview() {
+    ResidTheme {
+        UnitDetailHeader(
+            residenceUnit = PreviewResidenceUnits.unitA1,
+            residenceName = "Residence A",
+            onBackClick = {}
+        )
     }
 }

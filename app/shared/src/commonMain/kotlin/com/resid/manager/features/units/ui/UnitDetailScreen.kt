@@ -124,6 +124,7 @@ fun UnitDetailScreen(
                     unitName = residenceUnit.name,
                     photos = photoUrls,
                     photoDescriptions = photoDescriptions,
+                    isCompact = isCompact,
                     isAuthorized = isAuthorized,
                     onEditGalleryClick = { showGalleryDialog = true }
                 )

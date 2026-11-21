@@ -50,19 +50,22 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.resid.manager.ui.components.ImageLightboxDialog
 import com.resid.manager.ui.components.LightboxImage
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun UnitPhotoCarousel(
+    modifier: Modifier = Modifier,
     unitName: String,
     photos: List<String>,
+    isCompact: Boolean,
     photoDescriptions: List<String> = emptyList(),
     isAuthorized: Boolean = true,
     onEditGalleryClick: () -> Unit = {},
-    modifier: Modifier = Modifier
 ) {
     val displayPhotos = if (photos.isNotEmpty()) photos else listOf("")
     var currentIndex by remember { mutableIntStateOf(0) }
@@ -97,7 +100,7 @@ fun UnitPhotoCarousel(
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
-                    text = "Photos du logement",
+                    text = if (isCompact) "Photos" else "Photos du logement",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -135,7 +138,7 @@ fun UnitPhotoCarousel(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Modifier les photos",
+                        text = if (isCompact) "Modifier" else "Modifier les photos",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -359,6 +362,22 @@ fun UnitPhotoCarousel(
             initialIndex = safeIndex.coerceIn(0, (validItems.size - 1).coerceAtLeast(0)),
             isOpen = isLightboxOpen,
             onClose = { isLightboxOpen = false }
+        )
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun UnitPhotoCarouselPreview() {
+    ResidTheme {
+        UnitPhotoCarousel(
+            unitName = "Unit A1",
+            isCompact = true,
+            photos = listOf(
+                "https://picsum.photos/200/300",
+                "https://picsum.photos/200/300",
+                "https://picsum.photos/200/300",
+            )
         )
     }
 }

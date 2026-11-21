@@ -140,3 +140,47 @@ object PreviewResidenceUnits {
         it.status == UnitStatusDto.AVAILABLE
     }
 }
+
+
+
+object PreviewResidences {
+
+    // Secondary residence units to test residence switching & filtering
+    val palmierUnit101 = ResidenceUnitDto(
+        id = "unit-p101",
+        residenceId = "res-palmiers",
+        name = "Appartement P1",
+        floor = "1er étage",
+        type = "T2",
+        nominalRent = 620.0,
+        serviceCharges = 55.0,
+        initialElectricityIndex = 1205.0,
+        status = UnitStatusDto.AVAILABLE,
+        photoUrl = "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80",
+        equipments = listOf(
+            PreviewResidenceUnits.acSplit,
+            PreviewResidenceUnits.fridgeInox,
+            PreviewResidenceUnits.doubleBed
+        ),
+        currentTenantName = null
+    )
+
+    val palmierUnit202 = ResidenceUnitDto(
+        id = "unit-p202",
+        residenceId = "res-palmiers",
+        name = "Appartement P2",
+        floor = "2e étage",
+        type = "T3",
+        nominalRent = 890.0,
+        serviceCharges = 80.0,
+        initialElectricityIndex = 4310.8,
+        status = UnitStatusDto.OCCUPIED,
+        photoUrl = "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80",
+        equipments = listOf(
+            PreviewResidenceUnits.acSplit,
+            PreviewResidenceUnits.washingMachine,
+            PreviewResidenceUnits.waterHeater
+        ),
+        currentTenantName = "Armand Teko"
+    )
+}
