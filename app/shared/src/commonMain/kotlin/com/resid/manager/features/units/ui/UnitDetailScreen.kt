@@ -1,5 +1,6 @@
 package com.resid.manager.features.units.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -116,6 +118,7 @@ fun UnitDetailScreen(
                 UnitDetailHeader(
                     residenceUnit = residenceUnit,
                     residenceName = activeResidence?.residenceName,
+                    residenceAddress = activeResidence?.residenceAddress,
                     onBackClick = onBackClick,
                 )
 
@@ -267,7 +270,7 @@ fun UnitFinancialOverviewCard(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface, // bg-[#0b1c30]
         shape = RoundedCornerShape(12.dp), // rounded-xl
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.inverseSurface ) // border-[#173352]
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant ) // border-[#173352]
     ) {
         Column(
             modifier = Modifier.padding(20.dp) // p-5
@@ -277,11 +280,16 @@ fun UnitFinancialOverviewCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 12.dp) // pb-3
-                    .border(androidx.compose.foundation.BorderStroke(1.dp, Color.Transparent))
+                    .border(BorderStroke(1.dp, Color.Transparent))
                     // .border(bottom = 1.dp, color = Color(0xFF142D4A)) -> Il faudrait utiliser un divider ou drawBehind
             ) {
                 // On utilise une astuce avec Column pour le trait du bas si Divider n'est pas utilisé directement
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
+                ) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(
                             imageVector = Icons.Default.Info, // Placeholder pour l'icone
@@ -291,7 +299,7 @@ fun UnitFinancialOverviewCard(
                         )
                         Text(
                             text = "APERÇU FINANCIER & RENTABILITÉ",
-                            color = Color(0xFFCBD5E1), // text-slate-300
+                            color = MaterialTheme.colorScheme.onSecondaryContainer, // text-slate-300
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.5.sp
@@ -300,12 +308,12 @@ fun UnitFinancialOverviewCard(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
                             text = "Cumul annuel perçu : ",
-                            color = Color(0xFF94A3B8), // text-slate-400
+                            color = MaterialTheme.colorScheme.onSecondaryContainer, // text-slate-400
                             fontSize = 12.sp
                         )
                         Text(
                             text = "$cumulAnnuelFictif $currencySymbol",
-                            color = Color.White,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -314,7 +322,7 @@ fun UnitFinancialOverviewCard(
             }
             
             // Ligne séparatrice simulée
-            HorizontalDivider(color = Color(0xFF142D4A), thickness = 1.dp)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
             Spacer(modifier = Modifier.height(14.dp)) // pt-3.5
 
@@ -332,13 +340,13 @@ fun UnitFinancialOverviewCard(
                 FinancialMetricBox(
                     label = "Charges fixes",
                     value = "$chargesFixes $currencySymbol",
-                    valueColor = Color.White,
+                    valueColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
                 FinancialMetricBox(
                     label = "Total / mois",
                     value = "$totalMois $currencySymbol",
-                    valueColor = Color.White,
+                    valueColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
                 FinancialMetricBox(
@@ -361,16 +369,16 @@ fun FinancialMetricBox(
 ) {
     Surface(
         modifier = modifier,
-        color = Color(0xFF081525), // bg-[#081525]
+        color = MaterialTheme.colorScheme.surfaceVariant, // bg-[#081525]
         shape = RoundedCornerShape(8.dp), // rounded-lg
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF142E4D)) // border-[#142e4d]
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline) // border-[#142e4d]
     ) {
         Column(
             modifier = Modifier.padding(12.dp) // p-3
         ) {
             Text(
                 text = label,
-                color = Color(0xFF94A3B8), // text-slate-400
+                color = MaterialTheme.colorScheme.onSurfaceVariant, // text-slate-400
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -438,7 +446,7 @@ private fun SegmentedTabItem(
     val borderModifier = if (isSelected) {
         Modifier.border(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.primary, // border-brand-border
+            color = MaterialTheme.colorScheme.outline, // border-brand-border
             shape = RoundedCornerShape(8.dp) // rounded-lg
         )
     } else {

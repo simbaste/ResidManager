@@ -32,23 +32,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.ResidenceMemberSummaryDto
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.dto.UnitStatusDto
+import com.resid.manager.helpers.PreviewResidenceUnits
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun UnitDetailTenantAndStats(
+    modifier: Modifier = Modifier,
     residenceUnit: ResidenceUnitDto,
     activeLease: LeaseDto?,
     activeTenant: ResidenceMemberSummaryDto?,
     isAuthorized: Boolean,
-    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
+    currencySymbol: String = AppCurrency.DEFAULT.symbol,
     onAssignTenantClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    modifier: Modifier = Modifier
 ) {
     val isAvailable = residenceUnit.status == UnitStatusDto.AVAILABLE
 
@@ -190,11 +194,14 @@ fun UnitDetailTenantAndStats(
 
         // Card 2: Quick Insights (Statistiques Unité)
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF0E1A2B)),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 Text(
                     text = "STATISTIQUES UNITÉ",
                     style = MaterialTheme.typography.labelSmall,
@@ -206,20 +213,36 @@ fun UnitDetailTenantAndStats(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Taux d'occupation (12m)", style = MaterialTheme.typography.bodyMedium, color = Color(0xFFBEC6E0))
-                        Text("85%", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                        Text("Taux d'occupation (12m)", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("85%", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    HorizontalDivider(color = Color(0xFF1E2D3D))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Revenus bruts cumulés", style = MaterialTheme.typography.bodyMedium, color = Color(0xFFBEC6E0))
+                        Text("Revenus bruts cumulés", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("480 000 $currencySymbol", style = MaterialTheme.typography.titleMedium, color = Color(0xFF68DBA9))
                     }
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun UnitDetailTenantAndStatsPreview() {
+    ResidTheme {
+        UnitDetailTenantAndStats(
+            residenceUnit = PreviewResidenceUnits.unitA1,
+            activeLease = null,
+            activeTenant = null,
+            isAuthorized = true,
+            onAssignTenantClick = {},
+            onEditClick = {},
+            onDeleteClick = {}
+        )
     }
 }

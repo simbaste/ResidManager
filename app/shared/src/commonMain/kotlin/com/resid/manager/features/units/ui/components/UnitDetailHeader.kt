@@ -38,6 +38,7 @@ fun UnitDetailHeader(
     modifier: Modifier = Modifier,
     residenceUnit: ResidenceUnitDto,
     residenceName: String?,
+    residenceAddress: String?,
     onBackClick: () -> Unit,
 ) {
     val isAvailable = residenceUnit.status == UnitStatusDto.AVAILABLE
@@ -95,7 +96,7 @@ fun UnitDetailHeader(
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
-                            text = "${residenceName ?: "Résidence"}, Zone A, Bâtiment C",
+                            text = "${residenceName ?: "Résidence"}, ${ residenceAddress ?: "Zone A, Bâtiment C"}",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.outline
                         )
@@ -140,6 +141,7 @@ fun UnitDetailHeaderPreview() {
         UnitDetailHeader(
             residenceUnit = PreviewResidenceUnits.unitA1,
             residenceName = "Residence A",
+            residenceAddress = "1 rue de la paix, 75001 Paris",
             onBackClick = {}
         )
     }
