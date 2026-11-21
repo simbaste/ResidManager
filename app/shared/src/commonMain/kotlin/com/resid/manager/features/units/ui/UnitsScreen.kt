@@ -52,6 +52,7 @@ import com.resid.manager.dto.EquipmentDto
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.dto.UnitStatusDto
+import com.resid.manager.features.leases.ui.components.wizard.LeaseWizardScreen
 import com.resid.manager.features.residences.mvi.ResidenceViewMode
 import com.resid.manager.features.residences.usecase.PhotoUploadItem
 import com.resid.manager.features.units.UnitsViewModel
@@ -87,7 +88,6 @@ import org.koin.compose.koinInject
 fun UnitsScreen(
     activeResidence: ResidenceContext? = null,
     viewModel: UnitsViewModel = koinInject(),
-    onAssignTenantClick: (String) -> Unit = {},
     onCreateUnitClick: () -> Unit = { viewModel.onIntent(UnitsIntent.SetShowCreateDialog(true)) },
     onEditUnitClick: (ResidenceUnitDto) -> Unit = {},
     onNavigateToLease: (String) -> Unit = {},
@@ -159,7 +159,7 @@ fun UnitsScreen(
                             },
                             onPrimaryActionClick = { unit ->
                                 if (unit.status == UnitStatusDto.AVAILABLE) {
-                                    onAssignTenantClick(unit.id)
+                                    navigator.push(UnitsNavKey.CreateLease(unit.id))
                                 } else {
                                     val matchedLease = uiState.leases.firstOrNull { it.residenceUnitId == unit.id }
                                     if (matchedLease != null) {
@@ -248,7 +248,9 @@ fun UnitsScreen(
                                     viewModel.onIntent(UnitsIntent.SelectUnitForDetail(null))
                                     navigator.popBack()
                                 },
-                                onAssignTenantClick = onAssignTenantClick,
+                                onAssignTenantClick = { unitId ->
+                                    navigator.push(UnitsNavKey.CreateLease(unitId))
+                                },
                                 onEditClick = onEditUnitClick,
                                 onDeleteClick = { unitId ->
                                     viewModel.onIntent(UnitsIntent.SetDeletingUnitId(unitId))
@@ -306,6 +308,21 @@ fun UnitsScreen(
                                 navigator.popBack()
                             }
                         }
+                    }
+
+                    is UnitsNavKey.CreateLease -> NavEntry(key) {
+                        LeaseWizardScreen(
+                            initialResidenceUnitId = key.unitId,
+                            residenceId = uiState.activeResidence?.residenceId ?: activeResidence?.residenceId,
+                            currencySymbol = uiState.currencySymbol,
+                            onNavigateBack = {
+                                val currentResidenceId = uiState.activeResidence?.residenceId ?: activeResidence?.residenceId
+                                if (currentResidenceId != null) {
+                                    viewModel.onIntent(UnitsIntent.LoadUnits(currentResidenceId))
+                                }
+                                navigator.popBack()
+                            }
+                        )
                     }
 
                     else -> NavEntry(key) {}

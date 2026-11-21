@@ -40,11 +40,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.dto.UnitStatusDto
+import com.resid.manager.helpers.PreviewResidenceUnits
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun ResidenceUnitCard(
@@ -388,6 +391,22 @@ fun ResidenceUnitDetailRow(
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (isHighlight) FontWeight.Bold else FontWeight.SemiBold,
             color = if (isHighlight) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun ResidenceUnitCardPreview() {
+    ResidTheme {
+        ResidenceUnitCard(
+            residenceUnit = PreviewResidenceUnits.unitA1,
+            isAuthorized = true,
+            tenantName = "Gladys Naoussi",
+            onCardClick = {},
+            onPrimaryActionClick = {},
+            onEditClick = {},
+            onDeleteClick = {}
         )
     }
 }

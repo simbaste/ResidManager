@@ -33,13 +33,11 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
-import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.features.dashboard.ui.DashboardScreen
 import com.resid.manager.features.electricity.ui.ElectricityScreen
 import com.resid.manager.features.finances.ui.FinancesScreen
 import com.resid.manager.features.leases.ui.LeasesScreen
-import com.resid.manager.features.leases.ui.components.wizard.LeaseWizardScreen
 import com.resid.manager.features.members.ui.MembersScreen
 import com.resid.manager.features.profile.ui.ProfileScreen
 import com.resid.manager.features.residences.ui.ResidencesScreen
@@ -69,7 +67,6 @@ fun AppShell(
     val uiState by viewModel.uiState.collectAsState()
     var isMobileSidebarVisible by remember { mutableStateOf(false) }
     var unitToEdit by remember { mutableStateOf<ResidenceUnitDto?>(null) }
-    var unitIdToAssignLease by remember { mutableStateOf<String?>(null) }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isDesktop = maxWidth >= 768.dp
@@ -238,7 +235,6 @@ fun AppShell(
                                 AppNavKey.Units -> NavEntry(key) {
                                     UnitsScreen(
                                         activeResidence = uiState.selectedResidenceContext,
-                                        onAssignTenantClick = { unitId -> unitIdToAssignLease = unitId },
                                         onNavigateToLease = { _ ->
                                             viewModel.navigateToAppScreen(AppScreen.LEASES)
                                         },
@@ -435,16 +431,6 @@ fun AppShell(
                 viewModel.updateResidenceUnit(unit.id, name, floor, type, rent, charges, initialIndex, equipmentIds)
                 unitToEdit = null
             }
-        )
-    }
-
-    unitIdToAssignLease?.let { targetUnitId ->
-        LeaseWizardScreen(
-            residenceId = uiState.selectedResidenceContext?.residenceId,
-            currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: AppCurrency.DEFAULT.symbol,
-            initialResidenceUnitId = targetUnitId,
-            draftLeaseId = null,
-            onNavigateBack = { unitIdToAssignLease = null }
         )
     }
 }

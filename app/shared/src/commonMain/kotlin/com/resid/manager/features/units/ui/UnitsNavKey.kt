@@ -16,4 +16,7 @@ sealed interface UnitsNavKey : NavKey {
 
     @Serializable
     data class Edit(val unitId: String) : UnitsNavKey
+
+    @Serializable
+    data class CreateLease(val unitId: String) : UnitsNavKey
 }

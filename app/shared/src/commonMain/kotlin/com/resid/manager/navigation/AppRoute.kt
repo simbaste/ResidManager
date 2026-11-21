@@ -41,10 +41,12 @@ val AppSerializersModule = SerializersModule {
         subclass(UnitsNavKey.Detail::class, UnitsNavKey.Detail.serializer())
         subclass(UnitsNavKey.Create::class, UnitsNavKey.Create.serializer())
         subclass(UnitsNavKey.Edit::class, UnitsNavKey.Edit.serializer())
+        subclass(UnitsNavKey.CreateLease::class, UnitsNavKey.CreateLease.serializer())
 
         // Feature sub-routes: Leases
         subclass(LeasesNavKey.List::class, LeasesNavKey.List.serializer())
         subclass(LeasesNavKey.Detail::class, LeasesNavKey.Detail.serializer())
+        subclass(LeasesNavKey.CreateLease::class, LeasesNavKey.CreateLease.serializer())
     }
 }
 
