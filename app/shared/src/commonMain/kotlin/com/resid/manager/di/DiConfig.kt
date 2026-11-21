@@ -75,6 +75,7 @@ val repositoryModule = module {
     single<ResidenceUnitRepository> { ResidenceUnitRepositoryImpl(get()) }
     single<LeaseRepository> { LeaseRepositoryImpl(get()) }
     single<MemberRepository> { MemberRepositoryImpl(get()) }
+    single<com.resid.manager.repository.UserRepository> { com.resid.manager.repository.UserRepositoryImpl(get()) }
 }
 
 val useCaseModule = module {

@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.ui.NavDisplay
-import com.resid.manager.SessionStorage
 import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.LeaseStatusDto
@@ -44,6 +43,7 @@ import com.resid.manager.navigation.PlatformBackHandler
 import com.resid.manager.navigation.rememberNavigator
 import com.resid.manager.ui.components.ResidAppBarAction
 import com.resid.manager.ui.components.ResidTopAppBar
+import com.resid.manager.ui.theme.ResidTheme
 import org.koin.compose.koinInject
 
 @Composable
@@ -124,29 +124,13 @@ fun LeasesScreen(
                     }
 
                     is LeasesNavKey.CreateLease -> NavEntry(key) {
-                        val session = koinInject<SessionStorage>().loadSession()
                         LeaseWizardScreen(
-                            jwtToken = session?.token,
-                            residenceUnits = uiState.units,
-                            isLoading = uiState.isLoading,
-                            errorMessage = uiState.errorMessage,
+                            residenceId = uiState.activeResidence?.residenceId,
                             currencySymbol = uiState.currencySymbol,
                             draftLeaseId = uiState.draftLeaseId,
-                            onNavigateBack = { navigator.popBack() },
-                            onSaveDraftStep = { request ->
-                                if (uiState.draftLeaseId == null) {
-                                    // For the first step, init the draft first if it's not done yet, or maybe handle it via intent directly?
-                                    // Actually, the new Tenant step will do SaveDraftStep which expects a leaseId, but wait, tenant step creates it?
-                                    // Wait, the spec says "init draft". If it's unit-first, we init on unit. If it's tenant-first, we need an init draft that takes tenant.
-                                    // For now, let's just trigger InitDraft then SaveDraftStep. The UI logic is complex. We'll refine this later.
-                                    // Usually, you initialize a draft with a residenceId or unitId first.
-                                } else {
-                                    val leaseId = uiState.draftLeaseId ?: return@LeaseWizardScreen
-                                    viewModel.onIntent(LeasesIntent.SaveDraftStep(leaseId, request))
-                                }
-                            },
-                            onFinalizeSignature = { leaseId ->
-                                viewModel.onIntent(LeasesIntent.FinalizeDraft(leaseId))
+                            onNavigateBack = {
+                                viewModel.onIntent(LeasesIntent.Refresh)
+                                navigator.popBack()
                             }
                         )
                     }

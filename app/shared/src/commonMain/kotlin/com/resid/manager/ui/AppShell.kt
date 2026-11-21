@@ -439,22 +439,12 @@ fun AppShell(
     }
 
     unitIdToAssignLease?.let { targetUnitId ->
-        // the app shell is not handling draft ID for now, let's keep it simple
         LeaseWizardScreen(
-            jwtToken = uiState.jwtToken,
-            residenceUnits = uiState.residenceUnits,
-            isLoading = uiState.isLoading,
-            errorMessage = uiState.errorMessage,
+            residenceId = uiState.selectedResidenceContext?.residenceId,
             currencySymbol = uiState.selectedResidenceContext?.currencySymbol ?: AppCurrency.DEFAULT.symbol,
             initialResidenceUnitId = targetUnitId,
             draftLeaseId = null,
-            onNavigateBack = { unitIdToAssignLease = null },
-            onSaveDraftStep = { request ->
-                // Draft save logic from appshell
-            },
-            onFinalizeSignature = { leaseId ->
-                // Finalize logic
-            }
+            onNavigateBack = { unitIdToAssignLease = null }
         )
     }
 }
