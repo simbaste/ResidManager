@@ -3,12 +3,12 @@ package com.resid.manager.features.tickets.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
@@ -150,64 +150,72 @@ fun TicketsContent(
         }
     }
 
-    BoxWithConstraints {
+    BoxWithConstraints(modifier.fillMaxSize()) {
         val windowSizeClass = WindowSizeClass.calculateFromSize(
             DpSize(maxWidth, maxHeight)
         )
         val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact || maxWidth < 600.dp
-        Column(
-            modifier = modifier.fillMaxSize().padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 340.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
-            ResidTopAppBar(
-                title = "Tickets d'Intervention",
-                actions = listOf(
-                    ResidAppBarAction(
-                        title = "Nouveau Ticket",
-                        icon = Icons.Default.Add,
-                        onClick = onOpenTicketClick
+            item(span = { GridItemSpan(maxLineSpan) }, key = "top_app_bar") {
+                ResidTopAppBar(
+                    title = "Tickets d'Intervention",
+                    actions = listOf(
+                        ResidAppBarAction(
+                            title = "Nouveau Ticket",
+                            icon = Icons.Default.Add,
+                            onClick = onOpenTicketClick
+                        )
                     )
                 )
-            )
+            }
 
-            TicketsFilterPanel(
-                statusFilter = uiState.statusFilter,
-                urgencyFilter = uiState.urgencyFilter,
-                unitFilterId = uiState.unitFilterId,
-                residenceUnits = residenceUnits,
-                isCompact = isCompact,
-                onStatusFilterChanged = onStatusFilterChanged,
-                onUrgencyFilterChanged = onUrgencyFilterChanged,
-                onUnitFilterChanged = onUnitFilterChanged
-            )
+            item(span = { GridItemSpan(maxLineSpan) }, key = "filter_panel") {
+                TicketsFilterPanel(
+                    statusFilter = uiState.statusFilter,
+                    urgencyFilter = uiState.urgencyFilter,
+                    unitFilterId = uiState.unitFilterId,
+                    residenceUnits = residenceUnits,
+                    isCompact = isCompact,
+                    onStatusFilterChanged = onStatusFilterChanged,
+                    onUrgencyFilterChanged = onUrgencyFilterChanged,
+                    onUnitFilterChanged = onUnitFilterChanged
+                )
+            }
 
             if (uiState.isLoading) {
-                Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color(0xFF006948))
+                item(span = { GridItemSpan(maxLineSpan) }, key = "loading_state") {
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xFF006948))
+                    }
                 }
             } else if (filteredTickets.isEmpty()) {
-                Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                    Text("Aucun ticket d'incident ne correspond aux filtres.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
-                }
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 340.dp),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
-                    modifier = Modifier.fillMaxWidth().weight(1f)
-                ) {
-                    items(filteredTickets) { ticket ->
-                        val matchedUnit = residenceUnits.firstOrNull { it.id == ticket.unitId }
-                        val matchedUnitName = matchedUnit?.name ?: "Logement ${ticket.unitId.take(5)}"
-
-                        TicketCard(
-                            ticket = ticket,
-                            unitName = matchedUnitName,
-                            isAuthorized = isAuthorized,
-                            onTakeChargeClick = { onTakeChargeClick(ticket.id) },
-                            onCloseClick = { onCloseClick(ticket.id) }
+                item(span = { GridItemSpan(maxLineSpan) }, key = "empty_state") {
+                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "Aucun ticket d'incident ne correspond aux filtres.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.outline
                         )
                     }
+                }
+            } else {
+                items(filteredTickets, key = { it.id }) { ticket ->
+                    val matchedUnit = residenceUnits.firstOrNull { it.id == ticket.unitId }
+                    val matchedUnitName = matchedUnit?.name ?: "Logement ${ticket.unitId.take(5)}"
+
+                    TicketCard(
+                        ticket = ticket,
+                        unitName = matchedUnitName,
+                        isAuthorized = isAuthorized,
+                        onTakeChargeClick = { onTakeChargeClick(ticket.id) },
+                        onCloseClick = { onCloseClick(ticket.id) }
+                    )
                 }
             }
         }
