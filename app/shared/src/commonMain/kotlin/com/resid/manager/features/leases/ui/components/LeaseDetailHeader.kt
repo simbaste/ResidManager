@@ -9,10 +9,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,7 +33,12 @@ import com.resid.manager.dto.LeaseStatusDto
 fun LeaseDetailHeader(
     lease: LeaseDto,
     onBackClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    canEdit: Boolean = false,
+    canDelete: Boolean = false,
+    isDeleting: Boolean = false,
+    onEditClick: () -> Unit = {},
+    onDeleteClick: () -> Unit = {}
 ) {
     val (badgeBg, badgeColor, badgeText) = when (lease.status) {
         LeaseStatusDto.DRAFT -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "BROUILLON")
@@ -61,12 +72,71 @@ fun LeaseDetailHeader(
             Text(text = "Détails du Contrat de Bail", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
         }
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = badgeBg),
-            border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.2f)),
-            shape = RoundedCornerShape(9999.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(text = badgeText, style = MaterialTheme.typography.bodyMedium, color = badgeColor, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+            Card(
+                colors = CardDefaults.cardColors(containerColor = badgeBg),
+                border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.2f)),
+                shape = RoundedCornerShape(9999.dp)
+            ) {
+                Text(
+                    text = badgeText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = badgeColor,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+
+            if (canEdit) {
+                FilledTonalButton(
+                    onClick = onEditClick,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Modifier",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text("Modifier")
+                    }
+                }
+            }
+
+            if (canDelete) {
+                OutlinedButton(
+                    onClick = onDeleteClick,
+                    enabled = !isDeleting,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (isDeleting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Supprimer",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Text("Supprimer")
+                    }
+                }
+            }
         }
     }
 }

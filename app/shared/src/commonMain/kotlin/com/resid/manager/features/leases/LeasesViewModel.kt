@@ -9,13 +9,14 @@ import com.resid.manager.features.leases.mvi.LeasesEffect
 import com.resid.manager.features.leases.mvi.LeasesIntent
 import com.resid.manager.features.leases.mvi.LeasesUiState
 import com.resid.manager.features.leases.usecase.CreateLeaseUseCase
+import com.resid.manager.features.leases.usecase.DeleteLeaseUseCase
+import com.resid.manager.features.leases.usecase.DraftLeaseUseCases
 import com.resid.manager.features.leases.usecase.FetchLeasesUseCase
 import com.resid.manager.features.leases.usecase.RecordLeasePaymentUseCase
 import com.resid.manager.features.leases.usecase.UpdateLeaseStatusUseCase
 import com.resid.manager.features.members.usecase.FetchMembersUseCase
 import com.resid.manager.features.residences.usecase.FetchResidencesUseCase
 import com.resid.manager.features.units.usecase.FetchUnitsUseCase
-import com.resid.manager.features.leases.usecase.DraftLeaseUseCases
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
 class LeasesViewModel(
     private val fetchLeasesUseCase: FetchLeasesUseCase,
     private val createLeaseUseCase: CreateLeaseUseCase,
+    private val deleteLeaseUseCase: DeleteLeaseUseCase,
     private val recordLeasePaymentUseCase: RecordLeasePaymentUseCase,
     private val updateLeaseStatusUseCase: UpdateLeaseStatusUseCase,
     private val fetchResidencesUseCase: FetchResidencesUseCase,
@@ -60,6 +62,7 @@ class LeasesViewModel(
             is LeasesIntent.SetShowTerminateConfirmation -> updateState { it.copy(showTerminateConfirmation = intent.show) }
             is LeasesIntent.RecordPayment -> recordPayment(intent)
             is LeasesIntent.UpdateStatus -> updateStatus(intent)
+            is LeasesIntent.DeleteLease -> deleteLease(intent.leaseId)
             is LeasesIntent.CreateLease -> createLease(intent)
             is LeasesIntent.InitDraft -> initDraft(intent)
             is LeasesIntent.SaveDraftStep -> saveDraftStep(intent)
@@ -264,6 +267,27 @@ class LeasesViewModel(
                 }
                 .onFailure { error ->
                     updateState { it.copy(isLoading = false, errorMessage = error.message ?: "Erreur de finalisation du bail") }
+                }
+        }
+    }
+
+    private fun deleteLease(leaseId: String) {
+        val session = sessionStorage?.loadSession() ?: return
+        viewModelScope.launch {
+            updateState { it.copy(isDeleting = true, errorMessage = null) }
+            deleteLeaseUseCase(session.token, leaseId)
+                .onSuccess {
+                    updateState { it.copy(isDeleting = false, selectedLeaseForDetail = null) }
+                    emitEffect(LeasesEffect.LeaseDeletedSuccess)
+                    emitEffect(LeasesEffect.ShowToast("Contrat de bail supprimé avec succès."))
+                    val actId = uiState.value.activeResidence?.residenceId
+                    if (actId != null) {
+                        loadLeases(actId)
+                    }
+                }
+                .onFailure { error ->
+                    updateState { it.copy(isDeleting = false, errorMessage = error.message ?: "Erreur lors de la suppression du bail.") }
+                    emitEffect(LeasesEffect.ShowToast(error.message ?: "Erreur lors de la suppression du bail."))
                 }
         }
     }

@@ -4,6 +4,7 @@ import com.resid.manager.SessionStorage
 import com.resid.manager.features.leases.LeaseWizardScreenViewModel
 import com.resid.manager.features.leases.LeasesViewModel
 import com.resid.manager.features.leases.usecase.CreateLeaseUseCase
+import com.resid.manager.features.leases.usecase.DeleteLeaseUseCase
 import com.resid.manager.features.leases.usecase.DraftLeaseUseCases
 import com.resid.manager.features.leases.usecase.FetchLeasesUseCase
 import com.resid.manager.features.leases.usecase.FetchTenantGuarantorsUseCase
@@ -20,6 +21,7 @@ import org.koin.dsl.module
 val leasesFeatureModule = module {
     factory { FetchLeasesUseCase(get()) }
     factory { CreateLeaseUseCase(get()) }
+    factory { DeleteLeaseUseCase(get()) }
     factory { RecordLeasePaymentUseCase(get()) }
     factory { UpdateLeaseStatusUseCase(get()) }
     factory { DraftLeaseUseCases() }
@@ -50,6 +52,7 @@ val leasesFeatureModule = module {
         LeasesViewModel(
             fetchLeasesUseCase = get(),
             createLeaseUseCase = get(),
+            deleteLeaseUseCase = get(),
             recordLeasePaymentUseCase = get(),
             updateLeaseStatusUseCase = get(),
             fetchResidencesUseCase = get(),

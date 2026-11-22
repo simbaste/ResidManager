@@ -10,6 +10,7 @@ data class LeaseDraftInitRequest(
 @Serializable
 data class LeaseDraftStepUpdateRequest(
     val step: String,
+    val residenceUnitId: String? = null,
     val tenantId: String? = null,
     val inlineTenant: InlineTenantCreateRequest? = null,
     val guarantorId: String? = null,

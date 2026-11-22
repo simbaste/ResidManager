@@ -97,7 +97,8 @@ fun LeaseWizardScreen(
     LeaseWizardContent(
         uiState = uiState,
         onIntent = viewModel::onIntent,
-        onNavigateBack = onNavigateBack
+        onNavigateBack = onNavigateBack,
+        isStepEditable = { step -> viewModel.isStepEditable(step, uiState.leaseStatus) }
     )
 }
 
@@ -105,7 +106,8 @@ fun LeaseWizardScreen(
 fun LeaseWizardContent(
     uiState: LeaseWizardUiState,
     onIntent: (LeaseWizardIntent) -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    isStepEditable: (WizardStep) -> Boolean = { true }
 ) {
     Scaffold(
         topBar = {
@@ -183,6 +185,7 @@ fun LeaseWizardContent(
                 val isCurrent = uiState.currentStep == step
                 val isCompleted = stepStatus == WizardStepStatus.COMPLETED
                 val isSkipped = stepStatus == WizardStepStatus.SKIPPED
+                val editable = isStepEditable(step)
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -205,6 +208,12 @@ fun LeaseWizardContent(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 when {
+                                    !editable && uiState.leaseStatus == com.resid.manager.dto.LeaseStatusDto.SIGNED_ACTIVE -> {
+                                        Badge(containerColor = MaterialTheme.colorScheme.errorContainer) {
+                                            Text("Verrouillé (Contrat signé)", color = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.padding(4.dp))
+                                        }
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                    }
                                     isCompleted -> {
                                         Icon(
                                             Icons.Default.CheckCircle,
@@ -255,6 +264,19 @@ fun LeaseWizardContent(
                                     .fillMaxWidth()
                                     .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
                             ) {
+                                if (!editable && uiState.leaseStatus == com.resid.manager.dto.LeaseStatusDto.SIGNED_ACTIVE) {
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                    ) {
+                                        Text(
+                                            text = "Cette étape est verrouillée car le contrat de bail est déjà signé et actif.",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(12.dp)
+                                        )
+                                    }
+                                }
                                 when (step) {
                                     WizardStep.TENANT -> {
                                         WizardTenantStep(
@@ -318,19 +340,21 @@ fun LeaseWizardContent(
                                                 )
                                             }
                                         )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Button(
-                                            onClick = { onIntent(LeaseWizardIntent.SubmitTenantStep) },
-                                            enabled = !uiState.isSavingStep,
-                                            modifier = Modifier.align(Alignment.End)
-                                        ) {
-                                            if (uiState.isSavingStep) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(16.dp),
-                                                    color = MaterialTheme.colorScheme.onPrimary
-                                                )
-                                            } else {
-                                                Text("Valider & Continuer")
+                                        if (editable) {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Button(
+                                                onClick = { onIntent(LeaseWizardIntent.SubmitTenantStep) },
+                                                enabled = !uiState.isSavingStep,
+                                                modifier = Modifier.align(Alignment.End)
+                                            ) {
+                                                if (uiState.isSavingStep) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(16.dp),
+                                                        color = MaterialTheme.colorScheme.onPrimary
+                                                    )
+                                                } else {
+                                                    Text("Valider & Continuer")
+                                                }
                                             }
                                         }
                                     }
@@ -400,19 +424,21 @@ fun LeaseWizardContent(
                                             },
                                             onSkip = { onIntent(LeaseWizardIntent.SkipGuarantorStep) }
                                         )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Button(
-                                            onClick = { onIntent(LeaseWizardIntent.SubmitGuarantorStep) },
-                                            enabled = !uiState.isSavingStep,
-                                            modifier = Modifier.align(Alignment.End)
-                                        ) {
-                                            if (uiState.isSavingStep) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(16.dp),
-                                                    color = MaterialTheme.colorScheme.onPrimary
-                                                )
-                                            } else {
-                                                Text("Valider & Continuer")
+                                        if (editable) {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Button(
+                                                onClick = { onIntent(LeaseWizardIntent.SubmitGuarantorStep) },
+                                                enabled = !uiState.isSavingStep,
+                                                modifier = Modifier.align(Alignment.End)
+                                            ) {
+                                                if (uiState.isSavingStep) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(16.dp),
+                                                        color = MaterialTheme.colorScheme.onPrimary
+                                                    )
+                                                } else {
+                                                    Text("Valider & Continuer")
+                                                }
                                             }
                                         }
                                     }
@@ -429,19 +455,21 @@ fun LeaseWizardContent(
                                                 )
                                             }
                                         )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Button(
-                                            onClick = { onIntent(LeaseWizardIntent.SubmitUnitStep) },
-                                            enabled = !uiState.isSavingStep && uiState.draftResidenceUnitId.isNotBlank(),
-                                            modifier = Modifier.align(Alignment.End)
-                                        ) {
-                                            if (uiState.isSavingStep) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(16.dp),
-                                                    color = MaterialTheme.colorScheme.onPrimary
-                                                )
-                                            } else {
-                                                Text("Valider & Continuer")
+                                        if (editable) {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Button(
+                                                onClick = { onIntent(LeaseWizardIntent.SubmitUnitStep) },
+                                                enabled = !uiState.isSavingStep && uiState.draftResidenceUnitId.isNotBlank(),
+                                                modifier = Modifier.align(Alignment.End)
+                                            ) {
+                                                if (uiState.isSavingStep) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(16.dp),
+                                                        color = MaterialTheme.colorScheme.onPrimary
+                                                    )
+                                                } else {
+                                                    Text("Valider & Continuer")
+                                                }
                                             }
                                         }
                                     }
@@ -488,19 +516,21 @@ fun LeaseWizardContent(
                                                 )
                                             }
                                         )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Button(
-                                            onClick = { onIntent(LeaseWizardIntent.SubmitFinancialsStep) },
-                                            enabled = !uiState.isSavingStep,
-                                            modifier = Modifier.align(Alignment.End)
-                                        ) {
-                                            if (uiState.isSavingStep) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(16.dp),
-                                                    color = MaterialTheme.colorScheme.onPrimary
-                                                )
-                                            } else {
-                                                Text("Valider & Continuer")
+                                        if (editable) {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Button(
+                                                onClick = { onIntent(LeaseWizardIntent.SubmitFinancialsStep) },
+                                                enabled = !uiState.isSavingStep,
+                                                modifier = Modifier.align(Alignment.End)
+                                            ) {
+                                                if (uiState.isSavingStep) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(16.dp),
+                                                        color = MaterialTheme.colorScheme.onPrimary
+                                                    )
+                                                } else {
+                                                    Text("Valider & Continuer")
+                                                }
                                             }
                                         }
                                     }
@@ -523,19 +553,21 @@ fun LeaseWizardContent(
                                                 )
                                             }
                                         )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Button(
-                                            onClick = { onIntent(LeaseWizardIntent.SubmitTimelineStep) },
-                                            enabled = !uiState.isSavingStep,
-                                            modifier = Modifier.align(Alignment.End)
-                                        ) {
-                                            if (uiState.isSavingStep) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(16.dp),
-                                                    color = MaterialTheme.colorScheme.onPrimary
-                                                )
-                                            } else {
-                                                Text("Valider & Continuer")
+                                        if (editable) {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Button(
+                                                onClick = { onIntent(LeaseWizardIntent.SubmitTimelineStep) },
+                                                enabled = !uiState.isSavingStep,
+                                                modifier = Modifier.align(Alignment.End)
+                                            ) {
+                                                if (uiState.isSavingStep) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(16.dp),
+                                                        color = MaterialTheme.colorScheme.onPrimary
+                                                    )
+                                                } else {
+                                                    Text("Valider & Continuer")
+                                                }
                                             }
                                         }
                                     }
@@ -548,19 +580,28 @@ fun LeaseWizardContent(
                                     }
                                     WizardStep.SIGNATURE -> {
                                         WizardSignatureStep(canSign = uiState.canSign)
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Button(
-                                            onClick = { onIntent(LeaseWizardIntent.FinalizeSignature) },
-                                            enabled = !uiState.isSavingStep && uiState.canSign,
-                                            modifier = Modifier.align(Alignment.End)
-                                        ) {
-                                            if (uiState.isSavingStep) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(16.dp),
-                                                    color = MaterialTheme.colorScheme.onPrimary
-                                                )
-                                            } else {
-                                                Text("Finaliser et Signer")
+                                        if (uiState.leaseStatus == com.resid.manager.dto.LeaseStatusDto.SIGNED_ACTIVE) {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Text(
+                                                "Ce contrat de bail a déjà été signé et activé.",
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        } else {
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Button(
+                                                onClick = { onIntent(LeaseWizardIntent.FinalizeSignature) },
+                                                enabled = !uiState.isSavingStep && uiState.canSign,
+                                                modifier = Modifier.align(Alignment.End)
+                                            ) {
+                                                if (uiState.isSavingStep) {
+                                                    CircularProgressIndicator(
+                                                        modifier = Modifier.size(16.dp),
+                                                        color = MaterialTheme.colorScheme.onPrimary
+                                                    )
+                                                } else {
+                                                    Text("Finaliser et Signer")
+                                                }
                                             }
                                         }
                                     }

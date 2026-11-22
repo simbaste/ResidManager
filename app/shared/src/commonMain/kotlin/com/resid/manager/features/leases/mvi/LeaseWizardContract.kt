@@ -27,6 +27,7 @@ data class LeaseWizardUiState(
     val currencySymbol: String = AppCurrency.DEFAULT.symbol,
     val availableUnits: List<ResidenceUnitDto> = emptyList(),
     val draftLeaseId: String? = null,
+    val leaseStatus: com.resid.manager.dto.LeaseStatusDto? = null,
 
     // Step 1: TENANT
     val isInlineTenant: Boolean = false,

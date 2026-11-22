@@ -105,6 +105,13 @@ fun LeasesScreen(
                         LeaseDetailScreen(
                             uiState,
                             key,
+                            onEditClick = { leaseId ->
+                                navigator.push(LeasesNavKey.CreateLease(draftLeaseId = leaseId))
+                            },
+                            onDeleteClick = { leaseId ->
+                                viewModel.onIntent(LeasesIntent.DeleteLease(leaseId))
+                                navigator.popBack()
+                            },
                             onRecordPayment = { amount, leaseId, category ->
                                 viewModel.onIntent(LeasesIntent.RecordPayment(leaseId, amount, category))
                             },
@@ -126,7 +133,8 @@ fun LeasesScreen(
                         LeaseWizardScreen(
                             residenceId = uiState.activeResidence?.residenceId,
                             currencySymbol = uiState.currencySymbol,
-                            draftLeaseId = uiState.draftLeaseId,
+                            draftLeaseId = key.draftLeaseId ?: uiState.draftLeaseId,
+                            initialResidenceUnitId = key.unitId.ifBlank { null },
                             onNavigateBack = {
                                 viewModel.onIntent(LeasesIntent.Refresh)
                                 navigator.popBack()

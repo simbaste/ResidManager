@@ -11,6 +11,7 @@ import com.resid.manager.dto.TransactionCategoryDto
 import com.resid.manager.network.ApiClient
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
@@ -32,6 +33,7 @@ interface LeaseRepository {
     suspend fun updateDraftStep(token: String, leaseId: String, request: LeaseDraftStepUpdateRequest): Result<LeaseDto>
     suspend fun finalizeDraft(token: String, leaseId: String): Result<LeaseDto>
     suspend fun fetchLeaseById(token: String, residenceId: String, leaseId: String): Result<LeaseDto>
+    suspend fun deleteLease(token: String, leaseId: String): Result<Unit>
 }
 
 class LeaseRepositoryImpl(
@@ -206,6 +208,22 @@ class LeaseRepositoryImpl(
             }
         } catch (e: Exception) {
             Result.failure(Exception("Erreur de récupération du contrat de bail : ${e.message}"))
+        }
+    }
+
+    override suspend fun deleteLease(token: String, leaseId: String): Result<Unit> {
+        return try {
+            val response = httpClient.delete("${ApiClient.BASE_URL}/api/leases/$leaseId") {
+                header(HttpHeaders.Authorization, "Bearer $token")
+            }
+            if (response.status == HttpStatusCode.NoContent || response.status == HttpStatusCode.OK) {
+                Result.success(Unit)
+            } else {
+                val errorMsg = ApiClient.parseErrorMessage(response, "Erreur lors de la suppression du contrat de bail.")
+                Result.failure(Exception(errorMsg))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Erreur de suppression du bail : ${e.message}"))
         }
     }
 }

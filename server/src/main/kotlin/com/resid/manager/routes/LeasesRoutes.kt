@@ -15,6 +15,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.request.receive
 import io.ktor.server.routing.Route
+import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.put
@@ -99,6 +100,15 @@ fun Route.leasesRoutes() {
                     val status = request.status
                         ?: throw HttpError(HttpStatusCode.BadRequest, "Statut de contrat de bail manquant.")
                     LeaseService.updateLeaseStatus(requesterId, leaseId, status)
+                }
+            }
+
+            // DELETE /api/leases/{leaseId} : Delete an unsigned lease (Manager only)
+            delete("{leaseId}") {
+                call.executeRequest(HttpStatusCode.NoContent) {
+                    val requesterId = call.getRequesterUuid()
+                    val leaseId = call.getPathUuid("leaseId")
+                    LeaseService.deleteLease(requesterId, leaseId)
                 }
             }
         }

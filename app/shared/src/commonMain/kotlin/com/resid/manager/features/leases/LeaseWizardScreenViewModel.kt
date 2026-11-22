@@ -146,6 +146,7 @@ class LeaseWizardScreenViewModel(
                         val updated = state.copy(
                             isLoading = false,
                             draftLeaseId = lease.id,
+                            leaseStatus = lease.status,
                             draftTenantId = lease.tenantId,
                             draftResidenceUnitId = lease.residenceUnitId,
                             selectedUnit = unit,
@@ -156,13 +157,60 @@ class LeaseWizardScreenViewModel(
                             draftEndDate = lease.endDate ?: "",
                             totalMonthlyRentAndCharges = rentAndCharges
                         )
-                        recalculateCompletionAndStatuses(updated)
+                        val withCalculations = recalculateCompletionAndStatuses(updated)
+                        // Smart Resume: Open first uncompleted required step, or SIGNATURE if all prerequisite steps are done
+                        val smartStep = determineInitialStep(withCalculations)
+                        withCalculations.copy(currentStep = smartStep)
                     }
                 }
                 .onFailure { error ->
                     updateState { it.copy(isLoading = false, errorMessage = error.message) }
                 }
         }
+    }
+
+    private fun determineInitialStep(state: LeaseWizardUiState): WizardStep {
+        // If lease is already signed, open SIGNATURE or INVENTORY
+        if (state.leaseStatus == com.resid.manager.dto.LeaseStatusDto.SIGNED_ACTIVE) {
+            return WizardStep.INVENTORY
+        }
+        val hasTenant = state.draftTenantId != null || (state.isInlineTenant && state.inlineFirstName.isNotBlank())
+        if (!hasTenant) return WizardStep.TENANT
+
+        val hasUnit = state.draftResidenceUnitId.isNotBlank()
+        if (!hasUnit) return WizardStep.UNIT
+
+        val hasFinancials = (state.draftDepositAmount.toDoubleOrNull() ?: 0.0) >= 0.0 && state.draftPaymentFrequency.isNotBlank()
+        if (!hasFinancials) return WizardStep.FINANCIALS
+
+        val hasDates = state.draftStartDate.isNotBlank() && state.draftEndDate.isNotBlank()
+        if (!hasDates) return WizardStep.TIMELINE
+
+        return WizardStep.SIGNATURE
+    }
+
+    fun isStepEditable(step: WizardStep, leaseStatus: com.resid.manager.dto.LeaseStatusDto?): Boolean {
+        if (leaseStatus == null || leaseStatus == com.resid.manager.dto.LeaseStatusDto.DRAFT ||
+            leaseStatus == com.resid.manager.dto.LeaseStatusDto.PENDING_PAYMENT ||
+            leaseStatus == com.resid.manager.dto.LeaseStatusDto.DOWN_PAYMENT_PAID ||
+            leaseStatus == com.resid.manager.dto.LeaseStatusDto.PARTIALLY_PAID ||
+            leaseStatus == com.resid.manager.dto.LeaseStatusDto.PENDING_SIGNATURE) {
+            // Unsigned lease: Steps 1 to 6 are editable. Step 7 (SIGNATURE) is dynamic
+            return step != WizardStep.SIGNATURE
+        }
+
+        if (leaseStatus == com.resid.manager.dto.LeaseStatusDto.SIGNED_ACTIVE) {
+            // Already signed lease: UNIT, TENANT, FINANCIALS, TIMELINE are strictly locked.
+            // INVENTORY is editable (état des lieux d'entrée/sortie, relevés de compteur, remise des clés).
+            // GUARANTOR is editable only if no guarantor was previously attached.
+            return when (step) {
+                WizardStep.TENANT, WizardStep.UNIT, WizardStep.FINANCIALS, WizardStep.TIMELINE, WizardStep.SIGNATURE -> false
+                WizardStep.INVENTORY -> true
+                WizardStep.GUARANTOR -> uiState.value.existingGuarantors.isEmpty() && uiState.value.selectedGuarantorId == null
+            }
+        }
+
+        return false
     }
 
     private fun handleUserQuery(query: String) {
@@ -321,10 +369,12 @@ class LeaseWizardScreenViewModel(
     private fun handleSelectUnit(unitId: String) {
         val unit = uiState.value.availableUnits.firstOrNull { it.id == unitId }
         val rentAndCharges = (unit?.nominalRent ?: 0.0) + (unit?.serviceCharges ?: 0.0)
+        val defaultDeposit = unit?.nominalRent ?: 0.0
         updateState {
             it.copy(
                 draftResidenceUnitId = unitId,
                 selectedUnit = unit,
+                draftDepositAmount = defaultDeposit.toString(),
                 totalMonthlyRentAndCharges = rentAndCharges
             )
         }
@@ -358,10 +408,11 @@ class LeaseWizardScreenViewModel(
                     }
             }
         } else {
-            updateState { s ->
-                val updated = s.copy(currentStep = WizardStep.FINANCIALS)
-                recalculateCompletionAndStatuses(updated, completed = WizardStep.UNIT)
-            }
+            val payload = LeaseDraftStepUpdateRequest(
+                step = "UNIT",
+                residenceUnitId = state.draftResidenceUnitId
+            )
+            saveStep(payload, nextStep = WizardStep.FINANCIALS, completedStep = WizardStep.UNIT)
         }
     }
 
@@ -518,8 +569,19 @@ class LeaseWizardScreenViewModel(
 
         val hasTenant = (state.draftTenantId != null) || (state.isInlineTenant && state.inlineFirstName.isNotBlank())
         val hasUnit = state.draftResidenceUnitId.isNotBlank()
+        val hasFinancials = (state.draftDepositAmount.toDoubleOrNull() ?: 0.0) >= 0.0 && state.draftPaymentFrequency.isNotBlank()
         val hasDates = state.draftStartDate.isNotBlank() && state.draftEndDate.isNotBlank()
-        val canSign = hasTenant && hasUnit && hasDates && (state.draftLeaseId != null)
+        
+        // Dynamic Lock on SIGNATURE: Only unlock if required steps (TENANT, UNIT, FINANCIALS, TIMELINE) are complete
+        // and for already signed leases, canSign is false.
+        val isAlreadySigned = state.leaseStatus == com.resid.manager.dto.LeaseStatusDto.SIGNED_ACTIVE
+        val canSign = !isAlreadySigned && hasTenant && hasUnit && hasFinancials && hasDates && (state.draftLeaseId != null)
+
+        newStatuses[WizardStep.SIGNATURE] = when {
+            isAlreadySigned -> WizardStepStatus.COMPLETED
+            canSign -> WizardStepStatus.ACTIVE
+            else -> WizardStepStatus.LOCKED
+        }
 
         val completedCount = newStatuses.values.count { it == WizardStepStatus.COMPLETED || it == WizardStepStatus.SKIPPED }
         val percentage = ((completedCount.toDouble() / WizardStep.entries.size) * 100).toInt()

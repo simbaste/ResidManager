@@ -28,9 +28,9 @@ import com.resid.manager.data.isManager
 import com.resid.manager.dto.GuarantorDto
 import com.resid.manager.dto.LeaseCategory
 import com.resid.manager.dto.LeaseCreateRequest
-import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.LeaseDraftInitRequest
 import com.resid.manager.dto.LeaseDraftStepUpdateRequest
+import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.LeasePaymentDto
 import com.resid.manager.dto.LeasePaymentRequest
 import com.resid.manager.dto.LeaseStatusDto
@@ -162,6 +162,30 @@ object LeaseService {
                     dbLease.guarantor = dbGuarantor
                 }
             }
+            "UNIT" -> {
+                if (request.residenceUnitId != null) {
+                    val newUnitId = UUID.fromString(request.residenceUnitId)
+                    if (dbLease.residenceUnit.id.value != newUnitId) {
+                        val newUnit = ResidenceUnit.findById(newUnitId)
+                            ?: throw HttpError(HttpStatusCode.NotFound, "Nouveau logement introuvable.")
+                        if (newUnit.residence.id.value != residenceId) {
+                            throw HttpError(HttpStatusCode.BadRequest, "Le logement doit appartenir à la même résidence.")
+                        }
+                        // Check if the new unit is already occupied by an active lease
+                        val activeLeaseExists = Leases.select(Leases.id).where {
+                            (Leases.residenceUnitId eq newUnitId) and
+                            (Leases.id neq leaseId) and
+                            (Leases.status eq LeaseStatus.SIGNED_ACTIVE)
+                        }.count() > 0
+
+                        if (activeLeaseExists) {
+                            throw HttpError(HttpStatusCode.Conflict, "Ce logement est déjà occupé par un bail actif.")
+                        }
+
+                        dbLease.residenceUnit = newUnit
+                    }
+                }
+            }
             "FINANCIALS" -> {
                 if (request.depositAmount != null) dbLease.depositAmount = request.depositAmount
                 if (request.paymentFrequency != null) {
@@ -177,6 +201,9 @@ object LeaseService {
             "TIMELINE" -> {
                 if (request.startDate != null) dbLease.startDate = LocalDate.parse(request.startDate)
                 if (request.endDate != null) dbLease.endDate = LocalDate.parse(request.endDate)
+            }
+            "INVENTORY" -> {
+                // Custom inventory setup if needed on draft step
             }
         }
         
@@ -511,6 +538,19 @@ object LeaseService {
                 HttpStatusCode.BadRequest,
                 "Impossible de modifier un contrat de bail résilié (TERMINATED)."
             )
+        }
+
+        // If lease is already SIGNED_ACTIVE, core contract terms cannot be modified
+        val isSignedOrActive = dbLease.status == LeaseStatus.SIGNED_ACTIVE
+        if (isSignedOrActive) {
+            if (request.startDate != null || request.endDate != null ||
+                request.depositAmount != null || request.advanceMonths != null ||
+                request.paymentFrequency != null) {
+                throw HttpError(
+                    HttpStatusCode.BadRequest,
+                    "Impossible de modifier les clauses initiales (dates, loyer, caution) d'un contrat de bail déjà signé/actif."
+                )
+            }
         }
 
         // 1. Update dates if supplied
@@ -937,6 +977,54 @@ object LeaseService {
         dbLease.flush()
 
         dbLease.toDto()
+    }
+
+    suspend fun deleteLease(
+        requesterId: UUID,
+        leaseId: UUID
+    ): Unit = dbQuery {
+        val dbLease = Lease.findById(leaseId)
+            ?: throw HttpError(HttpStatusCode.NotFound, "Contrat de bail introuvable.")
+
+        val residenceId = dbLease.residenceUnit.residence.id.value
+        if (!isResidenceManager(requesterId, residenceId)) {
+            throw HttpError(
+                HttpStatusCode.Forbidden,
+                "Accès interdit : Seuls les administrateurs et gestionnaires peuvent supprimer un contrat de bail."
+            )
+        }
+
+        // Security check: Delete is only allowed for unsigned leases
+        if (dbLease.status == LeaseStatus.SIGNED_ACTIVE || dbLease.status == LeaseStatus.TERMINATED) {
+            throw HttpError(
+                HttpStatusCode.Conflict,
+                "Impossible de supprimer un contrat de bail signé, actif ou clôturé."
+            )
+        }
+
+        // Clean up any financial transactions recorded for this draft/pending lease
+        val transactions = FinancialTransaction.find {
+            (FinancialTransactions.relatedEntityType eq EntityType.BAIL) and
+            (FinancialTransactions.relatedEntityId eq leaseId)
+        }
+        transactions.forEach { it.delete() }
+
+        // Free the unit if it was set to OCCUPIED by an advance draft activation
+        val unit = dbLease.residenceUnit
+        if (unit.status == UnitStatus.OCCUPIED) {
+            val otherActive = Leases.select(Leases.id).where {
+                (Leases.residenceUnitId eq unit.id.value) and
+                (Leases.id neq leaseId) and
+                (Leases.status eq LeaseStatus.SIGNED_ACTIVE)
+            }.count() > 0
+
+            if (!otherActive) {
+                unit.status = UnitStatus.AVAILABLE
+                unit.flush()
+            }
+        }
+
+        dbLease.delete()
     }
 
     private fun Guarantor.toDto(): GuarantorDto {

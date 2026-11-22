@@ -2,7 +2,6 @@ package com.resid.manager.features.leases.mvi
 
 import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.LeaseCreateRequest
-import com.resid.manager.dto.LeaseDraftInitRequest
 import com.resid.manager.dto.LeaseDraftStepUpdateRequest
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.LeaseStatusDto
@@ -23,6 +22,7 @@ data class LeasesUiState(
     val showWizard: Boolean = false,
     val draftLeaseId: String? = null, // Stores the ID of the current draft
     val showTerminateConfirmation: Boolean = false,
+    val isDeleting: Boolean = false,
     val errorMessage: String? = null
 )
 
@@ -45,6 +45,10 @@ sealed interface LeasesIntent {
         val status: LeaseStatusDto
     ) : LeasesIntent
 
+    data class DeleteLease(
+        val leaseId: String
+    ) : LeasesIntent
+
     data class CreateLease(
         val residenceUnitId: String,
         val request: LeaseCreateRequest
@@ -59,4 +63,5 @@ sealed interface LeasesIntent {
 sealed interface LeasesEffect {
     data class ShowToast(val message: String) : LeasesEffect
     data object LeaseCreatedSuccess : LeasesEffect
+    data object LeaseDeletedSuccess : LeasesEffect
 }
