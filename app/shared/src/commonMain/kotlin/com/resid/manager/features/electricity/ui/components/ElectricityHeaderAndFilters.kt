@@ -138,8 +138,7 @@ fun ElectricityFilterBar(
             }
 
             FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp),
                 itemVerticalAlignment = Alignment.CenterVertically,
             ) {
@@ -151,7 +150,7 @@ fun ElectricityFilterBar(
                     imeAction = ImeAction.Search,
                     modifier = Modifier.apply {
                         if (isCompact) {
-                            fillMaxWidth()
+                            weight(1f)
                         } else {
                             width(180.dp)
                         }
@@ -165,7 +164,7 @@ fun ElectricityFilterBar(
                     imeAction = ImeAction.Search,
                     modifier = Modifier.apply {
                         if (isCompact) {
-                            fillMaxWidth()
+                            weight(1f)
                         } else {
                             width(200.dp)
                         }
