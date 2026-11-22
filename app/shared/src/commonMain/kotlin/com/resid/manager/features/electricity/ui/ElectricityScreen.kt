@@ -1,16 +1,21 @@
 package com.resid.manager.features.electricity.ui
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowSizeClass
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import com.resid.manager.dto.ElectricityStatementDto
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.features.electricity.ElectricityViewModel
@@ -22,6 +27,7 @@ import com.resid.manager.features.electricity.ui.components.ElectricityHeader
 import com.resid.manager.features.electricity.ui.components.ElectricityStatementsGrid
 import com.resid.manager.features.electricity.ui.components.StatementPaymentDialog
 import com.resid.manager.network.ApiClient
+import com.resid.manager.ui.theme.ResidTheme
 import org.koin.compose.koinInject
 
 @Composable
@@ -100,6 +106,7 @@ fun ElectricityScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
 @Composable
 fun ElectricityContent(
     uiState: ElectricityUiState,
@@ -112,29 +119,14 @@ fun ElectricityContent(
     onFloorFilterChanged: (String) -> Unit,
     onTenantFilterChanged: (String) -> Unit,
     onToggleSelection: (String, Boolean) -> Unit,
-    onMarkPaidClick: (com.resid.manager.dto.ElectricityStatementDto) -> Unit,
+    onMarkPaidClick: (ElectricityStatementDto) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
-        ElectricityHeader(
-            isAuthorized = isAuthorized,
-            selectedCount = uiState.selectedStatementIds.count { it.value },
-            onAddStatementClick = onAddStatementClick,
-            onEcoPrintClick = onEcoPrintClick
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val windowSizeClass = WindowSizeClass.calculateFromSize(
+            DpSize(maxWidth, maxHeight)
         )
-
-        ElectricityFilterBar(
-            statusFilter = uiState.statusFilter,
-            floorFilterText = uiState.floorFilterText,
-            tenantFilterText = uiState.tenantFilterText,
-            onStatusFilterChanged = onStatusFilterChanged,
-            onFloorFilterChanged = onFloorFilterChanged,
-            onTenantFilterChanged = onTenantFilterChanged
-        )
-
+        val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact || maxWidth < 600.dp
         ElectricityStatementsGrid(
             statements = uiState.statements,
             residenceUnits = residenceUnits,
@@ -144,7 +136,46 @@ fun ElectricityContent(
             isLoading = uiState.isLoading,
             onToggleSelection = onToggleSelection,
             onMarkPaidClick = onMarkPaidClick,
-            modifier = Modifier.weight(1f)
+            modifier = modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp),
+            headerContent = {
+                ElectricityHeader(
+                    isAuthorized = isAuthorized,
+                    selectedCount = uiState.selectedStatementIds.count { it.value },
+                    onAddStatementClick = onAddStatementClick,
+                    onEcoPrintClick = onEcoPrintClick
+                )
+            },
+            filterContent = {
+                ElectricityFilterBar(
+                    statusFilter = uiState.statusFilter,
+                    floorFilterText = uiState.floorFilterText,
+                    tenantFilterText = uiState.tenantFilterText,
+                    isCompact = isCompact,
+                    onStatusFilterChanged = onStatusFilterChanged,
+                    onFloorFilterChanged = onFloorFilterChanged,
+                    onTenantFilterChanged = onTenantFilterChanged
+                )
+            }
+        )
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun ElectricityContentPreview() {
+    ResidTheme {
+        ElectricityContent(
+            uiState = ElectricityUiState(),
+            residenceUnits = emptyList(),
+            currencySymbol = "FCFA",
+            isAuthorized = true,
+            onAddStatementClick = {},
+            onEcoPrintClick = {},
+            onStatusFilterChanged = {},
+            onFloorFilterChanged = {},
+            onTenantFilterChanged = {},
+            onToggleSelection = { _, _ -> },
+            onMarkPaidClick = {}
         )
     }
 }

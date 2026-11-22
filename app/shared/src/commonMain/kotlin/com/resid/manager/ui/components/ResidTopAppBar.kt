@@ -34,9 +34,9 @@ data class ResidAppBarAction(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResidTopAppBar(
+    modifier: Modifier = Modifier,
     title: String,
     actions: List<ResidAppBarAction> = emptyList(),
-    modifier: Modifier = Modifier,
     colors: TopAppBarColors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
     navigationIcon: @Composable () -> Unit = {},
 ) {

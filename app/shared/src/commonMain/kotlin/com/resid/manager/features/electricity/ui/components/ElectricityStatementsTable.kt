@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,27 +45,45 @@ fun ElectricityStatementsGrid(
     isLoading: Boolean,
     onToggleSelection: (String, Boolean) -> Unit,
     onMarkPaidClick: (ElectricityStatementDto) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    headerContent: (@Composable () -> Unit)? = null,
+    filterContent: (@Composable () -> Unit)? = null
 ) {
-    if (isLoading) {
-        Box(modifier = modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Color(0xFF006948))
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 300.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        if (headerContent != null) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                headerContent()
+            }
         }
-    } else if (statements.isEmpty()) {
-        Box(modifier = modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-            Text(
-                text = "Aucun relevé d'électricité ne correspond à vos filtres.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.outline
-            )
+
+        if (filterContent != null) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                filterContent()
+            }
         }
-    } else {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 300.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = modifier.fillMaxWidth()
-        ) {
+
+        if (isLoading) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color(0xFF006948))
+                }
+            }
+        } else if (statements.isEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "Aucun relevé d'électricité ne correspond à vos filtres.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
+        } else {
             items(statements) { stmt ->
                 val matchedUnit = residenceUnits.firstOrNull { it.id == stmt.unitId }
                 val matchedUnitName = matchedUnit?.name ?: "Logement ${stmt.unitId.take(5)}"

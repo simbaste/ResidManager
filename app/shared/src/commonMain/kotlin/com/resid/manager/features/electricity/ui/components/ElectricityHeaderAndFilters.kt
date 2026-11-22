@@ -3,6 +3,7 @@ package com.resid.manager.features.electricity.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,7 +25,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import com.resid.manager.ui.components.AppTextField
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun ElectricityHeader(
@@ -34,12 +39,15 @@ fun ElectricityHeader(
     onEcoPrintClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    FlowRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
             Text(
                 text = "Facturation de l'Électricité",
                 style = MaterialTheme.typography.headlineLarge,
@@ -52,7 +60,9 @@ fun ElectricityHeader(
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             OutlinedButton(
                 onClick = onEcoPrintClick,
                 enabled = selectedCount > 0,
@@ -78,7 +88,7 @@ fun ElectricityHeader(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
-                        Text("+ Relevé d'index", color = Color.White)
+                        Text("Relevé d'index", color = Color.White)
                     }
                 }
             }
@@ -91,6 +101,7 @@ fun ElectricityFilterBar(
     statusFilter: String,
     floorFilterText: String,
     tenantFilterText: String,
+    isCompact: Boolean,
     onStatusFilterChanged: (String) -> Unit,
     onFloorFilterChanged: (String) -> Unit,
     onTenantFilterChanged: (String) -> Unit,
@@ -101,10 +112,11 @@ fun ElectricityFilterBar(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
-        Row(
+        FlowRow(
             modifier = Modifier.padding(16.dp).fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("État :", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
@@ -125,24 +137,70 @@ fun ElectricityFilterBar(
                 )
             }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                com.resid.manager.ui.components.AppTextField(
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppTextField(
                     value = floorFilterText,
                     onValueChange = onFloorFilterChanged,
                     label = "Étage",
                     placeholder = "Filtrer par étage...",
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
-                    modifier = Modifier.width(180.dp)
+                    imeAction = ImeAction.Search,
+                    modifier = Modifier.apply {
+                        if (isCompact) {
+                            fillMaxWidth()
+                        } else {
+                            width(180.dp)
+                        }
+                    }
                 )
-                com.resid.manager.ui.components.AppTextField(
+                AppTextField(
                     value = tenantFilterText,
                     onValueChange = onTenantFilterChanged,
                     label = "Locataire",
                     placeholder = "Filtrer par locataire...",
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Search,
-                    modifier = Modifier.width(200.dp)
+                    imeAction = ImeAction.Search,
+                    modifier = Modifier.apply {
+                        if (isCompact) {
+                            fillMaxWidth()
+                        } else {
+                            width(200.dp)
+                        }
+                    }
                 )
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun ElectricityHeaderPreview() {
+    ResidTheme {
+        ElectricityHeader(
+            isAuthorized = true,
+            selectedCount = 2,
+            onAddStatementClick = {},
+            onEcoPrintClick = {}
+        )
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun ElectricityFilterBarPreview() {
+    ResidTheme {
+        ElectricityFilterBar(
+            statusFilter = "ALL",
+            floorFilterText = "",
+            tenantFilterText = "",
+            isCompact = true,
+            onStatusFilterChanged = {},
+            onFloorFilterChanged = {},
+            onTenantFilterChanged = {}
+        )
     }
 }
