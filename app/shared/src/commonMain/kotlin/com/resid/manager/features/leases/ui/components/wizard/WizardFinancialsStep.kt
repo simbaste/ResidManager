@@ -28,6 +28,7 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.ResidenceUnitDto
+import com.resid.manager.helpers.PreviewResidenceUnits
 import com.resid.manager.ui.components.AmountTextField
 import com.resid.manager.ui.components.AppTextField
 import com.resid.manager.ui.theme.ResidTheme
@@ -153,9 +154,9 @@ fun WizardFinancialsStep(
             val remainingToPay = totalRequiredToPay - acompteVal
 
             val (probadgeBg, probadgeColor, probadgeText) = when {
-                acompteVal <= 0.0 -> Triple(Color(0xFFFDE8E8), Color(0xFFBA1A1A), "[État cible : PENDING_PAYMENT] (Attente)")
-                acompteVal < totalRequiredToPay -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "[État cible : PARTIALLY_PAID] (Acompte)")
-                else -> Triple(Color(0xFFE0E7FF), Color(0xFF1E3A8A), "[État cible : PENDING_SIGNATURE] (Solder / Prêt à signer)")
+                acompteVal <= 0.0 -> Triple(Color(0xFFFDE8E8), Color(0xFFBA1A1A), "[État cible : (Attente de paiement)]")
+                acompteVal < totalRequiredToPay -> Triple(Color(0xFFFEF3C7), Color(0xFFD97706), "[État cible : (Paiement Partiel)]")
+                else -> Triple(Color(0xFFE0E7FF), Color(0xFF1E3A8A), "[État cible : (Solder / Prêt à signer)]")
             }
 
             Card(
@@ -228,7 +229,7 @@ fun WizardFinancialsStep(
 fun WizardFinancialsStepPreview() {
     ResidTheme {
         WizardFinancialsStep(
-            selectedResidenceUnit = null,
+            selectedResidenceUnit = PreviewResidenceUnits.unitB2,
             draftDepositAmount = "0.0",
             draftPaymentFrequency = "MONTHLY",
             draftAdvanceMonths = "12",
