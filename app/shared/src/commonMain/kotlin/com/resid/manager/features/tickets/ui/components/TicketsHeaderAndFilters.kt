@@ -151,7 +151,7 @@ private fun FlowRowScope.UrgencyFilterDefault(
 }
 
 @Composable
-private fun FlowRowScope.UrgencyFilterCompact(
+private fun UrgencyFilterCompact(
     urgencyFilter: String,
     onUrgencyFilterChanged: (String) -> Unit
 ) {
@@ -205,7 +205,7 @@ private fun FlowRowScope.StatusFilterDefault(
 }
 
 @Composable
-private fun FlowRowScope.StatusFilterCompact(
+private fun StatusFilterCompact(
     statusFilter: String,
     onStatusFilterChanged: (String) -> Unit
 ) {
