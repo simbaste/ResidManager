@@ -72,7 +72,7 @@ fun TicketsFilterPanel(
                 }
 
                 // Unit Filter dropdown
-                Column(modifier = Modifier.wrapContentWidth()) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text("Unité rattachée", style = MaterialTheme.typography.labelMedium)
                     var expandedLogDropdown by remember { mutableStateOf(false) }
                     val selectedUnit = residenceUnits.firstOrNull { it.id == unitFilterId }
