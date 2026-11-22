@@ -1,22 +1,21 @@
 package com.resid.manager.features.tickets.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -27,51 +26,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.ResidenceUnitDto
-
-@Composable
-fun TicketsHeader(
-    onOpenTicketClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = "Tickets de Maintenance",
-                style = MaterialTheme.typography.headlineLarge,
-                color = Color(0xFF006948)
-            )
-            Text(
-                text = "Suivez les pannes, coordonnez les réparations sur le terrain et pilotez les coûts opérationnels.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.outline
-            )
-        }
-
-        Button(
-            onClick = onOpenTicketClick,
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF006948)),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
-                Text("Ouvrir un ticket", color = Color.White)
-            }
-        }
-    }
-}
+import com.resid.manager.helpers.PreviewResidenceUnits
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun TicketsFilterPanel(
     statusFilter: String,
     urgencyFilter: String,
     unitFilterId: String,
+    isCompact: Boolean,
     residenceUnits: List<ResidenceUnitDto>,
     onStatusFilterChanged: (String) -> Unit,
     onUrgencyFilterChanged: (String) -> Unit,
@@ -85,41 +51,22 @@ fun TicketsFilterPanel(
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text("Filtrer les incidents", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
             ) {
-                // Status filters
-                Column(modifier = Modifier.weight(1.5f)) {
-                    Text("Statut", style = MaterialTheme.typography.labelMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
-                        listOf("ALL" to "Tous", "OPEN" to "Ouverts", "IN_PROGRESS" to "En cours", "CLOSED" to "Clôturés").forEach { (key, label) ->
-                            FilterChip(
-                                selected = statusFilter == key,
-                                onClick = { onStatusFilterChanged(key) },
-                                label = { Text(label) }
-                            )
-                        }
-                    }
-                }
-
-                // Urgency Filter
-                Column(modifier = Modifier.weight(1.5f)) {
-                    Text("Urgence", style = MaterialTheme.typography.labelMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
-                        listOf("ALL" to "Tous", "LOW" to "Faible", "MEDIUM" to "Moyenne", "CRITICAL" to "Critique").forEach { (key, label) ->
-                            FilterChip(
-                                selected = urgencyFilter == key,
-                                onClick = { onUrgencyFilterChanged(key) },
-                                label = { Text(label) }
-                            )
-                        }
-                    }
+                if (isCompact) {
+                    StatusFilterCompact(statusFilter, onStatusFilterChanged)
+                    UrgencyFilterCompact(urgencyFilter, onUrgencyFilterChanged)
+                } else {
+                    StatusFilterDefault(statusFilter, onStatusFilterChanged)
+                    UrgencyFilterDefault(urgencyFilter, onUrgencyFilterChanged)
                 }
 
                 // Unit Filter dropdown
-                Column(modifier = Modifier.weight(1f)) {
+                Column(modifier = Modifier.wrapContentWidth()) {
                     Text("Unité rattachée", style = MaterialTheme.typography.labelMedium)
                     var expandedLogDropdown by remember { mutableStateOf(false) }
                     val selectedUnit = residenceUnits.firstOrNull { it.id == unitFilterId }
@@ -156,5 +103,133 @@ fun TicketsFilterPanel(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun FlowRowScope.UrgencyFilterDefault(
+    urgencyFilter: String,
+    onUrgencyFilterChanged: (String) -> Unit
+) {
+    Column(modifier = Modifier.weight(1.5f)) {
+        Text("Urgence", style = MaterialTheme.typography.labelMedium)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = 4.dp)
+        ) {
+            listOf(
+                "ALL" to "Tous",
+                "LOW" to "Faible",
+                "MEDIUM" to "Moyenne",
+                "CRITICAL" to "Critique"
+            ).forEach { (key, label) ->
+                FilterChip(
+                    selected = urgencyFilter == key,
+                    onClick = { onUrgencyFilterChanged(key) },
+                    label = { Text(label) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlowRowScope.UrgencyFilterCompact(
+    urgencyFilter: String,
+    onUrgencyFilterChanged: (String) -> Unit
+) {
+    Column(modifier = Modifier.wrapContentWidth()) {
+        Text("Urgence", style = MaterialTheme.typography.labelMedium)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())
+        ) {
+            listOf(
+                "ALL" to "Tous",
+                "LOW" to "Faible",
+                "MEDIUM" to "Moyenne",
+                "CRITICAL" to "Critique"
+            ).forEach { (key, label) ->
+                FilterChip(
+                    selected = urgencyFilter == key,
+                    onClick = { onUrgencyFilterChanged(key) },
+                    label = { Text(label) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlowRowScope.StatusFilterDefault(
+    statusFilter: String,
+    onStatusFilterChanged: (String) -> Unit
+) {
+    Column(modifier = Modifier.weight(1.5f)) {
+        Text("Statut", style = MaterialTheme.typography.labelMedium)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = 4.dp)
+        ) {
+            listOf(
+                "ALL" to "Tous",
+                "OPEN" to "Ouverts",
+                "IN_PROGRESS" to "En cours",
+                "CLOSED" to "Clôturés"
+            ).forEach { (key, label) ->
+                FilterChip(
+                    selected = statusFilter == key,
+                    onClick = { onStatusFilterChanged(key) },
+                    label = { Text(label) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlowRowScope.StatusFilterCompact(
+    statusFilter: String,
+    onStatusFilterChanged: (String) -> Unit
+) {
+    Column(modifier = Modifier.wrapContentWidth()) {
+        Text("Statut", style = MaterialTheme.typography.labelMedium)
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(top = 4.dp).horizontalScroll(rememberScrollState())
+        ) {
+            listOf(
+                "ALL" to "Tous",
+                "OPEN" to "Ouverts",
+                "IN_PROGRESS" to "En cours",
+                "CLOSED" to "Clôturés"
+            ).forEach { (key, label) ->
+                FilterChip(
+                    selected = statusFilter == key,
+                    onClick = { onStatusFilterChanged(key) },
+                    label = { Text(label) }
+                )
+            }
+        }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun TicketsFilterPanelPreview() {
+    ResidTheme {
+        TicketsFilterPanel(
+            statusFilter = "OPEN",
+            urgencyFilter = "MEDIUM",
+            unitFilterId = "1234",
+            residenceUnits = listOf(
+                PreviewResidenceUnits.unitB2,
+                PreviewResidenceUnits.unitA1
+            ),
+            isCompact = true,
+            onStatusFilterChanged = {},
+            onUrgencyFilterChanged = {},
+            onUnitFilterChanged = {}
+        )
     }
 }
