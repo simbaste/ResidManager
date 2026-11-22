@@ -24,26 +24,29 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.ui.components.AmountTextField
 import com.resid.manager.ui.components.AppTextField
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun WizardFinancialsStep(
+    modifier: Modifier = Modifier,
     selectedResidenceUnit: ResidenceUnitDto?,
     draftDepositAmount: String,
     draftPaymentFrequency: String,
     draftAdvanceMonths: String,
     draftAdvancePaymentAmount: String,
     draftPaymentMethod: String,
-    currencySymbol: String = com.resid.manager.dto.AppCurrency.DEFAULT.symbol,
+    currencySymbol: String = AppCurrency.DEFAULT.symbol,
     onDepositAmountChanged: (String) -> Unit,
     onPaymentFrequencyChanged: (String) -> Unit,
     onAdvanceMonthsChanged: (String) -> Unit,
     onAdvancePaymentAmountChanged: (String) -> Unit,
     onPaymentMethodChanged: (String) -> Unit,
-    modifier: Modifier = Modifier
 ) {
     val isAnnual = draftPaymentFrequency == "ANNUAL"
     val focusManager = LocalFocusManager.current
@@ -67,15 +70,21 @@ fun WizardFinancialsStep(
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Button(
                 onClick = { onPaymentFrequencyChanged("MONTHLY") },
-                colors = ButtonDefaults.buttonColors(containerColor = if (draftPaymentFrequency == "MONTHLY") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (draftPaymentFrequency == "MONTHLY") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .6f),
+                    contentColor = if (draftPaymentFrequency == "MONTHLY") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(.6f)
+                ),
             ) {
-                Text("Mensuelle (MONTHLY)")
+                Text("Mensuelle")
             }
             Button(
                 onClick = { onPaymentFrequencyChanged("ANNUAL") },
-                colors = ButtonDefaults.buttonColors(containerColor = if (draftPaymentFrequency == "ANNUAL") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (draftPaymentFrequency == "ANNUAL") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .6f),
+                    contentColor = if (draftPaymentFrequency == "ANNUAL") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .6f)
+                ),
             ) {
-                Text("Annuelle (ANNUAL)")
+                Text("Annuelle")
             }
         }
 
@@ -211,5 +220,25 @@ fun WizardFinancialsStep(
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun WizardFinancialsStepPreview() {
+    ResidTheme {
+        WizardFinancialsStep(
+            selectedResidenceUnit = null,
+            draftDepositAmount = "0.0",
+            draftPaymentFrequency = "MONTHLY",
+            draftAdvanceMonths = "12",
+            draftAdvancePaymentAmount = "0.0",
+            draftPaymentMethod = "CASH",
+            onDepositAmountChanged = {},
+            onPaymentFrequencyChanged = {},
+            onAdvanceMonthsChanged = {},
+            onAdvancePaymentAmountChanged = {},
+            onPaymentMethodChanged = {}
+        )
     }
 }
