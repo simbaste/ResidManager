@@ -8,14 +8,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -76,7 +82,18 @@ fun TicketsFilterPanel(
                             onClick = { expandedLogDropdown = true },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(selectedUnit?.name ?: "Toutes les unités")
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(selectedUnit?.name ?: "Toutes les unités")
+                                Spacer(Modifier.width(10.dp))
+                                Icon(
+                                    imageVector = if (expandedLogDropdown) {
+                                        Icons.Default.ArrowDropUp
+                                    } else {
+                                        Icons.Default.ArrowDropDown
+                                    },
+                                    contentDescription = null
+                                )
+                            }
                         }
                         DropdownMenu(
                             expanded = expandedLogDropdown,
