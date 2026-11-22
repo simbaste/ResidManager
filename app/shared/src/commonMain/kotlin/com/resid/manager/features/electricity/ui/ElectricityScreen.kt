@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.PreviewLightDark
@@ -122,13 +123,44 @@ fun ElectricityContent(
     onMarkPaidClick: (ElectricityStatementDto) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val filteredStatements = remember(
+        uiState.statements,
+        uiState.statusFilter,
+        uiState.floorFilterText,
+        uiState.tenantFilterText,
+        residenceUnits
+    ) {
+        uiState.statements.filter { stmt ->
+            // Filtre par statut (ALL, UNPAID, PAID)
+            val matchStatus = when (uiState.statusFilter) {
+                "UNPAID" -> stmt.status.name == "UNPAID"
+                "PAID" -> stmt.status.name == "PAID"
+                else -> true
+            }
+
+            val matchedUnit = residenceUnits.firstOrNull { it.id == stmt.unitId }
+
+            // Filtre par étage
+            val matchFloor = if (uiState.floorFilterText.isNotBlank()) {
+                matchedUnit?.floor?.contains(uiState.floorFilterText.trim(), ignoreCase = true) == true
+            } else true
+
+            // Filtre par locataire
+            val matchTenant = if (uiState.tenantFilterText.isNotBlank()) {
+                matchedUnit?.currentTenantName?.contains(uiState.tenantFilterText.trim(), ignoreCase = true) == true
+            } else true
+
+            matchStatus && matchFloor && matchTenant
+        }
+    }
+
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val windowSizeClass = WindowSizeClass.calculateFromSize(
             DpSize(maxWidth, maxHeight)
         )
         val isCompact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact || maxWidth < 600.dp
         ElectricityStatementsGrid(
-            statements = uiState.statements,
+            statements = filteredStatements,
             residenceUnits = residenceUnits,
             currencySymbol = currencySymbol,
             selectedStatementIds = uiState.selectedStatementIds,
