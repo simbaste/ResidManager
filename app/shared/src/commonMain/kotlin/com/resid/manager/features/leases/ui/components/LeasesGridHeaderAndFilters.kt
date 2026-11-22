@@ -2,14 +2,15 @@ package com.resid.manager.features.leases.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -24,7 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun LeasesGridHeader(
@@ -74,18 +77,41 @@ fun LeasesFilterCapsuleBar(
     onFilterSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(9999.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .padding(4.dp)
-            .width(IntrinsicSize.Max),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        FilterCapsuleItem(label = "Tous les contrats", isSelected = activeFilter == "ALL", onClick = { onFilterSelected("ALL") })
-        FilterCapsuleItem(label = "En cours", isSelected = activeFilter == "ACTIVE", onClick = { onFilterSelected("ACTIVE") })
-        FilterCapsuleItem(label = "En attente", isSelected = activeFilter == "PENDING", onClick = { onFilterSelected("PENDING") })
+    Box(Modifier.fillMaxWidth()) {
+        Row(
+            modifier = modifier
+                .wrapContentWidth()
+                .clip(RoundedCornerShape(9999.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .padding(4.dp)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            FilterCapsuleItem(
+                label = "Tous les contrats",
+                isSelected = activeFilter == "ALL",
+                onClick = { onFilterSelected("ALL") })
+            FilterCapsuleItem(
+                label = "En cours",
+                isSelected = activeFilter == "ACTIVE",
+                onClick = { onFilterSelected("ACTIVE") })
+            FilterCapsuleItem(
+                label = "En attente",
+                isSelected = activeFilter == "PENDING",
+                onClick = { onFilterSelected("PENDING") })
+        }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun LeasesFilterCapsuleBarPreview() {
+    ResidTheme {
+        LeasesFilterCapsuleBar(
+            activeFilter = "ALL",
+            onFilterSelected = {}
+        )
     }
 }
 

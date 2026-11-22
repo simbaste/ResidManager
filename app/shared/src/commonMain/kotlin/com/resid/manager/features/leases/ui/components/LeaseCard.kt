@@ -19,9 +19,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.FolderSpecial
@@ -41,11 +41,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.PreviewLightDark
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.resid.manager.dto.AppCurrency
@@ -182,6 +185,9 @@ fun LeaseCard(
             .fillMaxWidth()
             .clickable { onClick() }
     ) {
+
+        val minGapBetweenTabAndBadge = 8.dp
+        val innerSpacing = 8.dp
         // --- 1. Folder Tab Header Row ---
         Row(
             modifier = Modifier
@@ -190,9 +196,11 @@ fun LeaseCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom
         ) {
-            // Physical Folder Tab
+            // Physical Folder Tab (shrinks first, never stretches beyond content)
             Box(
                 modifier = Modifier
+                    .weight(1f, fill = false)
+                    .padding(end = minGapBetweenTabAndBadge)
                     .clip(RoundedCornerShape(topStart = 10.dp, topEnd = 14.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f))
                     .border(
@@ -201,38 +209,46 @@ fun LeaseCard(
                     )
                     .padding(horizontal = 14.dp, vertical = 7.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = visual.tabIcon,
-                        contentDescription = null,
-                        tint = visual.accentColor,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Text(
-                        text = folderLabel,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
-                        ),
-                        color = visual.accentColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = contractId,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace
-                        ),
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
+                AdaptiveFolderTabContent(
+                    spacing = innerSpacing,
+                    icon = {
+                        Icon(
+                            imageVector = visual.tabIcon,
+                            contentDescription = null,
+                            tint = visual.accentColor,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = folderLabel,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = visual.accentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    contractId = {
+                        if (contractId.isNotBlank()) {
+                            Text(
+                                text = contractId,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace
+                                ),
+                                color = MaterialTheme.colorScheme.outline,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                    }
+                )
             }
 
-            // Status Badge Chip
+            // Status Badge Chip (always keeps its full intrinsic width)
             Box(
                 modifier = Modifier
                     .padding(bottom = 3.dp)
@@ -258,7 +274,9 @@ fun LeaseCard(
                             fontSize = 10.sp,
                             letterSpacing = 0.5.sp
                         ),
-                        color = visual.accentColor
+                        color = visual.accentColor,
+                        maxLines = 1,
+                        softWrap = false
                     )
                 }
             }
@@ -536,6 +554,85 @@ fun LeaseCard(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdaptiveFolderTabContent(
+    spacing: Dp,
+    icon: @Composable () -> Unit,
+    label: @Composable () -> Unit,
+    contractId: @Composable () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Layout(
+        contents = listOf(icon, label, contractId),
+        modifier = modifier
+    ) { (iconMeasurables, labelMeasurables, idMeasurables), constraints ->
+        val spacingPx = spacing.roundToPx()
+        val looseConstraints = constraints.copy(minWidth = 0, maxWidth = Constraints.Infinity)
+
+        // 1. Measure icon at its natural size
+        val iconPlaceable = iconMeasurables.firstOrNull()?.measure(looseConstraints)
+        val iconWidth = iconPlaceable?.width ?: 0
+
+        // 2. Check intrinsic widths of label and contractId without truncating
+        val labelIntrinsicWidth = labelMeasurables.firstOrNull()
+            ?.maxIntrinsicWidth(constraints.maxHeight) ?: 0
+        val idPlaceable = idMeasurables.firstOrNull()?.measure(looseConstraints)
+        val idWidth = idPlaceable?.width ?: 0
+
+        val baseWidthWithLabel = iconWidth +
+                (if (iconWidth > 0 && labelIntrinsicWidth > 0) spacingPx else 0) +
+                labelIntrinsicWidth
+
+        val fullWidthWithId = baseWidthWithLabel +
+                (if (idWidth > 0) spacingPx + idWidth else 0)
+
+        // Show contractId ONLY if icon + full un-ellipsized label + contractId all fit
+        val showContractId = idWidth > 0 && fullWidthWithId <= constraints.maxWidth
+
+        // 3. Measure label: full width if contractId fits, otherwise bounded to remaining space (triggers Ellipsis)
+        val availableForLabel = (constraints.maxWidth - iconWidth - (if (iconWidth > 0) spacingPx else 0))
+            .coerceAtLeast(0)
+
+        val labelMaxWidth = if (showContractId) labelIntrinsicWidth else availableForLabel
+        val labelPlaceable = labelMeasurables.firstOrNull()?.measure(
+            constraints.copy(minWidth = 0, maxWidth = labelMaxWidth)
+        )
+        val labelWidth = labelPlaceable?.width ?: 0
+
+        val totalWidth = iconWidth +
+                (if (iconWidth > 0 && labelWidth > 0) spacingPx else 0) +
+                labelWidth +
+                (if (showContractId) spacingPx + idWidth else 0)
+
+        val maxHeight = maxOf(
+            iconPlaceable?.height ?: 0,
+            labelPlaceable?.height ?: 0,
+            if (showContractId) (idPlaceable?.height ?: 0) else 0
+        )
+
+        layout(
+            width = totalWidth.coerceIn(constraints.minWidth, constraints.maxWidth),
+            height = maxHeight.coerceIn(constraints.minHeight, constraints.maxHeight)
+        ) {
+            var currentX = 0
+            iconPlaceable?.let {
+                it.placeRelative(currentX, Alignment.CenterVertically.align(it.height, maxHeight))
+                currentX += it.width + spacingPx
+            }
+            labelPlaceable?.let {
+                it.placeRelative(currentX, Alignment.CenterVertically.align(it.height, maxHeight))
+                currentX += it.width + spacingPx
+            }
+            if (showContractId && idPlaceable != null) {
+                idPlaceable.placeRelative(
+                    currentX,
+                    Alignment.CenterVertically.align(idPlaceable.height, maxHeight)
+                )
             }
         }
     }

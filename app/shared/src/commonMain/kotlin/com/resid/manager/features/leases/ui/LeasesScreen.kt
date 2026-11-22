@@ -2,10 +2,10 @@ package com.resid.manager.features.leases.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
@@ -179,67 +179,71 @@ fun LeasesGridContent(
         }
     }
 
-    Column(
-        modifier = modifier.fillMaxSize().padding(24.dp),
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 350.dp),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        ResidTopAppBar(
-            title = "Contrats de bail",
-            actions = if (isAuthorized) {
-                listOf(
-                    ResidAppBarAction(
-                        title = "Nouveau contrat",
-                        icon = Icons.Default.Add,
-                        onClick = onNewLeaseClick
-                    )
-                )
-            } else emptyList()
-        )
-
-        LeasesFilterCapsuleBar(
-            activeFilter = uiState.activeFilter,
-            onFilterSelected = onFilterSelected
-        )
-
-        if (uiState.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else if (filteredLeases.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(
-                    text = "Aucun bail trouvé",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 300.dp),
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(filteredLeases) { lease ->
-                    val unit = residenceUnits.firstOrNull { it.id == lease.residenceUnitId }
-                    val tenants = members.filter { it.userId == lease.tenantId }
-                    LeaseCard(
-                        lease = lease,
-                        matchedUnit = unit,
-                        matchedTenant = tenants.firstOrNull(),
-                        currencySymbol = currencySymbol,
-                        onClick = { onLeaseClick(lease) }
-                    )
-                }
-
-                // Add Folder Card
-                if (isAuthorized) {
-                    item {
-                        LeaseAddFolderCard(
+        
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            ResidTopAppBar(
+                title = "Contrats de bail",
+                actions = if (isAuthorized) {
+                    listOf(
+                        ResidAppBarAction(
+                            title = "Nouveau contrat",
+                            icon = Icons.Default.Add,
                             onClick = onNewLeaseClick
                         )
-                    }
+                    )
+                } else emptyList()
+            )
+        }
+
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            LeasesFilterCapsuleBar(
+                activeFilter = uiState.activeFilter,
+                onFilterSelected = onFilterSelected
+            )
+        }
+
+        if (uiState.isLoading) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
+            }
+        } else if (filteredLeases.isEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "Aucun bail trouvé",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            items(filteredLeases) { lease ->
+                val unit = residenceUnits.firstOrNull { it.id == lease.residenceUnitId }
+                val tenants = members.filter { it.userId == lease.tenantId }
+                LeaseCard(
+                    lease = lease,
+                    matchedUnit = unit,
+                    matchedTenant = tenants.firstOrNull(),
+                    currencySymbol = currencySymbol,
+                    onClick = { onLeaseClick(lease) }
+                )
+            }
+        }
+
+        // Add Folder Card
+        if (isAuthorized) {
+            item {
+                LeaseAddFolderCard(
+                    onClick = onNewLeaseClick
+                )
             }
         }
     }
