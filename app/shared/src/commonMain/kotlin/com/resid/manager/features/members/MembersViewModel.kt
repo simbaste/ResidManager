@@ -50,6 +50,9 @@ class MembersViewModel(
                 }
             }
             is MembersIntent.LoadMembers -> loadResidenceAndMembers(intent.residenceId)
+            is MembersIntent.UpdateSearchQuery -> updateState { it.copy(searchQuery = intent.query) }
+            is MembersIntent.SelectRoleFilter -> updateState { it.copy(selectedRoleFilter = intent.role) }
+            is MembersIntent.ResetFilters -> updateState { it.copy(searchQuery = "", selectedRoleFilter = null) }
             is MembersIntent.ChangeSort -> {
                 val currentSort = uiState.value.sortBy
                 val currentAsc = uiState.value.sortAscending

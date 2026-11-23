@@ -9,9 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -23,12 +21,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
-import com.resid.manager.dto.InvitationStatusDto
 import com.resid.manager.dto.ResidenceMemberSummaryDto
-import com.resid.manager.dto.RoleDto
 import com.resid.manager.ui.components.SortHeaderIcon
 
 @Composable
@@ -37,7 +32,7 @@ fun MembersTable(
     sortBy: String,
     sortAscending: Boolean,
     onSortChanged: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -51,7 +46,7 @@ fun MembersTable(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF34D399)) // Vivid Flat Emerald background from design
+                    .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f))
                     .padding(vertical = 14.dp, horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -65,7 +60,7 @@ fun MembersTable(
                     Text(
                         text = "NOM COMPLET",
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF0F172A),
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(end = 4.dp)
                     )
                     SortHeaderIcon(
@@ -78,7 +73,7 @@ fun MembersTable(
                 Text(
                     text = "EMAIL",
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF0F172A),
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(2.5f)
                 )
 
@@ -86,7 +81,7 @@ fun MembersTable(
                 Text(
                     text = "TÉLÉPHONE",
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF0F172A),
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(2f)
                 )
 
@@ -101,7 +96,7 @@ fun MembersTable(
                     Text(
                         text = "RÔLE",
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF0F172A),
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(end = 4.dp)
                     )
                     SortHeaderIcon(
@@ -121,7 +116,7 @@ fun MembersTable(
                     Text(
                         text = "STATUT",
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF0F172A),
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(end = 4.dp)
                     )
                     SortHeaderIcon(
@@ -189,29 +184,7 @@ fun MembersTable(
                             modifier = Modifier.weight(2.5f),
                             contentAlignment = Alignment.Center
                         ) {
-                            val (roleBg, roleColor) = when (member.roleDto) {
-                                RoleDto.OWNER -> Pair(Color(0xFFA7F3D0), Color(0xFF065F46))
-                                RoleDto.ADMIN -> Pair(Color(0xFFA7F3D0), Color(0xFF065F46))
-                                RoleDto.TENANT -> Pair(Color(0xFFE0E7FF), Color(0xFF3730A3))
-                                RoleDto.MANAGER -> Pair(Color(0xFFFEE2E2), Color(0xFF991B1B))
-                                else -> Pair(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = roleBg),
-                                shape = RoundedCornerShape(9999.dp),
-                                modifier = Modifier.width(130.dp).height(30.dp),
-                                border = BorderStroke(1.dp, roleColor.copy(alpha = 0.15f))
-                            ) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = member.roleDto.name,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = roleColor,
-                                        modifier = Modifier.padding(horizontal = 10.dp)
-                                    )
-                                }
-                            }
+                            RoleBadge(role = member.roleDto)
                         }
 
                         // Cell: Status (Styled Capsule pill)
@@ -219,26 +192,7 @@ fun MembersTable(
                             modifier = Modifier.weight(2f),
                             contentAlignment = Alignment.Center
                         ) {
-                            val (statusBg, statusColor) = when (member.status) {
-                                InvitationStatusDto.ACCEPTED -> Pair(Color(0xFFD1FAE5), Color(0xFF065F46))
-                                else -> Pair(Color(0xFFFEE2E2), Color(0xFF991B1B))
-                            }
-
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = statusBg),
-                                shape = RoundedCornerShape(9999.dp),
-                                modifier = Modifier.width(110.dp).height(30.dp),
-                                border = BorderStroke(1.dp, statusColor.copy(alpha = 0.15f))
-                            ) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = member.status.name,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = statusColor,
-                                        modifier = Modifier.padding(horizontal = 8.dp)
-                                    )
-                                }
-                            }
+                            StatusBadge(status = member.status)
                         }
                     }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))

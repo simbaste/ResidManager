@@ -129,7 +129,7 @@ fun LeaseDetailAdminActions(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                modifier = Modifier.size(5.dp),
+                                modifier = Modifier.size(10.dp),
                                 imageVector = Icons.Default.Check,
                                 contentDescription = null,
                                 tint = Color(0xFF006948)
@@ -156,7 +156,12 @@ fun LeaseDetailAdminActions(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Clear, contentDescription = null, tint = Color.White)
+                        Icon(
+                            modifier = Modifier.size(10.dp),
+                            imageVector = Icons.Default.Clear,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
                         Text("Résilier / Clôturer le Contrat", color = Color.White)
                     }
                 }

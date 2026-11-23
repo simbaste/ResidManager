@@ -2,6 +2,7 @@ package com.resid.manager.features.members.mvi
 
 import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceMemberSummaryDto
+import com.resid.manager.dto.RoleDto
 import com.resid.manager.dto.UserSearchDto
 
 data class MembersUiState(
@@ -9,6 +10,8 @@ data class MembersUiState(
     val activeResidence: ResidenceContext? = null,
     val isAuthorized: Boolean = false,
     val members: List<ResidenceMemberSummaryDto> = emptyList(),
+    val searchQuery: String = "",
+    val selectedRoleFilter: RoleDto? = null,
     val sortBy: String = "name", // "name", "role", "status"
     val sortAscending: Boolean = true,
     val showInviteDialog: Boolean = false,
@@ -26,6 +29,9 @@ data class MembersUiState(
 sealed interface MembersIntent {
     data object Refresh : MembersIntent
     data class LoadMembers(val residenceId: String) : MembersIntent
+    data class UpdateSearchQuery(val query: String) : MembersIntent
+    data class SelectRoleFilter(val role: RoleDto?) : MembersIntent
+    data object ResetFilters : MembersIntent
     data class ChangeSort(val column: String) : MembersIntent
     data class SetShowInviteDialog(val show: Boolean) : MembersIntent
     data class SearchUsers(val query: String) : MembersIntent
