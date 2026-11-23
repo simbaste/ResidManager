@@ -163,7 +163,7 @@ fun FinancesContent(
                         isLoading = uiState.isLoading,
                         currencySymbol = currencySymbol,
                         onTraceabilityClick = onTraceabilityClick,
-                        modifier = Modifier.fillMaxWidth().height(450.dp)
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
 

@@ -3,7 +3,9 @@ package com.resid.manager.helpers
 import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.ElectricityStatementDto
 import com.resid.manager.dto.ElectricityStatusDto
+import com.resid.manager.dto.EntityTypeDto
 import com.resid.manager.dto.EquipmentDto
+import com.resid.manager.dto.FinanceTransactionDto
 import com.resid.manager.dto.GuarantorDto
 import com.resid.manager.dto.InvitationStatusDto
 import com.resid.manager.dto.LeaseCategory
@@ -15,6 +17,8 @@ import com.resid.manager.dto.ResidenceContext
 import com.resid.manager.dto.ResidenceMemberSummaryDto
 import com.resid.manager.dto.ResidenceUnitDto
 import com.resid.manager.dto.RoleDto
+import com.resid.manager.dto.TransactionCategoryDto
+import com.resid.manager.dto.TransactionTypeDto
 import com.resid.manager.dto.UnitStatusDto
 import com.resid.manager.dto.UserRole
 import com.resid.manager.features.electricity.mvi.ElectricityUiState
@@ -860,4 +864,280 @@ object PreviewResidenceMembersData {
     val pendingAndInvitedMembers: List<ResidenceMemberSummaryDto> = allMembers.filter {
         it.status == InvitationStatusDto.INVITED || it.status == InvitationStatusDto.PENDING_APPROVAL
     }
+}
+
+object PreviewFinanceTransactionsData {
+
+    // =========================================================================
+    // 1. INCOME TRANSACTIONS (Residence EURO — EUR)
+    // =========================================================================
+
+    val incomeDepositA1 = FinanceTransactionDto(
+        id = "tx-inc-001",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.INCOME,
+        category = TransactionCategoryDto.DEPOSIT,
+        amount = 500.0,
+        description = "Dépôt de garantie (Caution) — Unité A1 (Hervé Nsigne)",
+        relatedEntityType = EntityTypeDto.BAIL,
+        relatedEntityId = "lease-a1-2026",
+        transactionDate = "2026-11-22",
+        createdAt = "2026-11-22T10:15:00Z"
+    )
+
+    val incomeAdvanceRentA1 = FinanceTransactionDto(
+        id = "tx-inc-002",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.INCOME,
+        category = TransactionCategoryDto.RENT,
+        amount = 550.0,
+        description = "Avance de loyer Décembre 2026 CC — Unité A1 (Hervé Nsigne)",
+        relatedEntityType = EntityTypeDto.BAIL,
+        relatedEntityId = "lease-a1-2026",
+        transactionDate = "2026-11-22",
+        createdAt = "2026-11-22T10:16:00Z"
+    )
+
+    val incomePartialDepositD3 = FinanceTransactionDto(
+        id = "tx-inc-003",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.INCOME,
+        category = TransactionCategoryDto.LEASE_PAYMENT,
+        amount = 450.0,
+        description = "Acompte partiel sur dossier de bail — Unité D3 (Marc Kouamé)",
+        relatedEntityType = EntityTypeDto.BAIL,
+        relatedEntityId = "lease-partial-d3",
+        transactionDate = "2026-11-18",
+        createdAt = "2026-11-18T16:45:00Z"
+    )
+
+    val incomeNovRentA2 = FinanceTransactionDto(
+        id = "tx-inc-004",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.INCOME,
+        category = TransactionCategoryDto.RENT,
+        amount = 550.0,
+        description = "Loyer Novembre 2026 — Unité A2 (Gladys Naoussi)",
+        relatedEntityType = EntityTypeDto.BAIL,
+        relatedEntityId = "lease-a2-2026",
+        transactionDate = "2026-11-01",
+        createdAt = "2026-11-01T08:05:00Z"
+    )
+
+    val incomeAnnualRentA4 = FinanceTransactionDto(
+        id = "tx-inc-005",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.INCOME,
+        category = TransactionCategoryDto.RENT,
+        amount = 8400.0,
+        description = "Règlement loyer annuel 2026-2027 — Unité A4 (Armand Teko)",
+        relatedEntityType = EntityTypeDto.BAIL,
+        relatedEntityId = "lease-a4-2026",
+        transactionDate = "2026-11-01",
+        createdAt = "2026-11-01T09:12:00Z"
+    )
+
+    val incomeElecOctA2 = FinanceTransactionDto(
+        id = "tx-inc-006",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.INCOME,
+        category = TransactionCategoryDto.ELECTRICITY,
+        amount = 32.50,
+        description = "Remboursement consommation électrique Octobre (130 kWh) — Unité A2",
+        relatedEntityType = EntityTypeDto.ELECTRICITY_STATEMENT,
+        relatedEntityId = "stmt-001",
+        transactionDate = "2026-11-03",
+        createdAt = "2026-11-03T09:45:00Z"
+    )
+
+    val incomeElecOctA4 = FinanceTransactionDto(
+        id = "tx-inc-007",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.INCOME,
+        category = TransactionCategoryDto.ELECTRICITY,
+        amount = 55.00,
+        description = "Remboursement consommation électrique Octobre (220 kWh) — Unité A4",
+        relatedEntityType = EntityTypeDto.ELECTRICITY_STATEMENT,
+        relatedEntityId = "stmt-003",
+        transactionDate = "2026-11-02",
+        createdAt = "2026-11-02T14:20:00Z"
+    )
+
+    val incomeParkingExtra = FinanceTransactionDto(
+        id = "tx-inc-008",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.INCOME,
+        category = TransactionCategoryDto.OTHER,
+        amount = 45.0,
+        description = "Badge Vigik supplémentaire & télécommande portail",
+        relatedEntityType = null, // Tests standalone transaction without linked entity
+        relatedEntityId = null,
+        transactionDate = "2026-11-10",
+        createdAt = "2026-11-10T11:30:00Z"
+    )
+
+    // =========================================================================
+    // 2. EXPENSE TRANSACTIONS (Covering all operational categories & TICKET link)
+    // =========================================================================
+
+    val expensePlumbingTicket = FinanceTransactionDto(
+        id = "tx-exp-001",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.EXPENSE,
+        category = TransactionCategoryDto.MAINTENANCE,
+        amount = 185.0,
+        description = "Remplacement mitigeur et joint siphon cuisine — Unité B2",
+        relatedEntityType = EntityTypeDto.TICKET,
+        relatedEntityId = "ticket-maint-014",
+        transactionDate = "2026-11-19",
+        createdAt = "2026-11-19T15:40:00Z"
+    )
+
+    val expenseAcServiceTicket = FinanceTransactionDto(
+        id = "tx-exp-002",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.EXPENSE,
+        category = TransactionCategoryDto.MAINTENANCE,
+        amount = 90.0,
+        description = "Entretien annuel et recharge gaz climatiseur Split — Unité A1",
+        relatedEntityType = EntityTypeDto.TICKET,
+        relatedEntityId = "ticket-maint-011",
+        transactionDate = "2026-11-14",
+        createdAt = "2026-11-14T17:00:00Z"
+    )
+
+    val expenseCommonAreasCleaning = FinanceTransactionDto(
+        id = "tx-exp-003",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.EXPENSE,
+        category = TransactionCategoryDto.CLEANING,
+        amount = 240.0,
+        description = "Nettoyage mensuel des parties communes et remise à neuf Unité A1",
+        relatedEntityType = null,
+        relatedEntityId = null,
+        transactionDate = "2026-11-15",
+        createdAt = "2026-11-15T18:00:00Z"
+    )
+
+    val expenseGeneratorFuel = FinanceTransactionDto(
+        id = "tx-exp-004",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.EXPENSE,
+        category = TransactionCategoryDto.FUEL,
+        amount = 160.0,
+        description = "Approvisionnement gasoil groupe électrogène de secours (100L)",
+        relatedEntityType = null,
+        relatedEntityId = null,
+        transactionDate = "2026-11-12",
+        createdAt = "2026-11-12T10:20:00Z"
+    )
+
+    val expenseNightSecurity = FinanceTransactionDto(
+        id = "tx-exp-005",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.EXPENSE,
+        category = TransactionCategoryDto.SECURITY,
+        amount = 420.0,
+        description = "Prestation gardiennage & télésurveillance — Novembre 2026",
+        relatedEntityType = null,
+        relatedEntityId = null,
+        transactionDate = "2026-11-05",
+        createdAt = "2026-11-05T09:00:00Z"
+    )
+
+    val expenseGridElectricityBill = FinanceTransactionDto(
+        id = "tx-exp-006",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.EXPENSE,
+        category = TransactionCategoryDto.ELECTRICITY,
+        amount = 310.0,
+        description = "Facture fournisseur électricité compteur général résidence — Octobre",
+        relatedEntityType = null,
+        relatedEntityId = null,
+        transactionDate = "2026-11-04",
+        createdAt = "2026-11-04T13:10:00Z"
+    )
+
+    val expensePropertyTaxes = FinanceTransactionDto(
+        id = "tx-exp-007",
+        residenceId = "res-euro",
+        type = TransactionTypeDto.EXPENSE,
+        category = TransactionCategoryDto.TAXES,
+        amount = 650.0,
+        description = "Taxe d'enlèvement des ordures ménagères & impôt foncier T4",
+        relatedEntityType = null,
+        relatedEntityId = null,
+        transactionDate = "2026-11-01",
+        createdAt = "2026-11-01T11:00:00Z"
+    )
+
+    // =========================================================================
+    // 3. SECONDARY RESIDENCE SAMPLE (Résidence Les Palmiers — XOF / FCFA)
+    // =========================================================================
+
+    val palmiersDepositIncomeXof = FinanceTransactionDto(
+        id = "tx-xof-001",
+        residenceId = "res-palmiers",
+        type = TransactionTypeDto.INCOME,
+        category = TransactionCategoryDto.DEPOSIT,
+        amount = 300000.0,
+        description = "Caution 2 mois — Appartement P101 (Paul Tchoumi)",
+        relatedEntityType = EntityTypeDto.BAIL,
+        relatedEntityId = "lease-downpaid-p101",
+        transactionDate = "2026-11-22",
+        createdAt = "2026-11-22T15:10:00Z"
+    )
+
+    val palmiersFuelExpenseXof = FinanceTransactionDto(
+        id = "tx-xof-002",
+        residenceId = "res-palmiers",
+        type = TransactionTypeDto.EXPENSE,
+        category = TransactionCategoryDto.FUEL,
+        amount = 65000.0,
+        description = "Carburant groupe électrogène — Novembre",
+        relatedEntityType = null,
+        relatedEntityId = null,
+        transactionDate = "2026-11-16",
+        createdAt = "2026-11-16T12:00:00Z"
+    )
+
+    // =========================================================================
+    // 4. READY-TO-USE LISTS & KPI HELPERS FOR @Preview COMPOSABLES
+    // =========================================================================
+
+    /** Chronologically ordered (most recent first) transactions for Residence EURO */
+    val euroTransactions: List<FinanceTransactionDto> = listOf(
+        incomeDepositA1,
+        incomeAdvanceRentA1,
+        expensePlumbingTicket,
+        incomePartialDepositD3,
+        expenseCommonAreasCleaning,
+        expenseAcServiceTicket,
+        expenseGeneratorFuel,
+        incomeParkingExtra,
+        expenseNightSecurity,
+        expenseGridElectricityBill,
+        incomeElecOctA2,
+        incomeElecOctA4,
+        incomeAnnualRentA4,
+        incomeNovRentA2,
+        expensePropertyTaxes
+    )
+
+    val euroIncomes: List<FinanceTransactionDto> = euroTransactions.filter {
+        it.type == TransactionTypeDto.INCOME
+    }
+
+    val euroExpenses: List<FinanceTransactionDto> = euroTransactions.filter {
+        it.type == TransactionTypeDto.EXPENSE
+    }
+
+    val palmiersTransactionsXof: List<FinanceTransactionDto> = listOf(
+        palmiersDepositIncomeXof,
+        palmiersFuelExpenseXof
+    )
+
+    val totalEuroIncome: Double = euroIncomes.sumOf { it.amount }     // 10,582.50 €
+    val totalEuroExpense: Double = euroExpenses.sumOf { it.amount }   //  2,055.00 €
+    val netEuroBalance: Double = totalEuroIncome - totalEuroExpense   //  8,527.50 €
 }
