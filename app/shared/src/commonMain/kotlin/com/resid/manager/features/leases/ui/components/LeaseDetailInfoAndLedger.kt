@@ -15,12 +15,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.LeaseCategory
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.ResidenceMemberSummaryDto
 import com.resid.manager.dto.ResidenceUnitDto
+import com.resid.manager.helpers.PreviewLeasesData
+import com.resid.manager.helpers.PreviewResidenceMembersData
+import com.resid.manager.helpers.PreviewResidenceUnits
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun LeaseDetailInfoAndLedger(
@@ -139,5 +144,17 @@ fun LeaseDetailInfoAndLedger(
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun LeaseDetailInfoAndLedgerPreview() {
+    ResidTheme {
+        LeaseDetailInfoAndLedger(
+            lease = PreviewLeasesData.leasePendingPayment,
+            matchedUnit = PreviewResidenceUnits.unitB2,
+            matchedTenant = PreviewResidenceMembersData.tenantHerve
+        )
     }
 }

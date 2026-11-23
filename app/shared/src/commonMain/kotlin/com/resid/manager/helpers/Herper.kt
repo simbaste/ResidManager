@@ -4,8 +4,17 @@ import com.resid.manager.dto.AppCurrency
 import com.resid.manager.dto.ElectricityStatementDto
 import com.resid.manager.dto.ElectricityStatusDto
 import com.resid.manager.dto.EquipmentDto
+import com.resid.manager.dto.GuarantorDto
+import com.resid.manager.dto.InvitationStatusDto
+import com.resid.manager.dto.LeaseCategory
+import com.resid.manager.dto.LeaseDto
+import com.resid.manager.dto.LeasePaymentDto
+import com.resid.manager.dto.LeaseStatusDto
+import com.resid.manager.dto.PaymentFrequencyDto
 import com.resid.manager.dto.ResidenceContext
+import com.resid.manager.dto.ResidenceMemberSummaryDto
 import com.resid.manager.dto.ResidenceUnitDto
+import com.resid.manager.dto.RoleDto
 import com.resid.manager.dto.UnitStatusDto
 import com.resid.manager.dto.UserRole
 import com.resid.manager.features.electricity.mvi.ElectricityUiState
@@ -441,4 +450,414 @@ object PreviewElectricityData {
         isAuthorized = false,
         errorMessage = "Vous n'avez pas les permissions requises pour gérer les relevés électriques de cette résidence."
     )
+}
+
+object PreviewLeasesData {
+
+    // 1. Guarantors
+    val guarantorValairKabi = GuarantorDto(
+        id = "guar-001",
+        tenantId = "tenant-herve",
+        lastName = "Kabi",
+        firstName = "Valair",
+        phone = "+33 6 98 76 54 32",
+        monthlySalary = 3200.0,
+        relationship = "Oncle",
+        jobTitle = "Directeur Financier",
+        employer = "Groupe EuroTech"
+    )
+
+    val guarantorMarieTeko = GuarantorDto(
+        id = "guar-002",
+        tenantId = "tenant-armand",
+        lastName = "Teko",
+        firstName = "Marie-Claire",
+        phone = "+237 6 77 45 12 89",
+        monthlySalary = 2850.0,
+        relationship = "Mère",
+        jobTitle = "Médecin",
+        employer = "Clinique Centrale"
+    )
+
+    // 2. Payments
+    val a1DepositPayment = LeasePaymentDto(
+        id = "pay-a1-01",
+        category = LeaseCategory.DEPOSIT,
+        amount = 500.0,
+        description = "Dépôt de garantie (Caution 1 mois HC)",
+        transactionDate = "2026-11-22"
+    )
+
+    val a1AdvanceRentPayment = LeasePaymentDto(
+        id = "pay-a1-02",
+        category = LeaseCategory.RENT,
+        amount = 550.0,
+        description = "Avance de loyer — Décembre 2026 (CC)",
+        transactionDate = "2026-11-22"
+    )
+
+    val a2DepositPayment = LeasePaymentDto(
+        id = "pay-a2-01",
+        category = LeaseCategory.DEPOSIT,
+        amount = 500.0,
+        description = "Dépôt de garantie encaissé",
+        transactionDate = "2026-10-28"
+    )
+
+    val a2NovRentPayment = LeasePaymentDto(
+        id = "pay-a2-02",
+        category = LeaseCategory.RENT,
+        amount = 550.0,
+        description = "Loyer Novembre 2026",
+        transactionDate = "2026-11-01"
+    )
+
+    val a4DepositPayment = LeasePaymentDto(
+        id = "pay-a4-01",
+        category = LeaseCategory.DEPOSIT,
+        amount = 1000.0,
+        description = "Caution 2 mois",
+        transactionDate = "2026-10-25"
+    )
+
+    val a4AnnualRentPayment = LeasePaymentDto(
+        id = "pay-a4-02",
+        category = LeaseCategory.RENT,
+        amount = 8400.0,
+        description = "Règlement annuel 2026-2027",
+        transactionDate = "2026-11-01"
+    )
+
+    val d3PartialDepositPayment = LeasePaymentDto(
+        id = "pay-d3-01",
+        category = LeaseCategory.DEPOSIT,
+        amount = 450.0,
+        description = "Acompte partiel sur caution (450 € / 950 €)",
+        transactionDate = "2026-11-18"
+    )
+
+    // 3. Leases covering all LeaseStatusDto states
+
+    /** 1. DRAFT — Early incomplete draft (only unit & tenant selected, nullable financials/dates) */
+    val leaseDraftEarly = LeaseDto(
+        id = "lease-draft-b2",
+        residenceUnitId = "unit-b2",
+        tenantId = "tenant-new-01",
+        startDate = null,
+        endDate = null,
+        depositAmount = null,
+        monthlyRentAtSign = null,
+        status = LeaseStatusDto.DRAFT,
+        createdAt = "2026-11-23T14:15:00Z",
+        updatedAt = "2026-11-23T14:20:00Z",
+        paymentFrequencyDto = PaymentFrequencyDto.MONTHLY,
+        advanceMonths = 1,
+        payments = emptyList(),
+        guarantor = null
+    )
+
+    /** 2. PENDING_PAYMENT — Financials & timeline filled, waiting for deposit + advance payment */
+    val leasePendingPayment = LeaseDto(
+        id = "lease-pending-pay-c1",
+        residenceUnitId = "unit-c1",
+        tenantId = "tenant-sophie",
+        startDate = "2026-12-15",
+        endDate = "2027-12-14",
+        depositAmount = 520.0,
+        monthlyRentAtSign = 565.0,
+        status = LeaseStatusDto.PENDING_PAYMENT,
+        createdAt = "2026-11-20T10:00:00Z",
+        updatedAt = "2026-11-21T09:30:00Z",
+        paymentFrequencyDto = PaymentFrequencyDto.MONTHLY,
+        advanceMonths = 2,
+        payments = emptyList(),
+        guarantor = null
+    )
+
+    /** 3. PARTIALLY_PAID — Part of the deposit paid, still locked before signature */
+    val leasePartiallyPaid = LeaseDto(
+        id = "lease-partial-d3",
+        residenceUnitId = "unit-d3",
+        tenantId = "tenant-marc",
+        startDate = "2026-12-01",
+        endDate = "2027-11-30",
+        depositAmount = 950.0,
+        monthlyRentAtSign = 1040.0,
+        status = LeaseStatusDto.PARTIALLY_PAID,
+        createdAt = "2026-11-18T11:00:00Z",
+        updatedAt = "2026-11-18T16:45:00Z",
+        paymentFrequencyDto = PaymentFrequencyDto.MONTHLY,
+        advanceMonths = 1,
+        payments = listOf(d3PartialDepositPayment),
+        guarantor = null
+    )
+
+    /** 4. DOWN_PAYMENT_PAID — Initial deposit covered, advance rent remaining */
+    val leaseDownPaymentPaid = LeaseDto(
+        id = "lease-downpaid-p101",
+        residenceUnitId = "unit-p101",
+        tenantId = "tenant-paul",
+        startDate = "2026-12-01",
+        endDate = "2027-11-30",
+        depositAmount = 620.0,
+        monthlyRentAtSign = 675.0,
+        status = LeaseStatusDto.DOWN_PAYMENT_PAID,
+        createdAt = "2026-11-19T08:30:00Z",
+        updatedAt = "2026-11-22T15:10:00Z",
+        paymentFrequencyDto = PaymentFrequencyDto.MONTHLY,
+        advanceMonths = 1,
+        payments = listOf(
+            LeasePaymentDto(
+                id = "pay-p101-01",
+                category = LeaseCategory.DEPOSIT,
+                amount = 620.0,
+                description = "Dépôt de garantie réglé",
+                transactionDate = "2026-11-22"
+            )
+        ),
+        guarantor = null
+    )
+
+    /** 5. PENDING_SIGNATURE — 100% ready (Unit A1, Hervé Nsigne, Valair Kabi, Deposit + Advance paid) */
+    val leasePendingSignatureA1 = LeaseDto(
+        id = "lease-a1-2026",
+        residenceUnitId = "unit-a1",
+        tenantId = "tenant-herve",
+        startDate = "2026-12-01",
+        endDate = "2027-11-30",
+        depositAmount = 500.0,
+        monthlyRentAtSign = 550.0,
+        status = LeaseStatusDto.PENDING_SIGNATURE,
+        createdAt = "2026-11-21T09:00:00Z",
+        updatedAt = "2026-11-23T10:15:00Z",
+        paymentFrequencyDto = PaymentFrequencyDto.MONTHLY,
+        advanceMonths = 1,
+        payments = listOf(a1DepositPayment, a1AdvanceRentPayment),
+        guarantor = guarantorValairKabi
+    )
+
+    /** 6. SIGNED_ACTIVE (Monthly) — Unit A2 (Gladys Naoussi), locked for deletion & unit change */
+    val leaseSignedActiveA2 = LeaseDto(
+        id = "lease-a2-2026",
+        residenceUnitId = "unit-a2",
+        tenantId = "tenant-gladys",
+        startDate = "2026-11-01",
+        endDate = "2027-11-01",
+        depositAmount = 500.0,
+        monthlyRentAtSign = 500.0,
+        status = LeaseStatusDto.SIGNED_ACTIVE,
+        createdAt = "2026-10-25T14:00:00Z",
+        updatedAt = "2026-11-01T08:00:00Z",
+        paymentFrequencyDto = PaymentFrequencyDto.MONTHLY,
+        advanceMonths = 1,
+        payments = listOf(a2DepositPayment, a2NovRentPayment),
+        guarantor = null
+    )
+
+    /** 7. SIGNED_ACTIVE (Annual) — Unit A4 (Armand Teko), tests ANNUAL payment frequency */
+    val leaseSignedActiveAnnualA4 = LeaseDto(
+        id = "lease-a4-2026",
+        residenceUnitId = "unit-a4",
+        tenantId = "tenant-armand",
+        startDate = "2026-11-01",
+        endDate = "2027-11-01",
+        depositAmount = 1000.0,
+        monthlyRentAtSign = 700.0,
+        status = LeaseStatusDto.SIGNED_ACTIVE,
+        createdAt = "2026-10-20T12:00:00Z",
+        updatedAt = "2026-11-01T09:00:00Z",
+        paymentFrequencyDto = PaymentFrequencyDto.ANNUAL,
+        advanceMonths = 12,
+        payments = listOf(a4DepositPayment, a4AnnualRentPayment),
+        guarantor = guarantorMarieTeko
+    )
+
+    /** 8. TERMINATED — Historical closed lease for archive/read-only UI testing */
+    val leaseTerminatedOldA1 = LeaseDto(
+        id = "lease-a1-2025",
+        residenceUnitId = "unit-a1",
+        tenantId = "tenant-former-01",
+        startDate = "2025-11-01",
+        endDate = "2026-10-31",
+        depositAmount = 480.0,
+        monthlyRentAtSign = 480.0,
+        status = LeaseStatusDto.TERMINATED,
+        createdAt = "2025-10-15T10:00:00Z",
+        updatedAt = "2026-10-31T18:00:00Z",
+        paymentFrequencyDto = PaymentFrequencyDto.MONTHLY,
+        advanceMonths = 1,
+        payments = listOf(
+            LeasePaymentDto(
+                id = "pay-old-01",
+                category = LeaseCategory.DEPOSIT,
+                amount = 480.0,
+                description = "Caution initiale 2025",
+                transactionDate = "2025-10-20"
+            )
+        ),
+        guarantor = null
+    )
+
+    val allLeases: List<LeaseDto> = listOf(
+        leasePendingSignatureA1,
+        leaseDraftEarly,
+        leasePendingPayment,
+        leasePartiallyPaid,
+        leaseDownPaymentPaid,
+        leaseSignedActiveA2,
+        leaseSignedActiveAnnualA4,
+        leaseTerminatedOldA1
+    )
+
+    /** Unsigned leases (can be edited in full & deleted in LeaseDetailHeader) */
+    val unsignedLeases: List<LeaseDto> = allLeases.filter {
+        it.status != LeaseStatusDto.SIGNED_ACTIVE && it.status != LeaseStatusDto.TERMINATED
+    }
+
+    /** Active signed leases (cannot be deleted, unit/financials/timeline locked) */
+    val activeLeases: List<LeaseDto> = allLeases.filter {
+        it.status == LeaseStatusDto.SIGNED_ACTIVE
+    }
+}
+
+object PreviewResidenceMembersData {
+
+    // 1. Management & Operations Team (OWNER, ADMIN, MANAGER, STAFF)
+    val ownerAdmin = ResidenceMemberSummaryDto(
+        userId = "user-owner-01",
+        firstName = "Admin",
+        lastName = "ResidManager",
+        email = "owner@residmanager.com",
+        phone = "+33 6 11 22 33 44",
+        roleDto = RoleDto.OWNER,
+        status = InvitationStatusDto.ACCEPTED
+    )
+
+    val coAdmin = ResidenceMemberSummaryDto(
+        userId = "user-admin-01",
+        firstName = "Claire",
+        lastName = "Moreau",
+        email = "claire.moreau@residmanager.com",
+        phone = "+33 6 44 55 66 77",
+        roleDto = RoleDto.ADMIN,
+        status = InvitationStatusDto.ACCEPTED
+    )
+
+    val propertyManager = ResidenceMemberSummaryDto(
+        userId = "user-manager-01",
+        firstName = "Samuel",
+        lastName = "Mbarga",
+        email = "s.mbarga@residmanager.com",
+        phone = "+237 6 91 02 03 04",
+        roleDto = RoleDto.MANAGER,
+        status = InvitationStatusDto.ACCEPTED
+    )
+
+    val maintenanceStaffAccepted = ResidenceMemberSummaryDto(
+        userId = "user-staff-01",
+        firstName = "Lucas",
+        lastName = "Bernard",
+        email = "lucas.maintenance@residmanager.com",
+        phone = null, // Tests nullable phone fallback in UI
+        roleDto = RoleDto.STAFF,
+        status = InvitationStatusDto.ACCEPTED
+    )
+
+    val caretakerStaffInvited = ResidenceMemberSummaryDto(
+        userId = "user-staff-02",
+        firstName = "Nadine",
+        lastName = "Essomba",
+        email = "nadine.essomba@email.com",
+        phone = "+237 6 70 88 99 00",
+        roleDto = RoleDto.STAFF,
+        status = InvitationStatusDto.INVITED
+    )
+
+    // 2. Tenants (Matching IDs & names from PreviewLeasesData & PreviewResidenceUnits)
+    val tenantHerve = ResidenceMemberSummaryDto(
+        userId = "tenant-herve",
+        firstName = "Hervé",
+        lastName = "Nsigne",
+        email = "herve.nsigne@email.com",
+        phone = "+237 6 99 12 34 56",
+        roleDto = RoleDto.TENANT,
+        status = InvitationStatusDto.ACCEPTED
+    )
+
+    val tenantGladys = ResidenceMemberSummaryDto(
+        userId = "tenant-gladys",
+        firstName = "Gladys",
+        lastName = "Naoussi",
+        email = "gladys.naoussi@email.com",
+        phone = "+33 6 78 12 34 90",
+        roleDto = RoleDto.TENANT,
+        status = InvitationStatusDto.ACCEPTED
+    )
+
+    val tenantArmand = ResidenceMemberSummaryDto(
+        userId = "tenant-armand",
+        firstName = "Armand",
+        lastName = "Teko",
+        email = "armand.teko@email.com",
+        phone = "+237 6 55 44 33 22",
+        roleDto = RoleDto.TENANT,
+        status = InvitationStatusDto.ACCEPTED
+    )
+
+    val tenantSophieInvited = ResidenceMemberSummaryDto(
+        userId = "tenant-sophie",
+        firstName = "Sophie",
+        lastName = "Laurent",
+        email = "sophie.laurent@email.com",
+        phone = "+33 6 23 45 67 89",
+        roleDto = RoleDto.TENANT,
+        status = InvitationStatusDto.INVITED
+    )
+
+    val tenantMarcPendingApproval = ResidenceMemberSummaryDto(
+        userId = "tenant-marc",
+        firstName = "Marc",
+        lastName = "Kouamé",
+        email = "marc.kouame@email.com",
+        phone = null, // Tests nullable phone with pending badge
+        roleDto = RoleDto.TENANT,
+        status = InvitationStatusDto.PENDING_APPROVAL
+    )
+
+    val tenantPaulDeclined = ResidenceMemberSummaryDto(
+        userId = "tenant-paul",
+        firstName = "Paul",
+        lastName = "Tchoumi",
+        email = "paul.tchoumi@email.com",
+        phone = "+33 7 81 92 03 14",
+        roleDto = RoleDto.TENANT,
+        status = InvitationStatusDto.DECLINED
+    )
+
+    // 3. Ready-to-use Filtered Lists for @Preview Composables
+    val allMembers: List<ResidenceMemberSummaryDto> = listOf(
+        ownerAdmin,
+        coAdmin,
+        propertyManager,
+        maintenanceStaffAccepted,
+        caretakerStaffInvited,
+        tenantHerve,
+        tenantGladys,
+        tenantArmand,
+        tenantSophieInvited,
+        tenantMarcPendingApproval,
+        tenantPaulDeclined
+    )
+
+    val staffAndManagementMembers: List<ResidenceMemberSummaryDto> = allMembers.filter {
+        it.roleDto != RoleDto.TENANT
+    }
+
+    val tenantMembers: List<ResidenceMemberSummaryDto> = allMembers.filter {
+        it.roleDto == RoleDto.TENANT
+    }
+
+    val pendingAndInvitedMembers: List<ResidenceMemberSummaryDto> = allMembers.filter {
+        it.status == InvitationStatusDto.INVITED || it.status == InvitationStatusDto.PENDING_APPROVAL
+    }
 }

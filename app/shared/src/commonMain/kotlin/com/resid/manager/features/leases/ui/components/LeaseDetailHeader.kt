@@ -2,6 +2,7 @@ package com.resid.manager.features.leases.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,6 +18,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -25,15 +27,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import com.resid.manager.dto.LeaseDto
 import com.resid.manager.dto.LeaseStatusDto
+import com.resid.manager.helpers.PreviewLeasesData
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun LeaseDetailHeader(
     lease: LeaseDto,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isCompact: Boolean,
     canEdit: Boolean = false,
     canDelete: Boolean = false,
     isDeleting: Boolean = false,
@@ -49,10 +55,11 @@ fun LeaseDetailHeader(
         else -> Triple(Color(0xFFFDE8E8), Color(0xFFBA1A1A), "ATTENTE DE VERSEMENT")
     }
 
-    Row(
+    FlowRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = onBackClick) {
@@ -69,7 +76,11 @@ fun LeaseDetailHeader(
                     Text("Retour à la liste", color = Color(0xFF006948))
                 }
             }
-            Text(text = "Détails du Contrat de Bail", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+            Text(
+                text = "Détails du Contrat de Bail",
+                style = if (isCompact) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
 
         Row(
@@ -90,35 +101,42 @@ fun LeaseDetailHeader(
             }
 
             if (canEdit) {
-                FilledTonalButton(
-                    onClick = onEditClick,
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                if (isCompact) {
+                    IconButton(
+                        onClick = onEditClick,
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Modifier",
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary,
                         )
-                        Text("Modifier")
+                    }
+                } else {
+                    FilledTonalButton(
+                        onClick = onEditClick,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Modifier",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text("Modifier")
+                        }
                     }
                 }
             }
 
             if (canDelete) {
-                OutlinedButton(
-                    onClick = onDeleteClick,
-                    enabled = !isDeleting,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                if (isCompact) {
+                    IconButton(
+                        onClick = onDeleteClick,
+                        enabled = !isDeleting,
                     ) {
                         if (isDeleting) {
                             CircularProgressIndicator(
@@ -130,13 +148,56 @@ fun LeaseDetailHeader(
                             Icon(
                                 imageVector = Icons.Default.Delete,
                                 contentDescription = "Supprimer",
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.error
                             )
                         }
-                        Text("Supprimer")
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = onDeleteClick,
+                        enabled = !isDeleting,
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        border = BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (isDeleting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Supprimer",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Text("Supprimer")
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun LeaseDetailHeaderPreview() {
+    ResidTheme {
+        LeaseDetailHeader(
+            lease = PreviewLeasesData.leasePendingPayment,
+            isCompact = true,
+            onBackClick = {},
+        )
     }
 }
