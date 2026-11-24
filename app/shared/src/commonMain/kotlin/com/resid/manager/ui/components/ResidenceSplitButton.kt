@@ -13,8 +13,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
@@ -70,7 +71,7 @@ fun ResidenceSplitButton(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Home,
+                        imageVector = Icons.Default.Apartment,
                         contentDescription = null,
                         tint = splitButtonColor,
                         modifier = Modifier.size(16.dp)
@@ -110,7 +111,7 @@ fun ResidenceSplitButton(
         DropdownMenu(
             expanded = showDropdown,
             onDismissRequest = { showDropdown = false },
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(10.dp)
         ) {
             if (residences.isEmpty()) {
                 DropdownMenuItem(
@@ -145,9 +146,19 @@ fun ResidenceSplitButton(
                         text = { Text(residence.residenceName) },
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Default.Home,
+                                imageVector = Icons.Default.Apartment,
                                 contentDescription = null
                             )
+                        },
+                        trailingIcon = {
+                            if (selectedResidence?.residenceId == residence.residenceId) {
+                                Icon(
+                                    modifier = Modifier.size(15.dp),
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         },
                         onClick = {
                             onResidenceSelected(residence)
