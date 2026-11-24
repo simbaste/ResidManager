@@ -20,6 +20,7 @@ import com.resid.manager.dto.RoleDto
 import com.resid.manager.dto.TransactionCategoryDto
 import com.resid.manager.dto.TransactionTypeDto
 import com.resid.manager.dto.UnitStatusDto
+import com.resid.manager.dto.UserDto
 import com.resid.manager.dto.UserRole
 import com.resid.manager.features.electricity.mvi.ElectricityUiState
 
@@ -1140,4 +1141,90 @@ object PreviewFinanceTransactionsData {
     val totalEuroIncome: Double = euroIncomes.sumOf { it.amount }     // 10,582.50 €
     val totalEuroExpense: Double = euroExpenses.sumOf { it.amount }   //  2,055.00 €
     val netEuroBalance: Double = totalEuroIncome - totalEuroExpense   //  8,527.50 €
+}
+
+object PreviewUsersData {
+
+    // 1. Complete Profiles (Fully populated fields)
+    val userAlex = UserDto(
+        id = "usr_9f83a1b2-c4d5-4e6f-8a7b-1c2d3e4f5a6b",
+        email = "alex.smith@example.com",
+        firstName = "Alex",
+        lastName = "Smith",
+        phone = "+1 555 019 8234",
+        birthDate = "1998-05-14",
+        avatarUrl = "https://example.com/avatars/alex.jpg",
+        createdAt = "2025-01-10T08:30:00Z",
+        updatedAt = "2026-03-12T14:15:00Z"
+    )
+
+    val userTaylor = UserDto(
+        id = "usr_7e6d5c4b-3a2b-1c0d-9e8f-7a6b5c4d3e2f",
+        email = "taylor.jones@example.com",
+        firstName = "Taylor",
+        lastName = "Jones",
+        phone = "+44 7911 123456",
+        birthDate = "1995-08-30",
+        avatarUrl = "https://example.com/avatars/taylor.jpg",
+        createdAt = "2024-11-19T16:05:12Z",
+        updatedAt = "2026-04-01T09:40:00Z"
+    )
+
+    // 2. Incomplete Profiles (Testing nullable fields & UI fallbacks)
+    val userJordanNoPhone = UserDto(
+        id = "usr_4c3b2a1e-f6e5-4d3c-b2a1-9f8e7d6c5b4a",
+        email = "jordan.lee@example.com",
+        firstName = "Jordan",
+        lastName = "Lee",
+        phone = null, // Tests nullable phone fallback in UI
+        birthDate = "2001-11-22",
+        avatarUrl = "https://example.com/avatars/jordan.png",
+        createdAt = "2026-02-04T11:20:45Z",
+        updatedAt = "2026-02-04T11:20:45Z"
+    )
+
+    val userMorganNoAvatar = UserDto(
+        id = "usr_8a9b0c1d-2e3f-4a5b-6c7d-8e9f0a1b2c3d",
+        email = "morgan.wright@example.com",
+        firstName = "Morgan",
+        lastName = "Wright",
+        phone = "+33 6 12 34 56 78",
+        birthDate = "1988-03-15",
+        avatarUrl = null, // Tests missing avatar/initials generation
+        createdAt = "2025-06-15T09:00:00Z",
+        updatedAt = "2025-06-15T09:00:00Z"
+    )
+
+    val userMinimalPendingProfile = UserDto(
+        id = "usr_1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+        email = "new.user@example.com",
+        firstName = null, // Tests missing names
+        lastName = null,
+        phone = null,
+        birthDate = null,
+        avatarUrl = null,
+        createdAt = "2026-11-24T10:00:00Z",
+        updatedAt = "2026-11-24T10:00:00Z"
+    )
+
+    // 3. Ready-to-use Filtered Lists for @Preview Composables
+    val allUsers: List<UserDto> = listOf(
+        userAlex,
+        userTaylor,
+        userJordanNoPhone,
+        userMorganNoAvatar,
+        userMinimalPendingProfile
+    )
+
+    val fullyOnboardedUsers: List<UserDto> = allUsers.filter {
+        it.firstName != null && it.lastName != null && it.phone != null
+    }
+
+    val usersMissingAvatars: List<UserDto> = allUsers.filter {
+        it.avatarUrl == null
+    }
+
+    val recentlyCreatedUsers: List<UserDto> = allUsers.filter {
+        it.createdAt.startsWith("2026")
+    }
 }

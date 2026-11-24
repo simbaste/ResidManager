@@ -35,12 +35,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.resid.manager.dto.UserDto
 import com.resid.manager.features.auth.ui.components.register.RegisterProfilePhotoSection
 import com.resid.manager.ui.components.AppTextField
 import com.resid.manager.ui.components.PhoneTextField
+import com.resid.manager.ui.theme.ResidTheme
 
 @Composable
 fun UserAccountTab(
@@ -89,12 +91,22 @@ fun UserAccountTab(
                     Text(
                         text = "Fiche d'Information Utilisateur",
                         style = MaterialTheme.typography.titleLarge,
-                        color = Color(0xFF006948)
+                        color = Color(0xFF006948),
+                        modifier = Modifier.weight(1f),
                     )
 
                     if (!isEditingProfile) {
-                        IconButton(onClick = onStartEditing) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit Profile", tint = Color(0xFF006948))
+                        IconButton(
+                            modifier = Modifier
+                                .padding(horizontal = 5.dp),
+                            onClick = onStartEditing
+                        ) {
+                            Icon(
+                                modifier = Modifier.size(25.dp),
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Profile",
+                                tint = Color(0xFF006948)
+                            )
                         }
                     }
                 }
@@ -240,5 +252,36 @@ fun UserAccountTab(
                 }
             }
         }
+    }
+}
+
+@PreviewLightDark
+@Composable
+fun UserAccountTabPreview() {
+    ResidTheme {
+        UserAccountTab(
+            user = null,
+            firstName = "John",
+            lastName = "Doe",
+            phone = "+33 6 12 34 56 78",
+            isEditingProfile = false,
+            editFirstName = "John",
+            editLastName = "Doe",
+            editPhone = "+33 6 12 34 56 70",
+            editAvatarUrl = null,
+            editAvatarBytes = null,
+            isAvatarRemoved = false,
+            isSavingProfile = false,
+            profileError = null,
+            onStartEditing = {},
+            onCancelEditing = {},
+            onFirstNameChanged = {},
+            onLastNameChanged = {},
+            onPhoneChanged = {},
+            onAvatarSelected = { _, _, _ -> },
+            onRemoveAvatar = {},
+            onSaveProfile = {},
+            onLogout = {}
+        )
     }
 }
