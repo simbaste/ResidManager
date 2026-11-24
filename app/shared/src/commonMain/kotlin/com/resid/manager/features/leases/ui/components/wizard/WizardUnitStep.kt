@@ -178,7 +178,7 @@ fun WizardUnitStep(
                                     Text(
                                         text = "Étage : ${unit.floor} • Type : ${unit.type} • Loyer : ${unit.nominalRent} $currencySymbol",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.outline
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
