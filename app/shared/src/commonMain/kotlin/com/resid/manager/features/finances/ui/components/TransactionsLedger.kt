@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Build
@@ -52,6 +54,7 @@ fun TransactionsLedger(
     modifier: Modifier = Modifier,
     transactions: List<FinanceTransactionDto>,
     isLoading: Boolean,
+    isSmallScreen: Boolean,
     currencySymbol: String = AppCurrency.DEFAULT.symbol,
     forcedWindowWidthSizeClass: WindowWidthSizeClass? = null,
     onTraceabilityClick: (Pair<String, String>) -> Unit,
@@ -92,6 +95,7 @@ fun TransactionsLedger(
                     TransactionsCardsContent(
                         transactions = transactions,
                         currencySymbol = currencySymbol,
+                        isSmallScreen = isSmallScreen,
                         onTraceabilityClick = onTraceabilityClick
                     )
                 }
@@ -121,10 +125,30 @@ private fun TransactionsTableContent(
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .padding(12.dp)
         ) {
-            Text("Date", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-            Text("Catégorie", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-            Text("Description & Liens", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(2f))
-            Text("Montant", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1.2f))
+            Text(
+                "Date",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Catégorie",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Description & Liens",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.weight(2f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Montant",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.weight(1.2f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -139,18 +163,29 @@ private fun TransactionsTableContent(
                         .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(tx.transactionDate, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(
+                        tx.transactionDate,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Text(
                         text = transactionCategoryLabel(tx.category),
                         style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(
                         modifier = Modifier.weight(2f),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(tx.description, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        Text(
+                            text = tx.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
 
                         if (tx.relatedEntityType != null && tx.relatedEntityId != null) {
                             Card(
@@ -172,7 +207,7 @@ private fun TransactionsTableContent(
                     Text(
                         text = if (isIncome) "+ ${tx.amount} $currencySymbol" else "- ${tx.amount} $currencySymbol",
                         style = MaterialTheme.typography.titleMedium,
-                        color = if (isIncome) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        color = if (isIncome) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
                         modifier = Modifier.weight(1.2f)
                     )
                 }
@@ -186,22 +221,42 @@ private fun TransactionsTableContent(
 private fun TransactionsCardsContent(
     transactions: List<FinanceTransactionDto>,
     currencySymbol: String,
+    isSmallScreen: Boolean,
     onTraceabilityClick: (Pair<String, String>) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        transactions.forEach { tx ->
-            TransactionCompactCard(
-                tx = tx,
-                currencySymbol = currencySymbol,
-                onTraceabilityClick = onTraceabilityClick
-            )
+    if (isSmallScreen) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            transactions.forEach { tx ->
+                TransactionCompactCard(
+                    tx = tx,
+                    currencySymbol = currencySymbol,
+                    onTraceabilityClick = onTraceabilityClick
+                )
+            }
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            transactions.forEach { tx ->
+                TransactionCompactCard(
+                    tx = tx,
+                    currencySymbol = currencySymbol,
+                    onTraceabilityClick = onTraceabilityClick
+                )
+            }
         }
     }
+
 }
 
 @Composable
@@ -397,6 +452,7 @@ fun TransactionsLedgerExpandedPreview() {
         TransactionsLedger(
             transactions = PreviewFinanceTransactionsData.euroTransactions,
             isLoading = false,
+            isSmallScreen = true,
             forcedWindowWidthSizeClass = WindowWidthSizeClass.Expanded,
             onTraceabilityClick = { _ -> }
         )
@@ -410,6 +466,7 @@ fun TransactionsLedgerCompactPreview() {
         TransactionsLedger(
             transactions = PreviewFinanceTransactionsData.euroTransactions,
             isLoading = false,
+            isSmallScreen = true,
             forcedWindowWidthSizeClass = WindowWidthSizeClass.Compact,
             onTraceabilityClick = { _ -> }
         )

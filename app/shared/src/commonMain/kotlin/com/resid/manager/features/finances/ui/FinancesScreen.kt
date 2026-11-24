@@ -162,6 +162,7 @@ fun FinancesContent(
                         transactions = uiState.transactions,
                         isLoading = uiState.isLoading,
                         currencySymbol = currencySymbol,
+                        isSmallScreen = isSmallScreen,
                         onTraceabilityClick = onTraceabilityClick,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -245,9 +246,10 @@ fun FinancesContent(
                         TransactionsLedger(
                             transactions = uiState.transactions,
                             isLoading = uiState.isLoading,
+                            isSmallScreen = isSmallScreen,
                             currencySymbol = currencySymbol,
                             onTraceabilityClick = onTraceabilityClick,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }

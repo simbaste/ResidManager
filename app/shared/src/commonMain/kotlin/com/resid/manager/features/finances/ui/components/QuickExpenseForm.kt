@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -100,16 +103,41 @@ fun QuickExpenseForm(
                         onClick = { expandedDropdown = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(selectedLabel)
+                        Row(horizontalArrangement = Arrangement.Center) {
+                            Text(selectedLabel)
+                            Spacer(Modifier.width(10.dp))
+                            Icon(
+                                imageVector = if (expandedDropdown) Icons.Default.ArrowDropUp  else Icons.Default.ArrowDropDown,
+                                contentDescription = null
+                            )
+                        }
                     }
                     DropdownMenu(
                         expanded = expandedDropdown,
                         onDismissRequest = { expandedDropdown = false },
-                        modifier = Modifier.width(312.dp)
+                        modifier = Modifier.width(312.dp),
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         validExpenseCategories.forEach { (key, label) ->
                             DropdownMenuItem(
-                                text = { Text(label) },
+                                text = {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 10.dp)
+                                    ) {
+                                        Text(label)
+                                        if (key == formCategory) {
+                                            Spacer(Modifier.width(20.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.CheckCircle,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                },
                                 onClick = {
                                     onCategoryChanged(key)
                                     expandedDropdown = false
