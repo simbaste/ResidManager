@@ -55,8 +55,8 @@ fun LeaseDetailAdminActions(
     onTerminateClick: () -> Unit,
     errorMessage: String? = null,
 ) {
-    val isAnnual = lease.paymentFrequencyDto == PaymentFrequencyDto.ANNUAL
-    val rentMonthsRequired = if (isAnnual) 12 else (lease.advanceMonths ?: 1)
+    // Use advanceMonths from the lease (which corresponds to the actual lease duration or selected advance months)
+    val rentMonthsRequired = lease.advanceMonths?.takeIf { it > 0 } ?: (if (lease.paymentFrequencyDto == PaymentFrequencyDto.ANNUAL) 12 else 1)
     val monthlyCharges = matchedUnit?.serviceCharges ?: 0.0
     val totalRequiredRent = rentMonthsRequired * ((lease.monthlyRentAtSign ?: 0.0) + monthlyCharges)
 
@@ -220,7 +220,8 @@ fun LeaseDetailAdminActions(
                                 paymentCategorySelected = "LOYER"
                                 localError = null
                             },
-                            label = { Text("Loyer d'avance") }
+                            enabled = remainingRent > 0.0,
+                            label = { Text(if (remainingRent <= 0.0) "Loyer d'avance (Soldé)" else "Loyer d'avance") }
                         )
                     }
 

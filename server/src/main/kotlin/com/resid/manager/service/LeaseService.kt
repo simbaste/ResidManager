@@ -248,8 +248,8 @@ object LeaseService {
         } else if (dbLease.status != LeaseStatus.DRAFT) {
             // If already transitioned beyond DRAFT and edited, recalculate financial target status
             val rentAndCharges = dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges
-            val advanceMonths = dbLease.advanceMonths ?: 1
-            val totalExpected = (dbLease.depositAmount ?: 0.0) + (advanceMonths * rentAndCharges)
+            val effectiveAdvanceMonths = dbLease.advanceMonths?.takeIf { it > 0 } ?: (if (dbLease.paymentFrequency == PaymentFrequency.ANNUAL) 12 else 1)
+            val totalExpected = (dbLease.depositAmount ?: 0.0) + (effectiveAdvanceMonths * rentAndCharges)
             val advancePayment = dbLease.advancePaymentAmount ?: 0.0
 
             dbLease.status = when {
@@ -297,7 +297,9 @@ object LeaseService {
         
         dbLease.depositStatus = if ((dbLease.advancePaymentAmount ?: 0.0) >= (dbLease.depositAmount ?: 0.0)) DepositStatus.PAID else DepositStatus.PENDING
         
-        val totalExpectedInitialPayment = (dbLease.depositAmount ?: 0.0) + (dbLease.residenceUnit.nominalRent * (dbLease.advanceMonths ?: 1))
+        val effectiveAdvanceMonths = dbLease.advanceMonths?.takeIf { it > 0 } ?: (if (dbLease.paymentFrequency == PaymentFrequency.ANNUAL) 12 else 1)
+        val rentAndCharges = dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges
+        val totalExpectedInitialPayment = (dbLease.depositAmount ?: 0.0) + (effectiveAdvanceMonths * rentAndCharges)
         
         dbLease.status = when {
             (dbLease.advancePaymentAmount ?: 0.0) >= totalExpectedInitialPayment -> LeaseStatus.PENDING_SIGNATURE
@@ -682,7 +684,8 @@ object LeaseService {
             }.sumOf { it.amount }
 
             val requiredCaution = dbLease.depositAmount ?: 0.0
-            val requiredRent = (dbLease.advanceMonths ?: 1) * (dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges)
+            val effectiveAdvanceMonths = dbLease.advanceMonths?.takeIf { it > 0 } ?: (if (dbLease.paymentFrequency == PaymentFrequency.ANNUAL) 12 else 1)
+            val requiredRent = effectiveAdvanceMonths * (dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges)
 
             dbLease.status = if (totalPaidCaution >= requiredCaution && totalPaidRent >= requiredRent) {
                 LeaseStatus.PENDING_SIGNATURE
@@ -855,7 +858,8 @@ object LeaseService {
         }.sumOf { it.amount }
 
         val requiredCaution = dbLease.depositAmount ?: 0.0
-        val requiredRent = (dbLease.advanceMonths ?: 1) * (dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges)
+        val effectiveAdvanceMonths = dbLease.advanceMonths?.takeIf { it > 0 } ?: (if (dbLease.paymentFrequency == PaymentFrequency.ANNUAL) 12 else 1)
+        val requiredRent = effectiveAdvanceMonths * (dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges)
 
         if (request.category == TransactionCategoryDto.DEPOSIT) {
             val remainingCaution = maxOf(0.0, requiredCaution - previousPaidCaution)
