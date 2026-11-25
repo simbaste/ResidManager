@@ -6,6 +6,7 @@ import com.resid.manager.base.MviViewModel
 import com.resid.manager.dto.GuarantorDto
 import com.resid.manager.dto.InlineTenantCreateRequest
 import com.resid.manager.dto.LeaseDraftStepUpdateRequest
+import com.resid.manager.dto.LeaseStatusDto
 import com.resid.manager.features.leases.mvi.LeaseWizardEffect
 import com.resid.manager.features.leases.mvi.LeaseWizardIntent
 import com.resid.manager.features.leases.mvi.LeaseWizardUiState
@@ -171,7 +172,7 @@ class LeaseWizardScreenViewModel(
 
     private fun determineInitialStep(state: LeaseWizardUiState): WizardStep {
         // If lease is already signed, open SIGNATURE or INVENTORY
-        if (state.leaseStatus == com.resid.manager.dto.LeaseStatusDto.SIGNED_ACTIVE) {
+        if (state.leaseStatus == LeaseStatusDto.SIGNED_ACTIVE) {
             return WizardStep.INVENTORY
         }
         val hasTenant = state.draftTenantId != null || (state.isInlineTenant && state.inlineFirstName.isNotBlank())
@@ -189,17 +190,17 @@ class LeaseWizardScreenViewModel(
         return WizardStep.SIGNATURE
     }
 
-    fun isStepEditable(step: WizardStep, leaseStatus: com.resid.manager.dto.LeaseStatusDto?): Boolean {
-        if (leaseStatus == null || leaseStatus == com.resid.manager.dto.LeaseStatusDto.DRAFT ||
-            leaseStatus == com.resid.manager.dto.LeaseStatusDto.PENDING_PAYMENT ||
-            leaseStatus == com.resid.manager.dto.LeaseStatusDto.DOWN_PAYMENT_PAID ||
-            leaseStatus == com.resid.manager.dto.LeaseStatusDto.PARTIALLY_PAID ||
-            leaseStatus == com.resid.manager.dto.LeaseStatusDto.PENDING_SIGNATURE) {
+    fun isStepEditable(step: WizardStep, leaseStatus: LeaseStatusDto?): Boolean {
+        if (leaseStatus == null || leaseStatus == LeaseStatusDto.DRAFT ||
+            leaseStatus == LeaseStatusDto.PENDING_PAYMENT ||
+            leaseStatus == LeaseStatusDto.DOWN_PAYMENT_PAID ||
+            leaseStatus == LeaseStatusDto.PARTIALLY_PAID ||
+            leaseStatus == LeaseStatusDto.PENDING_SIGNATURE) {
             // Unsigned lease: Steps 1 to 6 are editable. Step 7 (SIGNATURE) is dynamic
             return step != WizardStep.SIGNATURE
         }
 
-        if (leaseStatus == com.resid.manager.dto.LeaseStatusDto.SIGNED_ACTIVE) {
+        if (leaseStatus == LeaseStatusDto.SIGNED_ACTIVE) {
             // Already signed lease: UNIT, TENANT, FINANCIALS, TIMELINE are strictly locked.
             // INVENTORY is editable (état des lieux d'entrée/sortie, relevés de compteur, remise des clés).
             // GUARANTOR is editable only if no guarantor was previously attached.
@@ -574,7 +575,7 @@ class LeaseWizardScreenViewModel(
         
         // Dynamic Lock on SIGNATURE: Only unlock if required steps (TENANT, UNIT, FINANCIALS, TIMELINE) are complete
         // and for already signed leases, canSign is false.
-        val isAlreadySigned = state.leaseStatus == com.resid.manager.dto.LeaseStatusDto.SIGNED_ACTIVE
+        val isAlreadySigned = state.leaseStatus == LeaseStatusDto.SIGNED_ACTIVE
         val canSign = !isAlreadySigned && hasTenant && hasUnit && hasFinancials && hasDates && (state.draftLeaseId != null)
 
         newStatuses[WizardStep.SIGNATURE] = when {
