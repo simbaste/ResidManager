@@ -99,8 +99,19 @@ object LeaseService {
             )
         }
 
-        if (dbLease.status != LeaseStatus.DRAFT) {
-            throw HttpError(HttpStatusCode.BadRequest, "Seul un brouillon peut être mis à jour par étape.")
+        // Allow draft step updates on all pre-signature statuses
+        val editableStatuses = listOf(
+            LeaseStatus.DRAFT,
+            LeaseStatus.PENDING_PAYMENT,
+            LeaseStatus.PARTIALLY_PAID,
+            LeaseStatus.DOWN_PAYMENT_PAID,
+            LeaseStatus.PENDING_SIGNATURE
+        )
+        if (dbLease.status !in editableStatuses) {
+            throw HttpError(
+                HttpStatusCode.BadRequest,
+                "Impossible de modifier un contrat déjà signé ou clôturé (${dbLease.status.name})."
+            )
         }
 
         val now = LocalDateTime.now()
@@ -111,15 +122,21 @@ object LeaseService {
                     User.findById(UUID.fromString(request.tenantId))
                         ?: throw HttpError(HttpStatusCode.NotFound, "Locataire introuvable.")
                 } else if (request.inlineTenant != null) {
-                    val hashedPwd = String(BCrypt.withDefaults().hash(12, "password".toCharArray()))
                     val t = request.inlineTenant
-                    User.new {
-                        this.firstName = t.firstName
-                        this.lastName = t.lastName
-                        this.email = t.email
-                        this.phone = t.phone
-                        this.passwordHash = hashedPwd
-                        this.createdAt = now
+                    val existingUser = User.find { Users.email eq t.email.trim().lowercase() }.firstOrNull()
+                    if (existingUser != null) {
+                        existingUser
+                    } else {
+                        val hashedPwd = BCrypt.withDefaults().hashToString(12, "Test1234_".toCharArray())
+                        User.new {
+                            this.firstName = t.firstName.trim()
+                            this.lastName = t.lastName.trim()
+                            this.email = t.email.trim().lowercase()
+                            this.phone = t.phone?.trim()
+                            this.passwordHash = hashedPwd
+                            this.createdAt = now
+                            this.updatedAt = now
+                        }
                     }
                 } else {
                     throw HttpError(HttpStatusCode.BadRequest, "Veuillez spécifier un locataire.")
@@ -206,6 +223,31 @@ object LeaseService {
                 // Custom inventory setup if needed on draft step
             }
         }
+
+        // Recalculate pre-signature status:
+        // Keep DRAFT until all required steps (tenant, dates, deposit, frequency) are fully completed
+        val isComplete = dbLease.tenant != null &&
+                dbLease.startDate != null &&
+                dbLease.endDate != null &&
+                dbLease.depositAmount != null &&
+                dbLease.paymentFrequency != null
+
+        if (!isComplete) {
+            dbLease.status = LeaseStatus.DRAFT
+        } else if (dbLease.status != LeaseStatus.DRAFT) {
+            // If already transitioned beyond DRAFT and edited, recalculate financial target status
+            val rentAndCharges = dbLease.residenceUnit.nominalRent + dbLease.residenceUnit.serviceCharges
+            val advanceMonths = dbLease.advanceMonths ?: 1
+            val totalExpected = (dbLease.depositAmount ?: 0.0) + (advanceMonths * rentAndCharges)
+            val advancePayment = dbLease.advancePaymentAmount ?: 0.0
+
+            dbLease.status = when {
+                advancePayment >= totalExpected -> LeaseStatus.PENDING_SIGNATURE
+                advancePayment > 0.0 -> LeaseStatus.PARTIALLY_PAID
+                else -> LeaseStatus.PENDING_PAYMENT
+            }
+            dbLease.depositStatus = if (advancePayment >= (dbLease.depositAmount ?: 0.0)) DepositStatus.PAID else DepositStatus.PENDING
+        }
         
         dbLease.updatedAt = now
         dbLease.flush()
@@ -224,8 +266,15 @@ object LeaseService {
             )
         }
 
-        if (dbLease.status != LeaseStatus.DRAFT) {
-            throw HttpError(HttpStatusCode.BadRequest, "Le contrat n'est pas un brouillon.")
+        val editableStatuses = listOf(
+            LeaseStatus.DRAFT,
+            LeaseStatus.PENDING_PAYMENT,
+            LeaseStatus.PARTIALLY_PAID,
+            LeaseStatus.DOWN_PAYMENT_PAID,
+            LeaseStatus.PENDING_SIGNATURE
+        )
+        if (dbLease.status !in editableStatuses) {
+            throw HttpError(HttpStatusCode.BadRequest, "Le contrat ne peut plus être activé (${dbLease.status.name}).")
         }
         
         // Ensure all required fields are set before activating

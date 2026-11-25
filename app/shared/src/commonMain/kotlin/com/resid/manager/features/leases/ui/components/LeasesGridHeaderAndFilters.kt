@@ -93,6 +93,10 @@ fun LeasesFilterCapsuleBar(
                 isSelected = activeFilter == "ALL",
                 onClick = { onFilterSelected("ALL") })
             FilterCapsuleItem(
+                label = "Brouillons",
+                isSelected = activeFilter == "DRAFT",
+                onClick = { onFilterSelected("DRAFT") })
+            FilterCapsuleItem(
                 label = "En cours",
                 isSelected = activeFilter == "ACTIVE",
                 onClick = { onFilterSelected("ACTIVE") })

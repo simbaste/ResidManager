@@ -222,6 +222,12 @@ fun LeaseWizardContent(
                                             }
                                             Spacer(modifier = Modifier.width(8.dp))
                                         }
+                                        stepStatus == WizardStepStatus.LOCKED -> {
+                                            Badge(containerColor = MaterialTheme.colorScheme.outlineVariant) {
+                                                Text("Verrouillé", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(4.dp))
+                                            }
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                        }
                                         isCompleted -> {
                                             Icon(
                                                 Icons.Default.CheckCircle,
@@ -284,8 +290,51 @@ fun LeaseWizardContent(
                                                 modifier = Modifier.padding(12.dp)
                                             )
                                         }
+                                    } else if (!editable && step != WizardStep.UNIT) {
+                                        Card(
+                                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                        ) {
+                                            Text(
+                                                text = "Cette étape est verrouillée. Veuillez d'abord choisir et valider le logement (Étape 1).",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(12.dp)
+                                            )
+                                        }
                                     }
                                     when (step) {
+                                        WizardStep.UNIT -> {
+                                            WizardUnitStep(
+                                                residenceUnits = uiState.availableUnits,
+                                                draftResidenceUnitId = uiState.draftResidenceUnitId,
+                                                currencySymbol = uiState.currencySymbol,
+                                                onUnitSelected = {
+                                                    onIntent(
+                                                        LeaseWizardIntent.SelectUnit(
+                                                            it
+                                                        )
+                                                    )
+                                                }
+                                            )
+                                            if (editable) {
+                                                Spacer(modifier = Modifier.height(16.dp))
+                                                Button(
+                                                    onClick = { onIntent(LeaseWizardIntent.SubmitUnitStep) },
+                                                    enabled = !uiState.isSavingStep && uiState.draftResidenceUnitId.isNotBlank(),
+                                                    modifier = Modifier.align(Alignment.End)
+                                                ) {
+                                                    if (uiState.isSavingStep) {
+                                                        CircularProgressIndicator(
+                                                            modifier = Modifier.size(16.dp),
+                                                            color = MaterialTheme.colorScheme.onPrimary
+                                                        )
+                                                    } else {
+                                                        Text("Valider & Continuer")
+                                                    }
+                                                }
+                                            }
+                                        }
                                         WizardStep.TENANT -> {
                                             WizardTenantStep(
                                                 isInlineTenant = uiState.isInlineTenant,
@@ -298,6 +347,9 @@ fun LeaseWizardContent(
                                                 isSearchingUsers = uiState.isSearchingUsers,
                                                 draftTenantId = uiState.draftTenantId,
                                                 draftTenantName = uiState.draftTenantName,
+                                                inlineFirstNameError = uiState.inlineFirstNameError,
+                                                inlineLastNameError = uiState.inlineLastNameError,
+                                                inlineEmailError = uiState.inlineEmailError,
                                                 onInlineFirstNameChanged = {
                                                     onIntent(
                                                         LeaseWizardIntent.SetInlineFirstName(
@@ -379,6 +431,9 @@ fun LeaseWizardContent(
                                                 guarantorJobTitle = uiState.guarantorJobTitle,
                                                 guarantorEmployer = uiState.guarantorEmployer,
                                                 currencySymbol = uiState.currencySymbol,
+                                                guarantorLastNameError = uiState.guarantorLastNameError,
+                                                guarantorFirstNameError = uiState.guarantorFirstNameError,
+                                                guarantorPhoneError = uiState.guarantorPhoneError,
                                                 onSelectExistingGuarantor = {
                                                     onIntent(
                                                         LeaseWizardIntent.SelectExistingGuarantor(
@@ -437,37 +492,6 @@ fun LeaseWizardContent(
                                                 Button(
                                                     onClick = { onIntent(LeaseWizardIntent.SubmitGuarantorStep) },
                                                     enabled = !uiState.isSavingStep,
-                                                    modifier = Modifier.align(Alignment.End)
-                                                ) {
-                                                    if (uiState.isSavingStep) {
-                                                        CircularProgressIndicator(
-                                                            modifier = Modifier.size(16.dp),
-                                                            color = MaterialTheme.colorScheme.onPrimary
-                                                        )
-                                                    } else {
-                                                        Text("Valider & Continuer")
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        WizardStep.UNIT -> {
-                                            WizardUnitStep(
-                                                residenceUnits = uiState.availableUnits,
-                                                draftResidenceUnitId = uiState.draftResidenceUnitId,
-                                                currencySymbol = uiState.currencySymbol,
-                                                onUnitSelected = {
-                                                    onIntent(
-                                                        LeaseWizardIntent.SelectUnit(
-                                                            it
-                                                        )
-                                                    )
-                                                }
-                                            )
-                                            if (editable) {
-                                                Spacer(modifier = Modifier.height(16.dp))
-                                                Button(
-                                                    onClick = { onIntent(LeaseWizardIntent.SubmitUnitStep) },
-                                                    enabled = !uiState.isSavingStep && uiState.draftResidenceUnitId.isNotBlank(),
                                                     modifier = Modifier.align(Alignment.End)
                                                 ) {
                                                     if (uiState.isSavingStep) {

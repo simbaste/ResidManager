@@ -175,6 +175,7 @@ fun LeasesGridContent(
     val filteredLeases = remember(uiState.leases, uiState.activeFilter) {
         val list = uiState.leases
         when (uiState.activeFilter) {
+            "DRAFT" -> list.filter { it.status == LeaseStatusDto.DRAFT }
             "ACTIVE" -> list.filter { it.status == LeaseStatusDto.SIGNED_ACTIVE }
             "PENDING" -> list.filter {
                 it.status == LeaseStatusDto.PENDING_PAYMENT ||

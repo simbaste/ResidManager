@@ -1,0 +1,2 @@
+ALTER TABLE leases ALTER COLUMN status SET DEFAULT 'DRAFT';
+UPDATE leases SET status = 'DRAFT' WHERE status = 'PENDING_PAYMENT' AND tenant_id IS NULL;

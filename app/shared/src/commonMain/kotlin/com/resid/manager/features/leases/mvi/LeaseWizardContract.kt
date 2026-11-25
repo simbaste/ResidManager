@@ -16,9 +16,9 @@ enum class WizardStepStatus {
 }
 
 data class LeaseWizardUiState(
-    val currentStep: WizardStep = WizardStep.TENANT,
+    val currentStep: WizardStep = WizardStep.UNIT,
     val stepStatuses: Map<WizardStep, WizardStepStatus> = WizardStep.entries.associateWith { step ->
-        if (step == WizardStep.TENANT) WizardStepStatus.ACTIVE else WizardStepStatus.UPCOMING
+        if (step == WizardStep.UNIT) WizardStepStatus.ACTIVE else WizardStepStatus.LOCKED
     },
     val completionPercentage: Int = 0,
 
@@ -29,7 +29,11 @@ data class LeaseWizardUiState(
     val draftLeaseId: String? = null,
     val leaseStatus: com.resid.manager.dto.LeaseStatusDto? = null,
 
-    // Step 1: TENANT
+    // Step 1: UNIT
+    val draftResidenceUnitId: String = "",
+    val selectedUnit: ResidenceUnitDto? = null,
+
+    // Step 2: TENANT
     val isInlineTenant: Boolean = false,
     val draftTenantId: String? = null,
     val draftTenantName: String = "",
@@ -40,8 +44,11 @@ data class LeaseWizardUiState(
     val userQuery: String = "",
     val userResults: List<UserSearchDto> = emptyList(),
     val isSearchingUsers: Boolean = false,
+    val inlineFirstNameError: String? = null,
+    val inlineLastNameError: String? = null,
+    val inlineEmailError: String? = null,
 
-    // Step 2: GUARANTOR
+    // Step 3: GUARANTOR
     val existingGuarantors: List<GuarantorDto> = emptyList(),
     val selectedGuarantorId: String? = null,
     val isReusingGuarantor: Boolean = false,
@@ -53,10 +60,9 @@ data class LeaseWizardUiState(
     val guarantorJobTitle: String = "",
     val guarantorEmployer: String = "",
     val isGuarantorSkipped: Boolean = false,
-
-    // Step 3: UNIT
-    val draftResidenceUnitId: String = "",
-    val selectedUnit: ResidenceUnitDto? = null,
+    val guarantorLastNameError: String? = null,
+    val guarantorFirstNameError: String? = null,
+    val guarantorPhoneError: String? = null,
 
     // Step 4: FINANCIALS
     val draftDepositAmount: String = "0.0",
@@ -93,7 +99,11 @@ sealed interface LeaseWizardIntent {
 
     data class SetExpandedStep(val step: WizardStep) : LeaseWizardIntent
 
-    // Step 1: Tenant Intents
+    // Step 1: Unit Intents
+    data class SelectUnit(val unitId: String) : LeaseWizardIntent
+    data object SubmitUnitStep : LeaseWizardIntent
+
+    // Step 2: Tenant Intents
     data class SetUserQuery(val query: String) : LeaseWizardIntent
     data class SelectUser(val user: UserSearchDto) : LeaseWizardIntent
     data class ToggleInlineTenant(val isInline: Boolean) : LeaseWizardIntent
@@ -103,7 +113,7 @@ sealed interface LeaseWizardIntent {
     data class SetInlinePhone(val value: String) : LeaseWizardIntent
     data object SubmitTenantStep : LeaseWizardIntent
 
-    // Step 2: Guarantor Intents
+    // Step 3: Guarantor Intents
     data class SelectExistingGuarantor(val guarantor: GuarantorDto?) : LeaseWizardIntent
     data class ToggleReuseGuarantor(val reuse: Boolean) : LeaseWizardIntent
     data class SetGuarantorLastName(val value: String) : LeaseWizardIntent
@@ -115,10 +125,6 @@ sealed interface LeaseWizardIntent {
     data class SetGuarantorEmployer(val value: String) : LeaseWizardIntent
     data object SkipGuarantorStep : LeaseWizardIntent
     data object SubmitGuarantorStep : LeaseWizardIntent
-
-    // Step 3: Unit Intents
-    data class SelectUnit(val unitId: String) : LeaseWizardIntent
-    data object SubmitUnitStep : LeaseWizardIntent
 
     // Step 4: Financials Intents
     data class SetDepositAmount(val value: String) : LeaseWizardIntent

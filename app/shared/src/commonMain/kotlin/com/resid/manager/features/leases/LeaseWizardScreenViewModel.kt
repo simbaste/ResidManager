@@ -40,39 +40,54 @@ class LeaseWizardScreenViewModel(
     override fun onIntent(intent: LeaseWizardIntent) {
         when (intent) {
             is LeaseWizardIntent.Initialize -> handleInitialize(intent)
-            is LeaseWizardIntent.SetExpandedStep -> updateState { it.copy(currentStep = intent.step) }
+            is LeaseWizardIntent.SetExpandedStep -> handleSetExpandedStep(intent.step)
 
-            // Step 1: Tenant
+            // Step 1: Unit
+            is LeaseWizardIntent.SelectUnit -> handleSelectUnit(intent.unitId)
+            is LeaseWizardIntent.SubmitUnitStep -> submitUnitStep()
+
+            // Step 2: Tenant
             is LeaseWizardIntent.SetUserQuery -> handleUserQuery(intent.query)
             is LeaseWizardIntent.SelectUser -> handleSelectUser(intent)
             is LeaseWizardIntent.ToggleInlineTenant -> updateState {
                 it.copy(
                     isInlineTenant = intent.isInline,
-                    draftTenantId = if (intent.isInline) null else it.draftTenantId
+                    draftTenantId = if (intent.isInline) null else it.draftTenantId,
+                    inlineFirstNameError = null,
+                    inlineLastNameError = null,
+                    inlineEmailError = null
                 )
             }
-            is LeaseWizardIntent.SetInlineFirstName -> updateState { it.copy(inlineFirstName = intent.value) }
-            is LeaseWizardIntent.SetInlineLastName -> updateState { it.copy(inlineLastName = intent.value) }
-            is LeaseWizardIntent.SetInlineEmail -> updateState { it.copy(inlineEmail = intent.value) }
+            is LeaseWizardIntent.SetInlineFirstName -> updateState {
+                it.copy(inlineFirstName = intent.value, inlineFirstNameError = null)
+            }
+            is LeaseWizardIntent.SetInlineLastName -> updateState {
+                it.copy(inlineLastName = intent.value, inlineLastNameError = null)
+            }
+            is LeaseWizardIntent.SetInlineEmail -> updateState {
+                it.copy(inlineEmail = intent.value, inlineEmailError = null)
+            }
             is LeaseWizardIntent.SetInlinePhone -> updateState { it.copy(inlinePhone = intent.value) }
             is LeaseWizardIntent.SubmitTenantStep -> submitTenantStep()
 
-            // Step 2: Guarantor
+            // Step 3: Guarantor
             is LeaseWizardIntent.SelectExistingGuarantor -> handleSelectExistingGuarantor(intent.guarantor)
             is LeaseWizardIntent.ToggleReuseGuarantor -> handleToggleReuseGuarantor(intent.reuse)
-            is LeaseWizardIntent.SetGuarantorLastName -> updateState { it.copy(guarantorLastName = intent.value) }
-            is LeaseWizardIntent.SetGuarantorFirstName -> updateState { it.copy(guarantorFirstName = intent.value) }
-            is LeaseWizardIntent.SetGuarantorPhone -> updateState { it.copy(guarantorPhone = intent.value) }
+            is LeaseWizardIntent.SetGuarantorLastName -> updateState {
+                it.copy(guarantorLastName = intent.value, guarantorLastNameError = null)
+            }
+            is LeaseWizardIntent.SetGuarantorFirstName -> updateState {
+                it.copy(guarantorFirstName = intent.value, guarantorFirstNameError = null)
+            }
+            is LeaseWizardIntent.SetGuarantorPhone -> updateState {
+                it.copy(guarantorPhone = intent.value, guarantorPhoneError = null)
+            }
             is LeaseWizardIntent.SetGuarantorMonthlySalary -> updateState { it.copy(guarantorMonthlySalary = intent.value) }
             is LeaseWizardIntent.SetGuarantorRelationship -> updateState { it.copy(guarantorRelationship = intent.value) }
             is LeaseWizardIntent.SetGuarantorJobTitle -> updateState { it.copy(guarantorJobTitle = intent.value) }
             is LeaseWizardIntent.SetGuarantorEmployer -> updateState { it.copy(guarantorEmployer = intent.value) }
             is LeaseWizardIntent.SkipGuarantorStep -> skipGuarantorStep()
             is LeaseWizardIntent.SubmitGuarantorStep -> submitGuarantorStep()
-
-            // Step 3: Unit
-            is LeaseWizardIntent.SelectUnit -> handleSelectUnit(intent.unitId)
-            is LeaseWizardIntent.SubmitUnitStep -> submitUnitStep()
 
             // Step 4: Financials
             is LeaseWizardIntent.SetDepositAmount -> updateState { it.copy(draftDepositAmount = intent.value) }
@@ -98,13 +113,23 @@ class LeaseWizardScreenViewModel(
         }
     }
 
+    private fun handleSetExpandedStep(step: WizardStep) {
+        if (!isStepAccessible(step)) {
+            updateState { it.copy(errorMessage = "Veuillez d'abord choisir et valider le logement (Étape 1).") }
+            return
+        }
+        updateState { it.copy(currentStep = step) }
+    }
+
     private fun handleInitialize(intent: LeaseWizardIntent.Initialize) {
         val residenceId = intent.residenceId ?: sessionStorage?.loadLastSelectedResidenceId()
+        val initUnitId = intent.initialResidenceUnitId ?: uiState.value.draftResidenceUnitId
+
         updateState {
             it.copy(
                 residenceId = residenceId,
                 currencySymbol = intent.currencySymbol ?: it.currencySymbol,
-                draftResidenceUnitId = intent.initialResidenceUnitId ?: it.draftResidenceUnitId,
+                draftResidenceUnitId = initUnitId,
                 draftLeaseId = intent.draftLeaseId ?: it.draftLeaseId
             )
         }
@@ -115,14 +140,31 @@ class LeaseWizardScreenViewModel(
                 updateState { it.copy(isLoading = true, errorMessage = null) }
                 getAvailableUnitsUseCase(session.token, residenceId)
                     .onSuccess { units ->
-                        val initialUnit = units.firstOrNull { u -> u.id == (intent.initialResidenceUnitId ?: uiState.value.draftResidenceUnitId) }
+                        val initialUnit = units.firstOrNull { u -> u.id == initUnitId }
+                        val rentAndCharges = initialUnit?.let { u -> u.nominalRent + u.serviceCharges } ?: 0.0
+                        val defaultDeposit = initialUnit?.nominalRent ?: 0.0
                         updateState {
                             it.copy(
                                 isLoading = false,
                                 availableUnits = units,
                                 selectedUnit = initialUnit,
-                                totalMonthlyRentAndCharges = initialUnit?.let { u -> u.nominalRent + u.serviceCharges } ?: 0.0
+                                draftDepositAmount = if (it.draftDepositAmount == "0.0" && defaultDeposit > 0.0) defaultDeposit.toString() else it.draftDepositAmount,
+                                totalMonthlyRentAndCharges = rentAndCharges
                             )
+                        }
+
+                        // If opened with pre-selected unit and no draft exists yet, initialize draft on backend
+                        if (intent.draftLeaseId == null && !initUnitId.isNullOrBlank()) {
+                            initLeaseDraftUseCase(session.token, initUnitId)
+                                .onSuccess { lease ->
+                                    updateState { s ->
+                                        val updated = s.copy(draftLeaseId = lease.id)
+                                        recalculateCompletionAndStatuses(updated, completed = WizardStep.UNIT)
+                                    }
+                                }
+                                .onFailure { err ->
+                                    updateState { it.copy(errorMessage = err.message) }
+                                }
                         }
                     }
                     .onFailure { error ->
@@ -175,11 +217,11 @@ class LeaseWizardScreenViewModel(
         if (state.leaseStatus == LeaseStatusDto.SIGNED_ACTIVE) {
             return WizardStep.INVENTORY
         }
+        val hasUnit = state.draftResidenceUnitId.isNotBlank() && state.draftLeaseId != null
+        if (!hasUnit) return WizardStep.UNIT
+
         val hasTenant = state.draftTenantId != null || (state.isInlineTenant && state.inlineFirstName.isNotBlank())
         if (!hasTenant) return WizardStep.TENANT
-
-        val hasUnit = state.draftResidenceUnitId.isNotBlank()
-        if (!hasUnit) return WizardStep.UNIT
 
         val hasFinancials = (state.draftDepositAmount.toDoubleOrNull() ?: 0.0) >= 0.0 && state.draftPaymentFrequency.isNotBlank()
         if (!hasFinancials) return WizardStep.FINANCIALS
@@ -190,7 +232,17 @@ class LeaseWizardScreenViewModel(
         return WizardStep.SIGNATURE
     }
 
+    fun isStepAccessible(step: WizardStep): Boolean {
+        // Step 1 (UNIT) is always accessible
+        if (step == WizardStep.UNIT) return true
+        // Steps 2 to 7 are strictly locked until UNIT is selected and saved on backend (draftLeaseId != null)
+        val state = uiState.value
+        return state.draftLeaseId != null && state.draftResidenceUnitId.isNotBlank()
+    }
+
     fun isStepEditable(step: WizardStep, leaseStatus: LeaseStatusDto?): Boolean {
+        if (!isStepAccessible(step)) return false
+
         if (leaseStatus == null || leaseStatus == LeaseStatusDto.DRAFT ||
             leaseStatus == LeaseStatusDto.PENDING_PAYMENT ||
             leaseStatus == LeaseStatusDto.DOWN_PAYMENT_PAID ||
@@ -202,10 +254,10 @@ class LeaseWizardScreenViewModel(
 
         if (leaseStatus == LeaseStatusDto.SIGNED_ACTIVE) {
             // Already signed lease: UNIT, TENANT, FINANCIALS, TIMELINE are strictly locked.
-            // INVENTORY is editable (état des lieux d'entrée/sortie, relevés de compteur, remise des clés).
+            // INVENTORY is editable.
             // GUARANTOR is editable only if no guarantor was previously attached.
             return when (step) {
-                WizardStep.TENANT, WizardStep.UNIT, WizardStep.FINANCIALS, WizardStep.TIMELINE, WizardStep.SIGNATURE -> false
+                WizardStep.UNIT, WizardStep.TENANT, WizardStep.FINANCIALS, WizardStep.TIMELINE, WizardStep.SIGNATURE -> false
                 WizardStep.INVENTORY -> true
                 WizardStep.GUARANTOR -> uiState.value.existingGuarantors.isEmpty() && uiState.value.selectedGuarantorId == null
             }
@@ -271,35 +323,69 @@ class LeaseWizardScreenViewModel(
         }
     }
 
+    private fun isValidEmail(email: String): Boolean {
+        val emailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
+        return email.isNotBlank() && emailRegex.matches(email)
+    }
+
     private fun submitTenantStep() {
         val state = uiState.value
-        val hasTenant = if (state.isInlineTenant) {
-            state.inlineFirstName.isNotBlank() && state.inlineLastName.isNotBlank() && state.inlineEmail.isNotBlank()
-        } else {
-            state.draftTenantId != null
-        }
+        if (state.isInlineTenant) {
+            var hasError = false
+            var firstNameErr: String? = null
+            var lastNameErr: String? = null
+            var emailErr: String? = null
 
-        if (!hasTenant) {
-            updateState { it.copy(errorMessage = "Veuillez sélectionner ou renseigner un locataire.") }
-            return
-        }
+            if (state.inlineFirstName.isBlank()) {
+                firstNameErr = "Le prénom est obligatoire."
+                hasError = true
+            }
+            if (state.inlineLastName.isBlank()) {
+                lastNameErr = "Le nom est obligatoire."
+                hasError = true
+            }
+            if (state.inlineEmail.isBlank()) {
+                emailErr = "L'adresse email est obligatoire."
+                hasError = true
+            } else if (!isValidEmail(state.inlineEmail.trim())) {
+                emailErr = "Format d'adresse email invalide."
+                hasError = true
+            }
 
-        val inlineReq = if (state.isInlineTenant) {
-            InlineTenantCreateRequest(
+            if (hasError) {
+                updateState {
+                    it.copy(
+                        inlineFirstNameError = firstNameErr,
+                        inlineLastNameError = lastNameErr,
+                        inlineEmailError = emailErr,
+                        errorMessage = "Veuillez corriger les erreurs du formulaire."
+                    )
+                }
+                return
+            }
+
+            val inlineReq = InlineTenantCreateRequest(
                 firstName = state.inlineFirstName.trim(),
                 lastName = state.inlineLastName.trim(),
                 email = state.inlineEmail.trim(),
                 phone = state.inlinePhone.trim().ifBlank { null }
             )
-        } else null
-
-        val payload = LeaseDraftStepUpdateRequest(
-            step = "TENANT",
-            tenantId = state.draftTenantId,
-            inlineTenant = inlineReq
-        )
-
-        saveStep(payload, nextStep = WizardStep.GUARANTOR, completedStep = WizardStep.TENANT)
+            val payload = LeaseDraftStepUpdateRequest(
+                step = "TENANT",
+                inlineTenant = inlineReq
+            )
+            saveStep(payload, nextStep = WizardStep.GUARANTOR, completedStep = WizardStep.TENANT)
+        } else {
+            if (state.draftTenantId == null) {
+                updateState { it.copy(errorMessage = "Veuillez sélectionner un locataire existant.") }
+                return
+            }
+            val payload = LeaseDraftStepUpdateRequest(
+                step = "TENANT",
+                tenantId = state.draftTenantId
+            )
+            saveStep(payload, nextStep = WizardStep.GUARANTOR, completedStep = WizardStep.TENANT)
+        }
     }
 
     private fun handleSelectExistingGuarantor(guarantor: GuarantorDto?) {
@@ -344,14 +430,46 @@ class LeaseWizardScreenViewModel(
             guarantor = null
         )
         updateState { it.copy(isGuarantorSkipped = true) }
-        saveStep(payload, nextStep = WizardStep.UNIT, completedStep = WizardStep.GUARANTOR, markSkipped = true)
+        saveStep(payload, nextStep = WizardStep.FINANCIALS, completedStep = WizardStep.GUARANTOR, markSkipped = true)
     }
 
     private fun submitGuarantorStep() {
         val state = uiState.value
-        val payload = if (state.isReusingGuarantor && state.selectedGuarantorId != null) {
-            LeaseDraftStepUpdateRequest(step = "GUARANTOR", guarantorId = state.selectedGuarantorId)
+        if (state.isReusingGuarantor && state.selectedGuarantorId != null) {
+            val payload = LeaseDraftStepUpdateRequest(step = "GUARANTOR", guarantorId = state.selectedGuarantorId)
+            updateState { it.copy(isGuarantorSkipped = false) }
+            saveStep(payload, nextStep = WizardStep.FINANCIALS, completedStep = WizardStep.GUARANTOR)
         } else {
+            var hasError = false
+            var lNameErr: String? = null
+            var fNameErr: String? = null
+            var phoneErr: String? = null
+
+            if (state.guarantorLastName.isBlank()) {
+                lNameErr = "Le nom du garant est obligatoire."
+                hasError = true
+            }
+            if (state.guarantorFirstName.isBlank()) {
+                fNameErr = "Le prénom du garant est obligatoire."
+                hasError = true
+            }
+            if (state.guarantorPhone.isBlank()) {
+                phoneErr = "Le téléphone du garant est obligatoire."
+                hasError = true
+            }
+
+            if (hasError) {
+                updateState {
+                    it.copy(
+                        guarantorLastNameError = lNameErr,
+                        guarantorFirstNameError = fNameErr,
+                        guarantorPhoneError = phoneErr,
+                        errorMessage = "Veuillez renseigner tous les champs obligatoires du garant."
+                    )
+                }
+                return
+            }
+
             val g = GuarantorDto(
                 lastName = state.guarantorLastName.trim(),
                 firstName = state.guarantorFirstName.trim(),
@@ -361,10 +479,10 @@ class LeaseWizardScreenViewModel(
                 jobTitle = state.guarantorJobTitle.trim().ifBlank { null },
                 employer = state.guarantorEmployer.trim().ifBlank { null }
             )
-            LeaseDraftStepUpdateRequest(step = "GUARANTOR", guarantor = g)
+            val payload = LeaseDraftStepUpdateRequest(step = "GUARANTOR", guarantor = g)
+            updateState { it.copy(isGuarantorSkipped = false) }
+            saveStep(payload, nextStep = WizardStep.FINANCIALS, completedStep = WizardStep.GUARANTOR)
         }
-        updateState { it.copy(isGuarantorSkipped = false) }
-        saveStep(payload, nextStep = WizardStep.UNIT, completedStep = WizardStep.GUARANTOR)
     }
 
     private fun handleSelectUnit(unitId: String) {
@@ -388,9 +506,14 @@ class LeaseWizardScreenViewModel(
             return
         }
 
-        // If draft is not yet initialized on backend, initialize it
         val session = sessionStorage?.loadSession()
-        if (state.draftLeaseId == null && session != null) {
+        if (session == null) {
+            updateState { it.copy(errorMessage = "Session expirée. Veuillez vous reconnecter.") }
+            return
+        }
+
+        // If draft is not yet initialized on backend, initialize it
+        if (state.draftLeaseId == null) {
             viewModelScope.launch {
                 updateState { it.copy(isSavingStep = true, errorMessage = null) }
                 initLeaseDraftUseCase(session.token, state.draftResidenceUnitId)
@@ -399,7 +522,7 @@ class LeaseWizardScreenViewModel(
                             val updated = s.copy(
                                 isSavingStep = false,
                                 draftLeaseId = lease.id,
-                                currentStep = WizardStep.FINANCIALS
+                                currentStep = WizardStep.TENANT
                             )
                             recalculateCompletionAndStatuses(updated, completed = WizardStep.UNIT)
                         }
@@ -409,22 +532,35 @@ class LeaseWizardScreenViewModel(
                     }
             }
         } else {
+            // Update residence unit on existing draft
             val payload = LeaseDraftStepUpdateRequest(
                 step = "UNIT",
                 residenceUnitId = state.draftResidenceUnitId
             )
-            saveStep(payload, nextStep = WizardStep.FINANCIALS, completedStep = WizardStep.UNIT)
+            saveStep(payload, nextStep = WizardStep.TENANT, completedStep = WizardStep.UNIT)
         }
     }
 
     private fun submitFinancialsStep() {
         val state = uiState.value
+        val depositVal = state.draftDepositAmount.toDoubleOrNull()
+        if (depositVal == null || depositVal < 0.0) {
+            updateState { it.copy(errorMessage = "Le montant de la caution doit être supérieur ou égal à 0.") }
+            return
+        }
+
+        val advanceVal = state.draftAdvancePaymentAmount.toDoubleOrNull()
+        if (advanceVal == null || advanceVal < 0.0) {
+            updateState { it.copy(errorMessage = "Le montant de l'acompte doit être supérieur ou égal à 0.") }
+            return
+        }
+
         val payload = LeaseDraftStepUpdateRequest(
             step = "FINANCIALS",
-            depositAmount = state.draftDepositAmount.toDoubleOrNull() ?: 0.0,
+            depositAmount = depositVal,
             paymentFrequency = state.draftPaymentFrequency,
             advanceMonths = if (state.draftPaymentFrequency == "ANNUAL") (state.draftAdvanceMonths.toIntOrNull() ?: 12) else 1,
-            advancePaymentAmount = state.draftAdvancePaymentAmount.toDoubleOrNull() ?: 0.0
+            advancePaymentAmount = advanceVal
         )
         saveStep(payload, nextStep = WizardStep.TIMELINE, completedStep = WizardStep.FINANCIALS)
     }
@@ -443,9 +579,16 @@ class LeaseWizardScreenViewModel(
     private fun submitTimelineStep() {
         val state = uiState.value
         if (state.draftStartDate.isBlank() || state.draftEndDate.isBlank()) {
-            updateState { it.copy(errorMessage = "Veuillez sélectionner la période du bail.") }
+            updateState { it.copy(errorMessage = "Veuillez sélectionner la date de début et la date de fin du bail.") }
             return
         }
+
+        val duration = calculateDurationMonths(state.draftStartDate, state.draftEndDate)
+        if (duration <= 0) {
+            updateState { it.copy(errorMessage = "La date de fin doit être postérieure à la date de début.") }
+            return
+        }
+
         val payload = LeaseDraftStepUpdateRequest(
             step = "TIMELINE",
             startDate = state.draftStartDate,
@@ -504,39 +647,7 @@ class LeaseWizardScreenViewModel(
         }
 
         if (draftId == null) {
-            // If draftId doesn't exist yet, we cache in state and proceed, or init draft if unit is selected
-            val unitId = uiState.value.draftResidenceUnitId
-            if (unitId.isNotBlank()) {
-                viewModelScope.launch {
-                    updateState { it.copy(isSavingStep = true, errorMessage = null) }
-                    initLeaseDraftUseCase(session.token, unitId)
-                        .onSuccess { lease ->
-                            saveLeaseStepUseCase(session.token, lease.id, payload)
-                                .onSuccess {
-                                    updateState { s ->
-                                        val updated = s.copy(
-                                            isSavingStep = false,
-                                            draftLeaseId = lease.id,
-                                            currentStep = nextStep
-                                        )
-                                        recalculateCompletionAndStatuses(updated, completed = completedStep, isSkipped = markSkipped)
-                                    }
-                                }
-                                .onFailure { err ->
-                                    updateState { it.copy(isSavingStep = false, errorMessage = err.message) }
-                                }
-                        }
-                        .onFailure { err ->
-                            updateState { it.copy(isSavingStep = false, errorMessage = err.message) }
-                        }
-                }
-            } else {
-                // Just move state forward in memory; will save when unitId is assigned or initialized
-                updateState { s ->
-                    val updated = s.copy(currentStep = nextStep)
-                    recalculateCompletionAndStatuses(updated, completed = completedStep, isSkipped = markSkipped)
-                }
-            }
+            updateState { it.copy(errorMessage = "Le contrat de bail brouillon n'a pas encore été initialisé (Logement requis).") }
             return
         }
 
@@ -568,15 +679,25 @@ class LeaseWizardScreenViewModel(
             newStatuses[completed] = if (isSkipped) WizardStepStatus.SKIPPED else WizardStepStatus.COMPLETED
         }
 
+        val isUnitSaved = state.draftLeaseId != null && state.draftResidenceUnitId.isNotBlank()
         val hasTenant = (state.draftTenantId != null) || (state.isInlineTenant && state.inlineFirstName.isNotBlank())
-        val hasUnit = state.draftResidenceUnitId.isNotBlank()
-        val hasFinancials = (state.draftDepositAmount.toDoubleOrNull() ?: 0.0) >= 0.0 && state.draftPaymentFrequency.isNotBlank()
-        val hasDates = state.draftStartDate.isNotBlank() && state.draftEndDate.isNotBlank()
+        val hasFinancials = (state.draftDepositAmount.toDoubleOrNull() ?: -1.0) >= 0.0 && state.draftPaymentFrequency.isNotBlank()
+        val hasDates = state.draftStartDate.isNotBlank() && state.draftEndDate.isNotBlank() && state.computedDurationMonths > 0
         
-        // Dynamic Lock on SIGNATURE: Only unlock if required steps (TENANT, UNIT, FINANCIALS, TIMELINE) are complete
-        // and for already signed leases, canSign is false.
+        // If unit is not saved yet, steps 2 to 7 are locked
+        WizardStep.entries.forEach { step ->
+            if (step != WizardStep.UNIT) {
+                if (!isUnitSaved) {
+                    newStatuses[step] = WizardStepStatus.LOCKED
+                } else if (newStatuses[step] == WizardStepStatus.LOCKED) {
+                    newStatuses[step] = WizardStepStatus.UPCOMING
+                }
+            }
+        }
+
+        // Dynamic Lock on SIGNATURE: Only unlock if required steps (UNIT, TENANT, FINANCIALS, TIMELINE) are complete
         val isAlreadySigned = state.leaseStatus == LeaseStatusDto.SIGNED_ACTIVE
-        val canSign = !isAlreadySigned && hasTenant && hasUnit && hasFinancials && hasDates && (state.draftLeaseId != null)
+        val canSign = !isAlreadySigned && isUnitSaved && hasTenant && hasFinancials && hasDates
 
         newStatuses[WizardStep.SIGNATURE] = when {
             isAlreadySigned -> WizardStepStatus.COMPLETED

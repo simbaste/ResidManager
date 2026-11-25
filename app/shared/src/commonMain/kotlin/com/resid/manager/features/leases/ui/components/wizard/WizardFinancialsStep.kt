@@ -53,7 +53,7 @@ fun WizardFinancialsStep(
     val focusManager = LocalFocusManager.current
 
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Étape 3 sur 4 : Conditions Financières", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+        Text("Étape 4 : Conditions Financières", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
 
         AmountTextField(
             value = draftDepositAmount,
