@@ -183,6 +183,14 @@ class LeaseWizardScreenViewModel(
             updateState { it.copy(isLoading = true, errorMessage = null) }
             loadLeaseDraftUseCase(token, residenceId, draftLeaseId)
                 .onSuccess { lease ->
+                    val tenantUser = lease.tenant
+                    val tenantFullName = tenantUser?.let { "${it.firstName ?: ""} ${it.lastName ?: ""}".trim() } ?: ""
+                    val tenantEmail = tenantUser?.email ?: ""
+                    val tenantPhone = tenantUser?.phone ?: ""
+
+                    // Also populate guarantor if present
+                    val existingG = lease.guarantor
+
                     updateState { state ->
                         val unit = state.availableUnits.firstOrNull { it.id == lease.residenceUnitId }
                         val rentAndCharges = unit?.let { u -> u.nominalRent + u.serviceCharges } ?: 0.0
@@ -191,6 +199,11 @@ class LeaseWizardScreenViewModel(
                             draftLeaseId = lease.id,
                             leaseStatus = lease.status,
                             draftTenantId = lease.tenantId,
+                            draftTenantName = tenantFullName,
+                            draftTenantEmail = tenantEmail,
+                            draftTenantPhone = tenantPhone,
+                            userQuery = tenantFullName,
+                            isInlineTenant = false,
                             draftResidenceUnitId = lease.residenceUnitId,
                             selectedUnit = unit,
                             draftDepositAmount = (lease.depositAmount ?: 0.0).toString(),
@@ -198,12 +211,32 @@ class LeaseWizardScreenViewModel(
                             draftAdvanceMonths = (lease.advanceMonths ?: 1).toString(),
                             draftStartDate = lease.startDate ?: "",
                             draftEndDate = lease.endDate ?: "",
-                            totalMonthlyRentAndCharges = rentAndCharges
+                            totalMonthlyRentAndCharges = rentAndCharges,
+                            // Guarantor state
+                            selectedGuarantorId = existingG?.id,
+                            isReusingGuarantor = existingG != null,
+                            guarantorLastName = existingG?.lastName ?: state.guarantorLastName,
+                            guarantorFirstName = existingG?.firstName ?: state.guarantorFirstName,
+                            guarantorPhone = existingG?.phone ?: state.guarantorPhone,
+                            guarantorMonthlySalary = existingG?.monthlySalary?.toString() ?: state.guarantorMonthlySalary,
+                            guarantorRelationship = existingG?.relationship ?: state.guarantorRelationship,
+                            guarantorJobTitle = existingG?.jobTitle ?: state.guarantorJobTitle,
+                            guarantorEmployer = existingG?.employer ?: state.guarantorEmployer
                         )
                         val withCalculations = recalculateCompletionAndStatuses(updated)
                         // Smart Resume: Open first uncompleted required step, or SIGNATURE if all prerequisite steps are done
                         val smartStep = determineInitialStep(withCalculations)
                         withCalculations.copy(currentStep = smartStep)
+                    }
+
+                    // If tenant exists, also fetch potential guarantors list for selection
+                    if (lease.tenantId != null) {
+                        fetchTenantGuarantorsUseCase(token, lease.tenantId)
+                            .onSuccess { guarantors ->
+                                updateState { s ->
+                                    s.copy(existingGuarantors = guarantors)
+                                }
+                            }
                     }
                 }
                 .onFailure { error ->
@@ -654,11 +687,21 @@ class LeaseWizardScreenViewModel(
         viewModelScope.launch {
             updateState { it.copy(isSavingStep = true, errorMessage = null) }
             saveLeaseStepUseCase(session.token, draftId, payload)
-                .onSuccess {
+                .onSuccess { updatedLease ->
+                    val tenantUser = updatedLease.tenant
+                    val tenantFullName = tenantUser?.let { "${it.firstName ?: ""} ${it.lastName ?: ""}".trim() }
+                    val tenantEmail = tenantUser?.email
+                    val tenantPhone = tenantUser?.phone
+
                     updateState { s ->
                         val updated = s.copy(
                             isSavingStep = false,
-                            currentStep = nextStep
+                            currentStep = nextStep,
+                            draftTenantId = updatedLease.tenantId ?: s.draftTenantId,
+                            draftTenantName = tenantFullName ?: s.draftTenantName,
+                            draftTenantEmail = tenantEmail ?: s.draftTenantEmail,
+                            draftTenantPhone = tenantPhone ?: s.draftTenantPhone,
+                            userQuery = tenantFullName ?: s.userQuery
                         )
                         recalculateCompletionAndStatuses(updated, completed = completedStep, isSkipped = markSkipped)
                     }
@@ -693,6 +736,20 @@ class LeaseWizardScreenViewModel(
                     newStatuses[step] = WizardStepStatus.UPCOMING
                 }
             }
+        }
+
+        // Auto-mark completed steps if data exists
+        if (isUnitSaved && newStatuses[WizardStep.UNIT] != WizardStepStatus.SKIPPED) {
+            newStatuses[WizardStep.UNIT] = WizardStepStatus.COMPLETED
+        }
+        if (hasTenant && newStatuses[WizardStep.TENANT] != WizardStepStatus.SKIPPED) {
+            newStatuses[WizardStep.TENANT] = WizardStepStatus.COMPLETED
+        }
+        if (hasFinancials && newStatuses[WizardStep.FINANCIALS] != WizardStepStatus.SKIPPED) {
+            newStatuses[WizardStep.FINANCIALS] = WizardStepStatus.COMPLETED
+        }
+        if (hasDates && newStatuses[WizardStep.TIMELINE] != WizardStepStatus.SKIPPED) {
+            newStatuses[WizardStep.TIMELINE] = WizardStepStatus.COMPLETED
         }
 
         // Dynamic Lock on SIGNATURE: Only unlock if required steps (UNIT, TENANT, FINANCIALS, TIMELINE) are complete

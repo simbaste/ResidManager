@@ -36,6 +36,7 @@ import com.resid.manager.dto.LeasePaymentRequest
 import com.resid.manager.dto.LeaseStatusDto
 import com.resid.manager.dto.LeaseUpdateRequest
 import com.resid.manager.dto.TransactionCategoryDto
+import com.resid.manager.dto.UserDto
 import io.ktor.http.HttpStatusCode
 import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.and
@@ -561,7 +562,8 @@ object LeaseService {
             paymentFrequencyDto = newLease.paymentFrequency?.convert(),
             advanceMonths = newLease.advanceMonths,
             payments = payments,
-            guarantor = guarantorDto
+            guarantor = guarantorDto,
+            tenant = newLease.tenant?.toDto()
         )
     }
 
@@ -712,7 +714,9 @@ object LeaseService {
             updatedAt = dbLease.updatedAt.toString(),
             paymentFrequencyDto = dbLease.paymentFrequency?.convert(),
             advanceMonths = dbLease.advanceMonths,
-            payments = previousPayments
+            payments = previousPayments,
+            tenant = dbLease.tenant?.toDto(),
+            guarantor = dbLease.guarantor?.toDto()
         )
     }
 
@@ -758,6 +762,8 @@ object LeaseService {
                     )
                 }
 
+                val tenantDto = lease.tenant?.toDto()
+
                 LeaseDto(
                     id = lease.id.value.toString(),
                     residenceUnitId = lease.residenceUnit.id.value.toString(),
@@ -772,7 +778,8 @@ object LeaseService {
                     paymentFrequencyDto = lease.paymentFrequency?.convert(),
                     advanceMonths = lease.advanceMonths,
                     payments = previousPayments,
-                    guarantor = guarantorDto
+                    guarantor = guarantorDto,
+                    tenant = tenantDto
                 )
             }
     }
@@ -920,7 +927,9 @@ object LeaseService {
             updatedAt = dbLease.updatedAt.toString(),
             paymentFrequencyDto = dbLease.paymentFrequency?.convert(),
             advanceMonths = dbLease.advanceMonths,
-            payments = previousPayments
+            payments = previousPayments,
+            tenant = dbLease.tenant?.toDto(),
+            guarantor = dbLease.guarantor?.toDto()
         )
     }
 
@@ -1090,6 +1099,20 @@ object LeaseService {
         )
     }
 
+    private fun User.toDto(): UserDto {
+        return UserDto(
+            id = this.id.value.toString(),
+            email = this.email,
+            firstName = this.firstName,
+            lastName = this.lastName,
+            phone = this.phone,
+            birthDate = this.birthDate?.toString(),
+            avatarUrl = this.avatarUrl,
+            createdAt = this.createdAt.toString(),
+            updatedAt = this.updatedAt.toString()
+        )
+    }
+
     private fun Lease.toDto(): LeaseDto {
         val leaseEntityId = this.id.value
         val previousPayments = FinancialTransaction.find {
@@ -1119,7 +1142,8 @@ object LeaseService {
             paymentFrequencyDto = this.paymentFrequency?.convert(),
             advanceMonths = this.advanceMonths,
             payments = previousPayments,
-            guarantor = this.guarantor?.toDto()
+            guarantor = this.guarantor?.toDto(),
+            tenant = this.tenant?.toDto()
         )
     }
 }

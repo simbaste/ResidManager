@@ -48,7 +48,8 @@ data class LeaseDto(
     val paymentFrequencyDto: PaymentFrequencyDto? = PaymentFrequencyDto.MONTHLY,
     val advanceMonths: Int? = 1,
     val payments: List<LeasePaymentDto> = emptyList(),
-    val guarantor: GuarantorDto? = null
+    val guarantor: GuarantorDto? = null,
+    val tenant: UserDto? = null
 )
 
 @Serializable

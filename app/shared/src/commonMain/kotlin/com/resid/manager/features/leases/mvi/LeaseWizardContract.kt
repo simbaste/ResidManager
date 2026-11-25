@@ -37,6 +37,8 @@ data class LeaseWizardUiState(
     val isInlineTenant: Boolean = false,
     val draftTenantId: String? = null,
     val draftTenantName: String = "",
+    val draftTenantEmail: String = "",
+    val draftTenantPhone: String = "",
     val inlineFirstName: String = "",
     val inlineLastName: String = "",
     val inlineEmail: String = "",
