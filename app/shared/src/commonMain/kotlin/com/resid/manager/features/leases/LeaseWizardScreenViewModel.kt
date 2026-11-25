@@ -191,6 +191,10 @@ class LeaseWizardScreenViewModel(
                     // Also populate guarantor if present
                     val existingG = lease.guarantor
 
+                    val duration = if (!lease.startDate.isNullOrBlank() && !lease.endDate.isNullOrBlank()) {
+                        calculateDurationMonths(lease.startDate, lease.endDate)
+                    } else -1
+
                     updateState { state ->
                         val unit = state.availableUnits.firstOrNull { it.id == lease.residenceUnitId }
                         val rentAndCharges = unit?.let { u -> u.nominalRent + u.serviceCharges } ?: 0.0
@@ -206,11 +210,12 @@ class LeaseWizardScreenViewModel(
                             isInlineTenant = false,
                             draftResidenceUnitId = lease.residenceUnitId,
                             selectedUnit = unit,
-                            draftDepositAmount = (lease.depositAmount ?: 0.0).toString(),
+                            draftDepositAmount = (lease.depositAmount ?: (unit?.nominalRent ?: 0.0)).toString(),
                             draftPaymentFrequency = lease.paymentFrequencyDto?.name ?: "MONTHLY",
                             draftAdvanceMonths = (lease.advanceMonths ?: 1).toString(),
                             draftStartDate = lease.startDate ?: "",
                             draftEndDate = lease.endDate ?: "",
+                            computedDurationMonths = duration,
                             totalMonthlyRentAndCharges = rentAndCharges,
                             // Guarantor state
                             selectedGuarantorId = existingG?.id,
@@ -234,7 +239,23 @@ class LeaseWizardScreenViewModel(
                         fetchTenantGuarantorsUseCase(token, lease.tenantId)
                             .onSuccess { guarantors ->
                                 updateState { s ->
-                                    s.copy(existingGuarantors = guarantors)
+                                    val firstG = guarantors.firstOrNull()
+                                    val currentGId = s.selectedGuarantorId ?: firstG?.id
+                                    val activeG = guarantors.firstOrNull { it.id == currentGId } ?: firstG
+                                    s.copy(
+                                        existingGuarantors = guarantors,
+                                        selectedGuarantorId = currentGId,
+                                        isReusingGuarantor = s.isReusingGuarantor || (guarantors.isNotEmpty() && s.guarantorLastName.isBlank()),
+                                        guarantorLastName = if (s.guarantorLastName.isBlank()) (activeG?.lastName ?: "") else s.guarantorLastName,
+                                        guarantorFirstName = if (s.guarantorFirstName.isBlank()) (activeG?.firstName ?: "") else s.guarantorFirstName,
+                                        guarantorPhone = if (s.guarantorPhone.isBlank()) (activeG?.phone ?: "") else s.guarantorPhone,
+                                        guarantorMonthlySalary = if (s.guarantorMonthlySalary.isBlank()) (activeG?.monthlySalary?.toString() ?: "") else s.guarantorMonthlySalary,
+                                        guarantorRelationship = if (s.guarantorRelationship.isBlank()) (activeG?.relationship ?: "") else s.guarantorRelationship,
+                                        guarantorJobTitle = if (s.guarantorJobTitle.isBlank()) (activeG?.jobTitle ?: "") else s.guarantorJobTitle,
+                                        guarantorEmployer = if (s.guarantorEmployer.isBlank()) (activeG?.employer ?: "") else s.guarantorEmployer
+                                    ).let { recalculated ->
+                                        recalculateCompletionAndStatuses(recalculated)
+                                    }
                                 }
                             }
                     }
@@ -256,10 +277,10 @@ class LeaseWizardScreenViewModel(
         val hasTenant = state.draftTenantId != null || (state.isInlineTenant && state.inlineFirstName.isNotBlank())
         if (!hasTenant) return WizardStep.TENANT
 
-        val hasFinancials = (state.draftDepositAmount.toDoubleOrNull() ?: 0.0) >= 0.0 && state.draftPaymentFrequency.isNotBlank()
+        val hasFinancials = (state.draftDepositAmount.toDoubleOrNull() ?: -1.0) >= 0.0 && state.draftPaymentFrequency.isNotBlank()
         if (!hasFinancials) return WizardStep.FINANCIALS
 
-        val hasDates = state.draftStartDate.isNotBlank() && state.draftEndDate.isNotBlank()
+        val hasDates = state.draftStartDate.isNotBlank() && state.draftEndDate.isNotBlank() && state.computedDurationMonths > 0
         if (!hasDates) return WizardStep.TIMELINE
 
         return WizardStep.SIGNATURE
@@ -745,11 +766,30 @@ class LeaseWizardScreenViewModel(
         if (hasTenant && newStatuses[WizardStep.TENANT] != WizardStepStatus.SKIPPED) {
             newStatuses[WizardStep.TENANT] = WizardStepStatus.COMPLETED
         }
+        
+        // Guarantor (Optional):
+        // If guarantor info is filled or guarantor exists on lease, mark COMPLETED.
+        // If empty but later steps are filled, mark as SKIPPED so it never blocks.
+        val hasGuarantor = state.selectedGuarantorId != null || state.guarantorLastName.isNotBlank()
+        val laterStepsFilled = hasFinancials || hasDates
+        if (hasGuarantor) {
+            if (newStatuses[WizardStep.GUARANTOR] != WizardStepStatus.SKIPPED) {
+                newStatuses[WizardStep.GUARANTOR] = WizardStepStatus.COMPLETED
+            }
+        } else if (state.isGuarantorSkipped || laterStepsFilled) {
+            newStatuses[WizardStep.GUARANTOR] = WizardStepStatus.SKIPPED
+        }
+
         if (hasFinancials && newStatuses[WizardStep.FINANCIALS] != WizardStepStatus.SKIPPED) {
             newStatuses[WizardStep.FINANCIALS] = WizardStepStatus.COMPLETED
         }
         if (hasDates && newStatuses[WizardStep.TIMELINE] != WizardStepStatus.SKIPPED) {
             newStatuses[WizardStep.TIMELINE] = WizardStepStatus.COMPLETED
+        }
+
+        // Inventory (Optional): If timeline is filled, mark inventory as SKIPPED unless already completed
+        if (hasDates && newStatuses[WizardStep.INVENTORY] != WizardStepStatus.COMPLETED) {
+            newStatuses[WizardStep.INVENTORY] = WizardStepStatus.SKIPPED
         }
 
         // Dynamic Lock on SIGNATURE: Only unlock if required steps (UNIT, TENANT, FINANCIALS, TIMELINE) are complete

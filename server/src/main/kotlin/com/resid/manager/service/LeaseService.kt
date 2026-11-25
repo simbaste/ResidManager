@@ -157,6 +157,16 @@ object LeaseService {
                     }
                 }
                 dbLease.tenant = dbTenant
+
+                // If lease has no guarantor yet, check if this tenant already has a registered guarantor and auto-link it
+                if (dbLease.guarantor == null) {
+                    val existingGuarantor = Guarantor.find { Guarantors.tenantId eq dbTenant.id }
+                        .orderBy(Guarantors.updatedAt to org.jetbrains.exposed.sql.SortOrder.DESC)
+                        .firstOrNull()
+                    if (existingGuarantor != null) {
+                        dbLease.guarantor = existingGuarantor
+                    }
+                }
             }
             "GUARANTOR" -> {
                 if (request.guarantorId != null) {
