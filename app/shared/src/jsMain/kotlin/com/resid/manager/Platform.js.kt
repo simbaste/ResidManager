@@ -17,10 +17,10 @@ actual fun getPlatform(): Platform = JsPlatform()
 
 actual fun getBaseUrl(): String {
     val hostname = window.location.hostname
-    return if (hostname == "localhost" || hostname == "127.0.0.1" || hostname == "0.0.0.0") {
-        "http://localhost:8081"
-    } else {
-        "https://residmanager-api-1043005566320.europe-west1.run.app"
+    return when {
+        hostname in listOf("localhost", "127.0.0.1", "0.0.0.0") -> "http://localhost:8081"
+        hostname.contains("test") -> "https://residmanager-api-test-1043005566320.europe-west1.run.app"
+        else -> "https://residmanager-api-1043005566320.europe-west1.run.app"
     }
 }
 

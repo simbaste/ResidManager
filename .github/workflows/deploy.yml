@@ -139,4 +139,5 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.GCP_SA_KEY }}
           projectId: gen-lang-client-0297820049
+          target: app
           channelId: live

@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "gen-lang-client-0297820049"
+  },
+  "targets": {
+    "gen-lang-client-0297820049": {
+      "hosting": {
+        "app": [
+          "gen-lang-client-0297820049"
+        ],
+        "test": [
+          "residmanager-test"
+        ]
+      }
+    }
   }
 }
+
