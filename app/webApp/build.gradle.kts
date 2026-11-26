@@ -17,7 +17,7 @@ kotlin {
                 }
             }
             webpackTask {
-                sourceMaps = true
+                sourceMaps = false
             }
             runTask {
                 sourceMaps = true

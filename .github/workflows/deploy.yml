@@ -128,6 +128,8 @@ jobs:
           cache: 'gradle'
 
       - name: Build Web Production Distribution
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
         run: ./gradlew :app:webApp:composeCompatibilityBrowserDistribution --no-configuration-cache --no-daemon
 
       - name: Install Firebase CLI
