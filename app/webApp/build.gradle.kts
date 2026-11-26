@@ -9,8 +9,12 @@ plugins {
 
 kotlin {
     js {
+        compilerOptions {
+            sourceMap.set(false)
+        }
         browser {
             commonWebpackConfig {
+                sourceMaps = false
                 devServer = (devServer ?: KotlinWebpackConfig.DevServer()).apply {
                     port = 8080
                     open = false
