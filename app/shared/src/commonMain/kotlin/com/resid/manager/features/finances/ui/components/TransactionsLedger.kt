@@ -89,6 +89,7 @@ fun TransactionsLedger(
                     TransactionsTableContent(
                         transactions = transactions,
                         currencySymbol = currencySymbol,
+                        isSmallScreen = isSmallScreen,
                         onTraceabilityClick = onTraceabilityClick
                     )
                 } else {
@@ -108,6 +109,7 @@ fun TransactionsLedger(
 private fun TransactionsTableContent(
     transactions: List<FinanceTransactionDto>,
     currencySymbol: String,
+    isSmallScreen: Boolean,
     onTraceabilityClick: (Pair<String, String>) -> Unit,
 ) {
     Column(modifier = Modifier.padding(20.dp).fillMaxWidth()) {
@@ -153,7 +155,13 @@ private fun TransactionsTableContent(
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(
+                    if (!isSmallScreen) Modifier.verticalScroll(rememberScrollState()) else Modifier
+                )
+        ) {
             transactions.forEach { tx ->
                 val isIncome = tx.type == TransactionTypeDto.INCOME
 
@@ -224,39 +232,23 @@ private fun TransactionsCardsContent(
     isSmallScreen: Boolean,
     onTraceabilityClick: (Pair<String, String>) -> Unit,
 ) {
-    if (isSmallScreen) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            transactions.forEach { tx ->
-                TransactionCompactCard(
-                    tx = tx,
-                    currencySymbol = currencySymbol,
-                    onTraceabilityClick = onTraceabilityClick
-                )
-            }
-        }
-    } else {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            transactions.forEach { tx ->
-                TransactionCompactCard(
-                    tx = tx,
-                    currencySymbol = currencySymbol,
-                    onTraceabilityClick = onTraceabilityClick
-                )
-            }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .then(
+                if (!isSmallScreen) Modifier.verticalScroll(rememberScrollState()) else Modifier
+            ),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        transactions.forEach { tx ->
+            TransactionCompactCard(
+                tx = tx,
+                currencySymbol = currencySymbol,
+                onTraceabilityClick = onTraceabilityClick
+            )
         }
     }
-
 }
 
 @Composable

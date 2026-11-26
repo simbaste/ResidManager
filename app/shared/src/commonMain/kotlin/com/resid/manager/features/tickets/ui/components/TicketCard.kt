@@ -33,6 +33,7 @@ fun TicketCard(
     ticket: TicketDto,
     unitName: String,
     isAuthorized: Boolean,
+    currencySymbol: String,
     onTakeChargeClick: () -> Unit,
     onCloseClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -105,7 +106,7 @@ fun TicketCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text("Coût cumulé facturé :", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-                    Text("${ticket.interventionCost} XOF", style = MaterialTheme.typography.titleLarge, color = Color(0xFF006948))
+                    Text("${ticket.interventionCost} $currencySymbol", style = MaterialTheme.typography.titleLarge, color = Color(0xFF006948))
                 }
             }
 

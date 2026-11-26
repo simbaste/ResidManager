@@ -24,7 +24,8 @@ object PdfService {
 
     fun generateEcoPrintPdf(
         receipts: List<ElectricityReceiptItem>,
-        residenceName: String
+        residenceName: String,
+        currencyCode: String = "XOF"
     ): ByteArray {
         val out = ByteArrayOutputStream()
         
@@ -67,11 +68,11 @@ object PdfService {
                 
                 val consumption = stmt.newIndex - stmt.previousIndex
                 cell.addElement(Paragraph("• Consommation : $consumption kWh", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10f)))
-                cell.addElement(Paragraph("• Tarif unitaire : ${stmt.kWhPriceApplied} XOF / kWh", FontFactory.getFont(FontFactory.HELVETICA, 10f)))
+                cell.addElement(Paragraph("• Tarif unitaire : ${stmt.kWhPriceApplied} $currencyCode / kWh", FontFactory.getFont(FontFactory.HELVETICA, 10f)))
                 
                 cell.addElement(Paragraph("\n"))
                 
-                val footer = Paragraph("TOTAL DÛ : ${stmt.amountDue} XOF\nStatut : ${stmt.status.name}", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11f, Font.BOLD))
+                val footer = Paragraph("TOTAL DÛ : ${stmt.amountDue} $currencyCode\nStatut : ${stmt.status.name}", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11f, Font.BOLD))
                 footer.alignment = Element.ALIGN_RIGHT
                 cell.addElement(footer)
             } else {

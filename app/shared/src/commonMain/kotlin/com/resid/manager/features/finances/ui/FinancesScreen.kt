@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -233,7 +234,7 @@ fun FinancesContent(
 
                     // Zone B: Le Grand Livre des Transactions (Right Column, expands)
                     Column(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         FinancesFilterBar(
@@ -249,7 +250,7 @@ fun FinancesContent(
                             isSmallScreen = isSmallScreen,
                             currencySymbol = currencySymbol,
                             onTraceabilityClick = onTraceabilityClick,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().weight(1f)
                         )
                     }
                 }

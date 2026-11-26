@@ -508,7 +508,8 @@ object ResidenceService {
             )
         }
 
-        val pdfBytes = PdfService.generateEcoPrintPdf(statementsToPrint, dbResidence.name)
+        val currencyCode = dbResidence.currency.code.name
+        val pdfBytes = PdfService.generateEcoPrintPdf(statementsToPrint, dbResidence.name, currencyCode)
         pdfBytes to dbResidence.name
     }
 

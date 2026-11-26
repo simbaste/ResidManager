@@ -213,6 +213,7 @@ fun TicketsContent(
                         ticket = ticket,
                         unitName = matchedUnitName,
                         isAuthorized = isAuthorized,
+                        currencySymbol = uiState.currencySymbol,
                         onTakeChargeClick = { onTakeChargeClick(ticket.id) },
                         onCloseClick = { onCloseClick(ticket.id) }
                     )
