@@ -13,6 +13,8 @@ actual fun getPlatform(): Platform = AndroidPlatform()
 
 actual fun getBaseUrl(): String = "https://residmanager-api-1043005566320.europe-west1.run.app"
 
+actual fun getAppEnvironment(): AppEnvironment = AppEnvironment.PROD
+
 object AndroidAppContextHolder {
     var appContext: Context? = null
 }

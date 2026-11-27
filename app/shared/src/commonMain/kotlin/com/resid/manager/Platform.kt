@@ -12,5 +12,13 @@ expect fun getDefaultCountryCode(): String
 
 expect fun getCurrentEpochMillis(): Long
 
+enum class AppEnvironment {
+    DEV,
+    TEST,
+    PROD
+}
+
+expect fun getAppEnvironment(): AppEnvironment
+
 
 

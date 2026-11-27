@@ -3,8 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ResidManager</title>
+    <title>ResidManager - Gestion Immobilière</title>
+    <link id="app-favicon" rel="icon" type="image/svg+xml" href="favicon.svg">
     <link type="text/css" rel="stylesheet" href="styles.css">
+    <script>
+        (function() {
+            var host = window.location.hostname;
+            var favicon = document.getElementById('app-favicon');
+            if (host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0') {
+                if (favicon) favicon.href = 'favicon-dev.svg';
+                document.title = '[DEV] ResidManager';
+            } else if (host.indexOf('test') !== -1) {
+                if (favicon) favicon.href = 'favicon-test.svg';
+                document.title = '[TEST] ResidManager';
+            }
+        })();
+    </script>
 </head>
 <body style="text-align: center; align-content: center">
     <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 50 50" role="presentation">

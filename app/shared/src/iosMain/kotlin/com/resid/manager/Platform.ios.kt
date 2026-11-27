@@ -13,6 +13,8 @@ actual fun getPlatform(): Platform = IOSPlatform()
 
 actual fun getBaseUrl(): String = "https://residmanager-api-1043005566320.europe-west1.run.app"
 
+actual fun getAppEnvironment(): AppEnvironment = AppEnvironment.PROD
+
 class IOSSessionStorage : SessionStorage {
     private val tokenKey = "jwt_token"
     private val refreshTokenKey = "jwt_refresh_token"

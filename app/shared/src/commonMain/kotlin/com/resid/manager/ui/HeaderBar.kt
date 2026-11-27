@@ -71,6 +71,11 @@ fun HeaderBar(
             .background(MaterialTheme.colorScheme.surface)
             .padding(horizontal = 16.dp)
     ) {
+        // Barres obliques discriminantes (Rouge = Dev, Violet = Test, Rien = Prod)
+        com.resid.manager.ui.components.EnvironmentCornerRibbon(
+            modifier = Modifier.align(Alignment.TopStart)
+        )
+
         val windowSizeClass = WindowSizeClass.calculateFromSize(DpSize(maxWidth, maxHeight))
         val isMedium = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Medium
         val isLarge = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded

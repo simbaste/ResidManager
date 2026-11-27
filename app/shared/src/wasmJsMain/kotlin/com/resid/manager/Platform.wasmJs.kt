@@ -9,11 +9,19 @@ class WasmPlatform: Platform {
 actual fun getPlatform(): Platform = WasmPlatform()
 
 actual fun getBaseUrl(): String {
+    return when (getAppEnvironment()) {
+        AppEnvironment.DEV -> "http://localhost:8081"
+        AppEnvironment.TEST -> "https://residmanager-api-test-1043005566320.europe-west1.run.app"
+        AppEnvironment.PROD -> "https://residmanager-api-1043005566320.europe-west1.run.app"
+    }
+}
+
+actual fun getAppEnvironment(): AppEnvironment {
     val hostname = kotlinx.browser.window.location.hostname
     return when {
-        hostname in listOf("localhost", "127.0.0.1", "0.0.0.0") -> "http://localhost:8081"
-        hostname.contains("test") -> "https://residmanager-api-test-1043005566320.europe-west1.run.app"
-        else -> "https://residmanager-api-1043005566320.europe-west1.run.app"
+        hostname in listOf("localhost", "127.0.0.1", "0.0.0.0") -> AppEnvironment.DEV
+        hostname.contains("test") -> AppEnvironment.TEST
+        else -> AppEnvironment.PROD
     }
 }
 

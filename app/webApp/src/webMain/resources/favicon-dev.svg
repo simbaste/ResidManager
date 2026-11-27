@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="grad-dev" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EF4444"/>
+      <stop offset="100%" stop-color="#B91C1C"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded squircle Rouge -->
+  <rect width="64" height="64" rx="16" fill="url(#grad-dev)"/>
+
+  <!-- Apartment building icon -->
+  <path d="M22 14h20c1.1 0 2 .9 2 2v34H20V16c0-1.1.9-2 2-2zm-8 14h6v22h-6c-1.1 0-2-.9-2-2V30c0-1.1.9-2 2-2zm36 8h6c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2h-6V36z" fill="#FFFFFF"/>
+  <!-- Windows inside main building -->
+  <rect x="25" y="19" width="4" height="4" rx="0.8" fill="#B91C1C"/>
+  <rect x="35" y="19" width="4" height="4" rx="0.8" fill="#B91C1C"/>
+  <rect x="25" y="27" width="4" height="4" rx="0.8" fill="#B91C1C"/>
+  <rect x="35" y="27" width="4" height="4" rx="0.8" fill="#B91C1C"/>
+  <rect x="25" y="35" width="4" height="4" rx="0.8" fill="#B91C1C"/>
+  <rect x="35" y="35" width="4" height="4" rx="0.8" fill="#B91C1C"/>
+  <rect x="29" y="43" width="6" height="7" rx="1" fill="#B91C1C"/>
+
+  <!-- Left building windows -->
+  <rect x="15" y="33" width="3" height="3" rx="0.5" fill="#B91C1C"/>
+  <rect x="15" y="40" width="3" height="3" rx="0.5" fill="#B91C1C"/>
+
+  <!-- Right building windows -->
+  <rect x="46" y="41" width="3" height="3" rx="0.5" fill="#B91C1C"/>
+
+  <!-- Badge DEV -->
+  <rect x="4" y="4" width="22" height="10" rx="3" fill="#FFFFFF"/>
+  <text x="15" y="12" fill="#B91C1C" font-size="7" font-weight="900" font-family="sans-serif" text-anchor="middle">DEV</text>
+</svg>
