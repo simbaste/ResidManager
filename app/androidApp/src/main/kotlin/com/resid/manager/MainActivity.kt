@@ -14,6 +14,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         AndroidAppContextHolder.appContext = applicationContext
+        currentAndroidEnvironment = if (BuildConfig.APP_ENV == "TEST") {
+            AppEnvironment.TEST
+        } else {
+            AppEnvironment.PROD
+        }
         initKoin()
 
         setContent {

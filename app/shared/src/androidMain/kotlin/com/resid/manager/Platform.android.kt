@@ -11,9 +11,16 @@ class AndroidPlatform : Platform {
 
 actual fun getPlatform(): Platform = AndroidPlatform()
 
-actual fun getBaseUrl(): String = "https://residmanager-api-1043005566320.europe-west1.run.app"
+var currentAndroidEnvironment: AppEnvironment = AppEnvironment.PROD
 
-actual fun getAppEnvironment(): AppEnvironment = AppEnvironment.PROD
+actual fun getAppEnvironment(): AppEnvironment = currentAndroidEnvironment
+
+actual fun getBaseUrl(): String {
+    return when (getAppEnvironment()) {
+        AppEnvironment.TEST -> "https://residmanager-api-test-1043005566320.europe-west1.run.app"
+        else -> "https://residmanager-api-1043005566320.europe-west1.run.app"
+    }
+}
 
 object AndroidAppContextHolder {
     var appContext: Context? = null
